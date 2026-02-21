@@ -5,10 +5,10 @@ class GameScene extends Phaser.Scene {
     this.socket = io();
 
     // Jogador local 
-    this.player = this.add.rectangle(400, 300, 32, 32, 0x4fc3f7);
+    this.player = this.add.rectangle(400, 300, 16, 16, 0x4fc3f7);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
-    this.player.body.setSize(32, 32, true);
+    this.player.body.setSize(16, 16, true);
     // Outros jogadores
     this.otherPlayers = {};
 
@@ -16,7 +16,7 @@ class GameScene extends Phaser.Scene {
       Object.keys(state.players).forEach(id => {
         if (id !== this.socket.id && !this.otherPlayers[id]) {
           this.otherPlayers[id] = this.add.rectangle(
-            state.players[id].x, state.players[id].y, 32, 32, 0xe94560
+            state.players[id].x, state.players[id].y, 16, 16, 0xe94560
           );
         }
       });
@@ -26,7 +26,7 @@ class GameScene extends Phaser.Scene {
       if (this.otherPlayers[data.id]) {
         this.otherPlayers[data.id].setPosition(data.x, data.y);
       } else {
-        this.otherPlayers[data.id] = this.add.rectangle(data.x, data.y, 32, 32, 0xe94560);
+        this.otherPlayers[data.id] = this.add.rectangle(data.x, data.y, 16, 16, 0xe94560);
       }
     });
 
