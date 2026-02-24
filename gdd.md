@@ -1,0 +1,111 @@
+# Game Design Document
+
+Revision: 0.0.1
+
+
+> GDD Template Written by: Benjamin “HeadClot” Stanley
+
+
+- Overview
+  - Theme / Setting / Genre
+    - Terror Assimétrico 2D Topdown 4x1 
+  - Core Gameplay Mechanics Brief
+    - O jogo é dividido em dois pontos de vista (Estudantes e Professor). O desafio para os estudantes é completar desafios enquanto sobrevive à ameaça do professor até eventualmente fugir da escola. O professor deverá impedir que os alunos completem os desafios e que fujam da escola sem serem devidamente penalizados.
+  - Targeted platforms
+    - Mobile / PC
+  - Monetization model (Brief/Document)
+    - ADs, Skins (Estudantes e Professor)
+  - Project Scope
+    - Game Time Scale
+    - Cost? (How much will it cost?)
+    - Time Scale (How long will it take to make this game?)
+  - Team Size
+    - MOHG Enterprise
+      - Caio Aguiar
+        - Code
+        - Assets
+        - Salário = 1.1k $
+        - Espalhará Cartazes pela cidade.
+      - Davi Soares
+        - Code
+        - Assets
+        - Salário = 1k $
+        - Fará shorts pro youtube.
+    - Licenses / Hardware / Other Costs
+      - Um salgado.
+    - Total Costs with breakdown
+      - 2.1k $ por mês e 2 salgados.
+  - Influences (Brief)
+    - <Influence #1>
+      - Dead By Daylight
+    - <Influence #2>
+      - IB Game
+    - <Influence #3>
+      - Among Us
+    - <Influence #4>
+      - Identity V
+  - The elevator Pitch
+  - Project Description (Brief):
+  - Project Description (Detailed):
+- What sets this project apart?
+  - Core Gameplay Mechanics (Detailed | Professor)
+    - <Core Gameplay Mechanic #1>
+      - Impedir os estudantes de completar os desafios utilizando uma régua palmatória para reduzir o estágio de vida deles. Após ter feito um ataque, o professor receberá uma lentidão proposital como consequência pelo erro (Stag).
+    - <Core Gameplay Mechanic #2>
+      - Reforçar criptografias de computadores já danificados aumentando o tempo restante para conclusão.
+    - <Core Gameplay Mechanic #3>
+      - Ao esgotar a vida de um estudante (2 hits), o professor poderá colocar o estudante em "Em Detenção".
+    - <Core Gameplay Mechanic #4>
+      - O professor será notificado se o firewall de algum computador detectar movimentações suspeitas no computador (Errar o Skill Check).
+    - <Core Gameplay Mechanic #5>
+      - Quando o aluno completar de hackear um computador, o Computador emitirá um efeito sonoro como "Concluído" (Barulho de Check)
+    - <Core Gameplay Mechanic #6>
+      - O Professor conseguirá ver todos os computadores da escola (Pois ele sabe onde estão).
+    - <Core Gameplay Mechanic #6>
+      - Visão Reduzida ( 50% ).
+        
+    - Core Gameplay Mechanics (Detailed | Estudantes)
+    - <Core Gameplay Mechanic #1>
+      - Completar Desafios. A ideia inicial são "Hackear computadores" espalhados pela escola para penetrar a base de dados da escola. Hackeando 4 de 5 computadores, os estudantes estarão livres para abrir o portão da escola e então fugir.
+    - <Core Gameplay Mechanic #2>
+      - Abrir o portão da escola
+    - <Core Gameplay Mechanic #3>
+      - Se evadir do killer, seja por meio de obstáculos ou meios de impedir o professor de continuar a perseguição.
+    - <Core Gameplay Mechanic #4>
+      - Vigor e Vida.
+    - <Core Gameplay Mechanic #5>
+      - Visão Reduzida ( 75% )
+    - <Core Gameplay Mechanic #6>
+      - Enquanto no estado de "Em Detenção", para não ser expulso e continuar na escola, deverá passar por uma prova onde precisará acertar questões (Skill Checks).
+- Story and Gameplay
+  - Story (Brief)
+    - x
+  - Story (Detailed)
+    - y
+  - Gameplay (Brief)
+    - X
+  - Gameplay (Detailed)
+    - Y
+- Assets Needed
+  - 2D [ X ]
+  - 3D
+  - Sound [ X ]
+  - Code [ X ]
+  - Animation [ X ]
+- Schedule
+  - <Object #1>
+    - Time Scale
+      - Metade dos Assets do Mapa.
+      - Etc.
+  - <Object #2>
+    - Time Scale
+      - Metade dos assets de personagem.
+      - Etc.
+  - <Object #3>
+    - Time Scale
+      - Completar assets do mapa.
+      - Etc.
+  - <Object #4>
+    - Time Scale
+      - Completar assets dos personagens.
+      - Etc.
