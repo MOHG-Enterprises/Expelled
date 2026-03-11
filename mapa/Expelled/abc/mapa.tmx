@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" infinite="1" nextlayerid="12" nextobjectid="1">
- <tileset firstgid="1" source="2.tsx"/>
- <tileset firstgid="626" source="1.tsx"/>
- <tileset firstgid="6322" source="3.tsx"/>
- <tileset firstgid="8882" source="Computer Room Spritesheet 1 (1).tsx"/>
- <tileset firstgid="12978" source="pingpong.tsx"/>
- <tileset firstgid="13042" source="armario.tsx"/>
+ <tileset firstgid="1" source="../../2.tsx"/>
+ <tileset firstgid="626" source="../../1.tsx"/>
+ <tileset firstgid="6322" source="../../3.tsx"/>
+ <tileset firstgid="8882" source="../../Computer Room Spritesheet 1 (1).tsx"/>
+ <tileset firstgid="12978" source="../../pingpong.tsx"/>
+ <tileset firstgid="13042" source="../../armario.tsx"/>
  <layer id="3" name="FUNDO" width="30" height="20">
   <data encoding="csv">
    <chunk x="-32" y="-48" width="16" height="16">
@@ -2350,7 +2350,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,7352,7352,7352,7352,7352,7353,0,
-0,6459,6460,0,6459,6460,0,0,0,0,0,0,0,0,0,0,
+0,6459,6460,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
