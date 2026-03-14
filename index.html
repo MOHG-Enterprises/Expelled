@@ -2,26 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Deadline</title>
+  <title>Expelled</title>
   <style>
     * { margin: 0; padding: 0; }
     body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; }
   </style>
 </head>
 <body>
-  <script src="node_modules/phaser/dist/phaser.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="src/scenes/GameScene.js"></script>
-  <script>
-    const config = {
-      type: Phaser.AUTO,
-      width: 800,
-      height: 600,
-      backgroundColor: '#1a1a2e',
-      physics: { default: 'arcade', arcade: { debug: false } },
-      scene: [GameScene]
-    };
-    const game = new Phaser.Game(config);
-  </script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
