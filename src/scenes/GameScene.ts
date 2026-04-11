@@ -5,7 +5,7 @@ import {
   INTERACT_RADIUS, HACK_TICK, MOVE_EMIT_RATE_MS,
   COLOR_SELF_SURVIVOR, COLOR_SELF_PROF,
   STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
-  WORLD_WIDTH, WORLD_HEIGHT,
+  WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId } from '../types';
 import { SkillCheck }      from '../game/SkillCheck';
@@ -14,6 +14,41 @@ import { HUD }             from '../game/HUD';
 import { TerminalManager } from '../game/TerminalManager';
 import { PlayerManager }   from '../game/PlayerManager';
 import { StaminaBar }      from '../game/StaminaBar';
+
+type TilesetConfig = {
+  name: string;
+  key: string;
+  image: string;
+  tileWidth: number;
+  tileHeight: number;
+};
+
+const MAP_TILESETS: TilesetConfig[] = [
+  { name: '2', key: 'tileset-2', image: '/mapa/Expelled/abc/Dungeon_Tiles.png', tileWidth: 16, tileHeight: 16 },
+  { name: '1', key: 'tileset-1', image: '/mapa/Expelled/abc/Interiors_free_32x32.png', tileWidth: 16, tileHeight: 16 },
+  { name: '3', key: 'tileset-3', image: '/mapa/Expelled/abc/mainlevbuild.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'pingpong', key: 'tileset-pingpong', image: '/mesaDeTenis.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'armario', key: 'tileset-armario', image: '/mapa/Expelled/abc/House Interiors – Cozy Farmhouse Bedroom/obj/spr_book_case.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'Computer Room Spritesheet 1 (1)', key: 'tileset-computer-room', image: '/Computer Room Spritesheet 1 (1).png', tileWidth: 16, tileHeight: 16 },
+  { name: 'AnimatedAutum', key: 'tileset-animated-autum', image: '/mapa/Expelled/abc/AnimatedAutum.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'mesaArvor', key: 'tileset-mesaarvor', image: '/mapa/Expelled/abc/mesaArvor.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'mapaClosev5', key: 'tileset-mapa-close', image: '/mapa/Expelled/abc/mapaClosev5.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'PrincipalV2 (1)', key: 'tileset-principal-v2', image: '/mapa/Expelled/abc/PrincipalV2 (1).png', tileWidth: 16, tileHeight: 16 },
+  { name: 'mesas', key: 'tileset-mesas', image: '/mapa/Expelled/abc/mesas.png', tileWidth: 16, tileHeight: 16 },
+  { name: 'conundrum', key: 'tileset-conundrum', image: '/mapa/Expelled/abc/titleGame.png', tileWidth: 16, tileHeight: 16 },
+];
+
+const COLLISION_LAYERS = new Set([
+  'CHAO OBSTACULOS',
+  'OBSTACULOS',
+  'Parede',
+  'MESAS',
+  'BANCOS',
+  'Coisas na parede',
+  'PORTAS',
+  'PORTAO',
+  'ARVORES',
+]);
 
 export class GameScene extends Phaser.Scene {
   //  State 
@@ -34,6 +69,11 @@ export class GameScene extends Phaser.Scene {
   private lookAngle      = 0;
   private targetLookAngle = 0;
   private gamePhase: GamePhase = 'lobby';
+  private mapWorldWidth = WORLD_WIDTH;
+  private mapWorldHeight = WORLD_HEIGHT;
+  private mapRef: Phaser.Tilemaps.Tilemap | null = null;
+  private collisionDebugGraphics: Phaser.GameObjects.Graphics | null = null;
+  private collisionDebugEnabled = false;
 
   // stamina pros surv
   private stamina         = STAMINA_MAX;
@@ -53,8 +93,84 @@ export class GameScene extends Phaser.Scene {
   private spaceKey!:   Phaser.Input.Keyboard.Key;
   private eKey!:       Phaser.Input.Keyboard.Key;
   private shiftKey!:   Phaser.Input.Keyboard.Key;
+  private cKey!:       Phaser.Input.Keyboard.Key;
+
+  private toggleCollisionDebug() {
+    if (!this.mapRef) return;
+
+    this.collisionDebugEnabled = !this.collisionDebugEnabled;
+    if (this.collisionDebugEnabled) {
+      if (!this.collisionDebugGraphics) {
+        this.collisionDebugGraphics = this.add.graphics().setDepth(20);
+      }
+
+      this.collisionDebugGraphics.clear();
+      this.mapRef.layers.forEach((layerData) => {
+        if (!COLLISION_LAYERS.has(layerData.name)) return;
+        const layer = this.mapRef!.getLayer(layerData.name)?.tilemapLayer;
+        if (!layer) return;
+        layer.forEachTile((tile) => {
+          if (!tile.collides) return;
+          this.collisionDebugGraphics!.fillStyle(0xff5050, 0.35);
+          this.collisionDebugGraphics!.fillRect(
+            tile.pixelX * MAP_SCALE,
+            tile.pixelY * MAP_SCALE,
+            tile.width * MAP_SCALE,
+            tile.height * MAP_SCALE,
+          );
+        });
+      });
+      this.hud.flash('Debug colisao: ON', 0xffcc00, 900);
+      return;
+    }
+
+    this.collisionDebugGraphics?.clear();
+    this.hud.flash('Debug colisao: OFF', 0xffcc00, 900);
+  }
 
   constructor() { super('GameScene'); }
+
+  preload() {
+    this.load.tilemapTiledJSON('school-map', '/maps/mapa.phaser.json');
+    MAP_TILESETS.forEach((tileset) => {
+      this.load.image(tileset.key, encodeURI(tileset.image));
+    });
+  }
+
+  private buildTilemap() {
+    const map = this.make.tilemap({ key: 'school-map' });
+    const tilesets = MAP_TILESETS
+      .map((tileset) => map.addTilesetImage(tileset.name, tileset.key, tileset.tileWidth, tileset.tileHeight))
+      .filter((t): t is Phaser.Tilemaps.Tileset => !!t);
+
+    map.layers.forEach((layerData) => {
+      const layer = map.createLayer(layerData.name, tilesets, 0, 0);
+      if (!layer) return;
+
+      layer.setScale(MAP_SCALE);
+      layer.setDepth(1);
+      if (COLLISION_LAYERS.has(layerData.name)) {
+        layer.setCollisionByExclusion([-1], true);
+      }
+    });
+
+    return map;
+  }
+
+  private getSpawnPoint(role: Role): { x: number; y: number } {
+    const centerX = this.mapWorldWidth * 0.5;
+    const centerY = this.mapWorldHeight * 0.55;
+
+    if (role === 'professor') {
+      return { x: centerX, y: centerY };
+    }
+
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const radius = 180;
+    const x = Phaser.Math.Clamp(centerX + Math.cos(angle) * radius, 64, this.mapWorldWidth - 64);
+    const y = Phaser.Math.Clamp(centerY + Math.sin(angle) * radius, 64, this.mapWorldHeight - 64);
+    return { x, y };
+  }
 
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
   private resetLocalState() {
@@ -81,13 +197,23 @@ export class GameScene extends Phaser.Scene {
     this.socket = data?.socket ?? io();
     this.resetLocalState();
 
-    // bounds do mundo
-    this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    const map = this.buildTilemap();
+    this.mapRef = map;
+    this.mapWorldWidth = map.widthInPixels * MAP_SCALE;
+    this.mapWorldHeight = map.heightInPixels * MAP_SCALE;
+    this.physics.world.setBounds(0, 0, this.mapWorldWidth, this.mapWorldHeight);
+    this.cameras.main.setBounds(0, 0, this.mapWorldWidth, this.mapWorldHeight);
 
-    this.player = this.add.rectangle(400, 300, 16, 16, COLOR_SELF_SURVIVOR).setDepth(5);
+    this.player = this.add.rectangle(400, 300, 32, 32, COLOR_SELF_SURVIVOR).setDepth(5);
     this.physics.add.existing(this.player);
     (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+
+    map.layers.forEach((layerData) => {
+      const layer = map.getLayer(layerData.name)?.tilemapLayer;
+      if (layer && COLLISION_LAYERS.has(layerData.name)) {
+        this.physics.add.collider(this.player, layer);
+      }
+    });
 
     // camera segue o player com um lagzinho pra ficar mais fluido
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
@@ -105,9 +231,11 @@ export class GameScene extends Phaser.Scene {
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.eKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.shiftKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+    this.cKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
     this.hud.build();
     this.staminaBar.build();
+    this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). C = debug', 0xffcc00, 2600);
     // limpa os listener (tava duplicando nao sei se tem outro jieto melhor)
     this.socket.removeAllListeners();
     this.setupSocketEvents();
@@ -123,11 +251,10 @@ export class GameScene extends Phaser.Scene {
       // teppa pro spawn
       // TODO: os aluno tem q spawnar randomizado/separado e tambem fora da visao do prof
     
-      const spawnX = role === 'professor' ? 400 : 100;
-      const spawnY = role === 'professor' ? 300 : 100;
-      this.player.setPosition(spawnX, spawnY);
+      const spawn = this.getSpawnPoint(role);
+      this.player.setPosition(spawn.x, spawn.y);
       //setta outros estados
-      (this.player.body as Phaser.Physics.Arcade.Body).reset(spawnX, spawnY);
+      (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
       this.fog.setup(role);
       this.hud.update(role, this.myHp, this.gamePhase, false);
       this.staminaBar.setVisible(role === 'survivor');
@@ -350,6 +477,10 @@ export class GameScene extends Phaser.Scene {
   //  loop principal do jogo, 60 ticks/s 
   update(_time: number, delta: number) {
     this.skillCheck.update(delta);
+
+    if (Phaser.Input.Keyboard.JustDown(this.cKey)) {
+      this.toggleCollisionDebug();
+    }
 
     // se o input ta congelado, n processa nada além do skill check e do timer de stun
     if (this.inputFrozen) {

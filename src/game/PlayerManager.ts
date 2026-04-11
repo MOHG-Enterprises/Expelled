@@ -16,7 +16,7 @@ export class PlayerManager {
     if (!this.others[id]) {
       const color = data.role === 'professor' ? COLOR_OTHER_PROF : COLOR_OTHER_SURVIVOR;
       this.others[id] = this.scene.add
-        .rectangle(data.x ?? 100, data.y ?? 100, 16, 16, color)
+        .rectangle(data.x ?? 100, data.y ?? 100, 32, 32, color)
         .setDepth(5);
     }
     return this.others[id];

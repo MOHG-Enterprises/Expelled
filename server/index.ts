@@ -17,14 +17,16 @@ const io     = new Server(server);
 app.use(express.static(path.join(__dirname, '../')));
 
 let gameState: GameStateRecord = freshGameState();
+const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
+const DEFAULT_SURVIVOR_SPAWN = { x: 1680, y: 2155 };
 
 io.on('connection', (socket) => {
   console.log(`Jogador conectou: ${socket.id}`);
 
   const isProfessor = Object.keys(gameState.players).length === 0;
   gameState.players[socket.id] = {
-    x: isProfessor ? 400 : 100,
-    y: isProfessor ? 300 : 100,
+    x: isProfessor ? DEFAULT_PROFESSOR_SPAWN.x : DEFAULT_SURVIVOR_SPAWN.x,
+    y: isProfessor ? DEFAULT_PROFESSOR_SPAWN.y : DEFAULT_SURVIVOR_SPAWN.y,
     role: isProfessor ? 'professor' : 'survivor',
     ready: false,
     detentionHits: 0,
