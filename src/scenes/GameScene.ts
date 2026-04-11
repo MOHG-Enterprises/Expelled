@@ -39,7 +39,6 @@ const MAP_TILESETS: TilesetConfig[] = [
 ];
 
 const COLLISION_LAYERS = new Set([
-  'CHAO OBSTACULOS',
   'OBSTACULOS',
   'Parede',
   'MESAS',
@@ -74,6 +73,7 @@ export class GameScene extends Phaser.Scene {
   private mapRef: Phaser.Tilemaps.Tilemap | null = null;
   private collisionDebugGraphics: Phaser.GameObjects.Graphics | null = null;
   private collisionDebugEnabled = false;
+  private lastCollisionLogAt: Record<string, number> = {};
 
   // stamina pros surv
   private stamina         = STAMINA_MAX;
@@ -128,10 +128,23 @@ export class GameScene extends Phaser.Scene {
     this.hud.flash('Debug colisao: OFF', 0xffcc00, 900);
   }
 
+  private logCollisionLayer(layerName: string, tile: Phaser.Tilemaps.Tile) {
+    const now = this.time.now;
+    const last = this.lastCollisionLogAt[layerName] ?? -Infinity;
+    if (now - last < 350) return;
+
+    this.lastCollisionLogAt[layerName] = now;
+    console.log(`[collision] layer=${layerName} tile=(${tile.x},${tile.y}) index=${tile.index}`);
+  }
+
   constructor() { super('GameScene'); }
 
   preload() {
     this.load.tilemapTiledJSON('school-map', '/maps/mapa.phaser.json');
+    this.load.spritesheet('computer-terminal-sheet', '/Computer Room Spritesheet 1 (1).png', {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
     MAP_TILESETS.forEach((tileset) => {
       this.load.image(tileset.key, encodeURI(tileset.image));
     });
@@ -211,7 +224,11 @@ export class GameScene extends Phaser.Scene {
     map.layers.forEach((layerData) => {
       const layer = map.getLayer(layerData.name)?.tilemapLayer;
       if (layer && COLLISION_LAYERS.has(layerData.name)) {
-        this.physics.add.collider(this.player, layer);
+        this.physics.add.collider(
+          this.player,
+          layer,
+          (_playerObj, tile) => this.logCollisionLayer(layerData.name, tile as Phaser.Tilemaps.Tile),
+        );
       }
     });
 
@@ -298,6 +315,7 @@ export class GameScene extends Phaser.Scene {
     // firewall ativada(aluno errou skillcheck)
     // TODO: talvez seja interessante mandar o id do terminal pra mostrar um alerta visual nele, tipo piscar ou algo assim
     s.on('firewallAlert', ({ terminalId }: { terminalId: string }) => {
+      this.terminals.setFailed(terminalId);
       if (this.myRole === 'professor') {
         this.hud.flash(`Firewall: ${terminalId}`, 0xffcc00);
         this.terminals.flashAlert(terminalId, this.tweens);
@@ -430,6 +448,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.eKey.isDown && nearTerminal && !this.downed) {
       this.hackingTerminal  = nearTerminal;
+      this.terminals.setWorking(nearTerminal);
       this.hackHoldTimer   += delta;
       if (this.hackHoldTimer >= 1000) {
         this.hackHoldTimer = 0;
@@ -438,6 +457,7 @@ export class GameScene extends Phaser.Scene {
       return;
     } else {
       this.hackingTerminal = null;
+      this.terminals.setWorking(null);
       this.hackHoldTimer   = 0;
     }
 
@@ -477,6 +497,7 @@ export class GameScene extends Phaser.Scene {
   //  loop principal do jogo, 60 ticks/s 
   update(_time: number, delta: number) {
     this.skillCheck.update(delta);
+    this.terminals.update(delta);
 
     if (Phaser.Input.Keyboard.JustDown(this.cKey)) {
       this.toggleCollisionDebug();
