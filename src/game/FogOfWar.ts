@@ -43,7 +43,7 @@ export class FogOfWar {
     this.overlay.setMask(mask);
   }
 
-  update(player: Phaser.GameObjects.Rectangle, lookAngle = 0) {
+  update(player: { x: number; y: number }, lookAngle = 0) {
     if (!this.maskGraphics) return;
     const cam = this.scene.cameras.main;
     const sx = (player.x - cam.scrollX) * cam.zoom;

@@ -3,7 +3,6 @@ import { io, Socket } from 'socket.io-client';
 import {
   PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED,
   INTERACT_RADIUS, HACK_TICK, MOVE_EMIT_RATE_MS,
-  COLOR_SELF_SURVIVOR, COLOR_SELF_PROF,
   STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
   WORLD_WIDTH, WORLD_HEIGHT,
 } from '../constants';
@@ -14,11 +13,19 @@ import { HUD }             from '../game/HUD';
 import { TerminalManager } from '../game/TerminalManager';
 import { PlayerManager }   from '../game/PlayerManager';
 import { StaminaBar }      from '../game/StaminaBar';
+import {
+  applySkinToSprite,
+  ensurePlayerSkinAnimations,
+  getSkinForRole,
+  type MoveDirection,
+  playRoleAnimation,
+  preloadPlayerSkins,
+} from '../game/playerSkins';
 
 export class GameScene extends Phaser.Scene {
   //  State 
   private socket!: Socket;
-  private player!: Phaser.GameObjects.Rectangle;
+  private player!: Phaser.Physics.Arcade.Sprite;
 
   private myRole:         Role | null = null;
   private myHp           = 2;
@@ -33,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private lastMoveEmit   = 0;
   private lookAngle      = 0;
   private targetLookAngle = 0;
+  private facingDirection: MoveDirection = 'down';
   private gamePhase: GamePhase = 'lobby';
 
   // stamina pros surv
@@ -56,6 +64,10 @@ export class GameScene extends Phaser.Scene {
 
   constructor() { super('GameScene'); }
 
+  preload() {
+    preloadPlayerSkins(this);
+  }
+
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
   private resetLocalState() {
     this.myRole = null;
@@ -71,6 +83,7 @@ export class GameScene extends Phaser.Scene {
     this.lastMoveEmit = 0;
     this.lookAngle = 0;
     this.targetLookAngle = 0;
+    this.facingDirection = 'down';
     this.gamePhase = 'playing';
     this.stamina = STAMINA_MAX;
     this.sprinting = false;
@@ -85,9 +98,14 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    this.player = this.add.rectangle(400, 300, 16, 16, COLOR_SELF_SURVIVOR).setDepth(5);
-    this.physics.add.existing(this.player);
-    (this.player.body as Phaser.Physics.Arcade.Body).setCollideWorldBounds(true);
+    const defaultSkin = getSkinForRole('survivor');
+    this.player = this.physics.add.sprite(400, 300, defaultSkin.textureKey).setDepth(5);
+    this.player.setDisplaySize(defaultSkin.displayWidth, defaultSkin.displayHeight);
+    this.player.setCollideWorldBounds(true);
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    playerBody.setSize(16, 16, true);
+    ensurePlayerSkinAnimations(this);
+    playRoleAnimation(this.player, 'survivor', 'idle', this.facingDirection);
 
     // camera segue o player com um lagzinho pra ficar mais fluido
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
@@ -119,7 +137,8 @@ export class GameScene extends Phaser.Scene {
 
     s.on('roleAssigned', (role: Role) => {
       this.myRole = role;
-      this.player.setFillStyle(role === 'professor' ? COLOR_SELF_PROF : COLOR_SELF_SURVIVOR);
+      applySkinToSprite(this.player, role);
+      playRoleAnimation(this.player, role, 'idle', this.facingDirection);
       // teppa pro spawn
       // TODO: os aluno tem q spawnar randomizado/separado e tambem fora da visao do prof
     
@@ -366,6 +385,8 @@ export class GameScene extends Phaser.Scene {
       this.smoothLookAngle(delta);
       this.fog.update(this.player, this.lookAngle);
       (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      if (this.myRole) playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+      this.players.update(this.time.now);
       return;
     }
 
@@ -403,8 +424,15 @@ export class GameScene extends Phaser.Scene {
       vx = (vx / len) * speed;
       vy = (vy / len) * speed;
       this.targetLookAngle = Math.atan2(vy, vx);
+      if (Math.abs(vx) > Math.abs(vy)) this.facingDirection = vx > 0 ? 'right' : 'left';
+      else this.facingDirection = vy > 0 ? 'down' : 'up';
     }
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(vx, vy);
+
+    if (this.myRole) {
+      if (vx !== 0 || vy !== 0) playRoleAnimation(this.player, this.myRole, 'walk', this.facingDirection);
+      else playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+    }
 
     // emite o movimento p server
     this.lastMoveEmit += delta;
@@ -415,6 +443,7 @@ export class GameScene extends Phaser.Scene {
 
     this.smoothLookAngle(delta);
     this.fog.update(this.player, this.lookAngle);
+    this.players.update(this.time.now);
 
     if (this.myRole === 'survivor')  this._updateSurvivorInteractions(delta);
     else if (this.myRole === 'professor') this._updateProfessorInteractions();
