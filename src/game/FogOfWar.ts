@@ -64,8 +64,8 @@ export class FogOfWar {
       g.closePath();
       g.fillPath();
 
-      // circulozinho perto do prof pra n ficar cego grudado nele
-      g.fillCircle(sx, sy, 18);
+      // garante visao curta ao redor do professor mesmo com cone estreito
+      g.fillCircle(sx, sy, 36);
       return;
     }
 

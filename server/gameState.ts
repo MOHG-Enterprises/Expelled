@@ -4,7 +4,7 @@ import { ATTACK_COOLDOWN_MS, DETENTION_SKILL_CHECKS_REQUIRED } from '../shared/g
 // posicao fixa dos terminais no mapa
 
 export const TERMINAL_POSITIONS: Record<TerminalId, Vec2> = {
-  t1: { x: 200, y: 150 },
+  t1: { x: 2140, y: 2520 },
   t2: { x: 500, y: 150 },
   t3: { x: 200, y: 400 },
   t4: { x: 500, y: 400 },

@@ -4,6 +4,7 @@ export { ATTACK_COOLDOWN_MS, DETENTION_SKILL_CHECKS_REQUIRED } from '../shared/g
 //  mundo 
 export const WORLD_WIDTH  = 1600;
 export const WORLD_HEIGHT = 1200;
+export const MAP_SCALE    = 2; // 16x16 -> 32x32 visual
 
 //  movimento 
 export const PLAYER_SPEED       = 160;
@@ -24,8 +25,8 @@ export const STAGGER_MS         = 1500; // tempo que o professor fica parado dep
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //  visao (fov)
-export const FOV_PROFESSOR = 250; 
-export const FOV_SURVIVOR  = 180; 
+export const FOV_PROFESSOR = 460;
+export const FOV_SURVIVOR  = 280;
 export const FOV_PROFESSOR_CONE_DEG = 80;
 
 //  cores
