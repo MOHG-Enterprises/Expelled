@@ -1,0 +1,71 @@
+button {
+    margin: 2;
+}
+
+video {
+    position: absolute;
+    max-width: 200px;
+    height: auto;
+    background-color: black;
+    padding: 50;
+    margin: 1px 1px;
+}
+
+.mainTable {
+    width: 100%;
+}
+
+.localColumn {
+    width: 246px;
+}
+
+.remoteColumn {
+    display: flex;
+    flex-direction: row;
+}
+
+#localVideo {
+    width: 360;
+}
+
+.remoteVideo {
+    float: right;
+}
+
+.videoWrap {
+    margin: 3;
+    /* padding: 5; */
+    /* background-color: papayawhip; */
+    display: flex;
+    justify-content: center;
+}
+
+@media only screen and (max-width: 1060px) {
+    .video {
+        width: 80%;
+    }
+}
+
+@media only screen and (max-width: 940px) {
+    .video {
+        width: 70%;
+    }
+}
+
+.gameFrame {
+    height: 300px; /* Set the height of the content */
+    padding: 20px;
+    overflow: auto; /* Add scrollbars if content exceeds height */
+}
+
+.webcamFrame {
+    background: #333; /* Example background color for the menu */
+    color: #fff; /* Example text color for the menu */
+    height: 150px; /* Set the height of the menu */
+    padding: 20px;
+    overflow: auto; /* Add scrollbars if content exceeds height */
+}
+
+.chatFrame {
+    position: relative;
+}

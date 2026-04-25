@@ -19,6 +19,24 @@ app.use(express.static(path.join(__dirname, '../')));
 let gameState: GameStateRecord = freshGameState();
 const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
 const DEFAULT_SURVIVOR_SPAWN = { x: 1680, y: 2155 };
+const GATE_POS = { x: 740, y: 560 };
+
+const PLAYER_SPEED = 160;
+const PLAYER_SPRINT_SPEED = 260;
+const PROFESSOR_SPEED = 185;
+const INTERACT_RADIUS = 48;
+const ATTACK_RADIUS = INTERACT_RADIUS + 12;
+const HACK_RADIUS = INTERACT_RADIUS + 8;
+const REINFORCE_RADIUS = INTERACT_RADIUS + 8;
+const ESCAPE_RADIUS = INTERACT_RADIUS + 16;
+
+function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function isNear(a: { x: number; y: number }, b: { x: number; y: number }, radius: number): boolean {
+  return distance(a, b) <= radius;
+}
 
 io.on('connection', (socket) => {
   console.log(`Jogador conectou: ${socket.id}`);
@@ -35,6 +53,7 @@ io.on('connection', (socket) => {
     expelled: false,
     escaped: false,
     lastAttackTime: 0,
+    lastMoveTime: Date.now(),
   };
 
   socket.emit('roleAssigned', gameState.players[socket.id].role);
@@ -72,11 +91,30 @@ io.on('connection', (socket) => {
   //  movimento 
   socket.on('move', (data: { x: number; y: number }) => {
     const p = gameState.players[socket.id];
-    if (!p || p.expelled || p.escaped) return;
-    if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
-    p.x = data.x;
-    p.y = data.y;
-    socket.broadcast.emit('playerMoved', { id: socket.id, x: data.x, y: data.y });
+    if (!p || p.expelled || p.escaped || p.downed) return;
+    if (gameState.phase !== 'playing') return;
+    if (!Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
+
+    const now = Date.now();
+    const elapsedMs = Math.max(16, now - (p.lastMoveTime || now));
+    const maxSpeed = p.role === 'professor' ? PROFESSOR_SPEED : PLAYER_SPRINT_SPEED;
+    const maxDistance = (maxSpeed * elapsedMs) / 1000 + 20;
+
+    const dx = data.x - p.x;
+    const dy = data.y - p.y;
+    const requestedDistance = Math.hypot(dx, dy);
+
+    if (requestedDistance > maxDistance && requestedDistance > 0) {
+      const ratio = maxDistance / requestedDistance;
+      p.x += dx * ratio;
+      p.y += dy * ratio;
+    } else {
+      p.x = data.x;
+      p.y = data.y;
+    }
+
+    p.lastMoveTime = now;
+    io.emit('playerMoved', { id: socket.id, x: p.x, y: p.y });
   });
 
   //  hack 
@@ -86,6 +124,9 @@ io.on('connection', (socket) => {
     if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
     if (typeof amount !== 'number' || amount < 0 || amount > 20) return;
     if (gameState.terminals[terminalId] >= 100) return;
+
+    const terminalPos = gameState.terminalPositions[terminalId];
+    if (!terminalPos || !isNear(p, terminalPos, HACK_RADIUS)) return;
 
     gameState.terminals[terminalId] = Math.min(100, gameState.terminals[terminalId] + amount);
 
@@ -115,6 +156,7 @@ io.on('connection', (socket) => {
     const target   = gameState.players[targetId];
     if (!attacker || attacker.role !== 'professor') return;
     if (!target || target.role !== 'survivor' || target.downed || target.expelled) return;
+    if (!isNear(attacker, target, ATTACK_RADIUS)) return;
 
     const now = Date.now();
     if (now - attacker.lastAttackTime < ATTACK_COOLDOWN_MS) return;
@@ -168,6 +210,9 @@ io.on('connection', (socket) => {
     if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
     if (gameState.terminals[terminalId] >= 100) return;
 
+    const terminalPos = gameState.terminalPositions[terminalId];
+    if (!terminalPos || !isNear(p, terminalPos, REINFORCE_RADIUS)) return;
+
     gameState.terminals[terminalId] = Math.max(0, gameState.terminals[terminalId] - 30);
     io.emit('terminalUpdate', { id: terminalId, progress: gameState.terminals[terminalId] });
   });
@@ -177,6 +222,7 @@ io.on('connection', (socket) => {
     const p = gameState.players[socket.id];
     if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
     if (!gameState.gateOpen) return;
+    if (!isNear(p, GATE_POS, ESCAPE_RADIUS)) return;
     p.escaped = true;
     io.emit('playerEscaped', socket.id);
     checkWinConditions(gameState, (e, ...a) => io.emit(e, ...a));

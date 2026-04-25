@@ -309,7 +309,11 @@ export class GameScene extends Phaser.Scene {
 
     // outros players se movendo
     s.on('playerMoved', (data: { id: string; x: number; y: number }) => {
-      this.players.move(data.id, data.x, data.y);
+      if (data.id === s.id) {
+        this.player.setPosition(data.x, data.y);
+      } else {
+        this.players.move(data.id, data.x, data.y);
+      }
     });
 
     // player kita

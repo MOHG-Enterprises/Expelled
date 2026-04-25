@@ -15,6 +15,7 @@ export interface PlayerRecord {
   expelled: boolean;
   escaped: boolean;
   lastAttackTime: number;
+  lastMoveTime: number;
 }
 
 export interface GameStateRecord {
