@@ -9,6 +9,7 @@ npm run dev          # starts both processes (tsx server + Vite client)
 npm run dev:server   # server only — tsx watch server/index.ts (hot-reload)
 npm run dev:client   # client only — Vite
 npm run build        # vite build + tsc -p tsconfig.server.json
+npm run start        # run compiled server (node dist/server/index.js)
 npm run typecheck    # type-check client (tsconfig.json) + server (tsconfig.server.json)
 ```
 
@@ -56,6 +57,9 @@ If a constant is needed server-side it must live in `shared/gameRules.ts` and be
 | `FogOfWar` | `src/game/FogOfWar.ts` | Flashlight / visibility cone |
 | `HUD` | `src/game/HUD.ts` | Heads-up display |
 | `StaminaBar` | `src/game/StaminaBar.ts` | Sprint stamina |
+| `playerSkins` | `src/game/playerSkins.ts` | Skin definitions per role; `ROLE_DEFAULT_SKINS` maps role → skin key |
+
+`TerminalManager.setWorking()` is currently a no-op (placeholder for future visual effects).
 
 `update()` calls `_updateSurvivorInteractions(delta)` or `_updateProfessorInteractions()` based on role. When `inputFrozen = true`, the entire `update()` returns early after processing the skill-check SPACE input and the stagger timer — nothing else runs.
 
@@ -88,9 +92,13 @@ Server on `skillCheckFailed`: regresses terminal by `HACK_FAIL_REGRESSION` (15%)
 
 `server/gameState.ts` owns all mutable game state. `server/index.ts` validates every client event before mutating state. The client sends intent (`hackProgress { amount }`) and the server validates the amount against `HACK_AMOUNT_MAX` before applying.
 
-### Known open issues
+### detentionAnswer mechanic
 
-- `detentionAnswer`: server receives `isGreat` from client but ignores it. A great hit should count as 2 toward `DETENTION_SKILL_CHECKS_REQUIRED`.
+Server on `detentionAnswer { correct, isGreat }`: if correct, increments `detentionHits` by 2 (great) or 1 (normal). At `DETENTION_SKILL_CHECKS_REQUIRED` (3) the player escapes — `downed = false`, `hp = 1`, broadcasts `playerRevived`. On failure, marks `expelled = true`, broadcasts `playerExpelled`.
+
+## Backlog
+
+- Gamepad não funciona no Zen Browser — funciona normalmente no Chrome. Causa provável: restrição do browser ao Gamepad API (não é bug do código).
 
 ## Coding conventions
 

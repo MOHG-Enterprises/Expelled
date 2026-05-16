@@ -291,6 +291,16 @@ export class GameScene extends Phaser.Scene {
     this.hud.build();
     this.staminaBar.build();
     this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). C = debug', 0xffcc00, 2600);
+
+    const gpPlugin = this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin;
+    gpPlugin?.on('connected', (gamepad: Phaser.Input.Gamepad.Gamepad) => {
+      this.hud.setGamepadConnected(true);
+      this.hud.flash(`Controle detectado: ${gamepad.id.slice(0, 30)}`, 0x00ff88, 2500);
+    });
+    gpPlugin?.on('disconnected', () => {
+      this.hud.setGamepadConnected(false);
+    });
+
     // limpa os listener (tava duplicando nao sei se tem outro jieto melhor)
     this.socket.removeAllListeners();
     this.setupSocketEvents();
@@ -564,6 +574,7 @@ private _updateSurvivorInteractions(delta: number) {
 
     // gamepad — lê estado do pad1 e detecta "just pressed" para este frame
     const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
+    this.hud.setGamepadConnected(pad !== null);
     const DEADZONE = 0.2;
     const padActionNow = pad?.buttons[0].pressed ?? false; // A — ação (E)
     const padAttackNow = pad?.buttons[2].pressed ?? false; // X — ataque/skill check (SPACE)
@@ -619,6 +630,7 @@ private _updateSurvivorInteractions(delta: number) {
     }
 
     let vx = 0, vy = 0;
+    let analogScale = 1;
 
     // suporta tanto setas quanto wasd
     if (this.cursors.left.isDown  || this.wasd['A'].isDown) vx = -1;
@@ -630,17 +642,19 @@ private _updateSurvivorInteractions(delta: number) {
     if (pad) {
       const sx = pad.leftStick.x;
       const sy = pad.leftStick.y;
-      if (Math.abs(sx) > DEADZONE || Math.abs(sy) > DEADZONE) {
-        vx = Math.abs(sx) > DEADZONE ? sx : 0;
-        vy = Math.abs(sy) > DEADZONE ? sy : 0;
+      const magnitude = Math.hypot(sx, sy);
+      if (magnitude > DEADZONE) {
+        vx = sx;
+        vy = sy;
+        analogScale = Math.min(magnitude, 1);
       }
     }
 
-    // normaliza a velocidade pra n ficar mais rapido na diagonal
+    // normaliza a velocidade pra n ficar mais rapido na diagonal; escala pela magnitude do analogico
     if (vx !== 0 || vy !== 0) {
       const len = Math.hypot(vx, vy);
-      vx = (vx / len) * speed;
-      vy = (vy / len) * speed;
+      vx = (vx / len) * speed * analogScale;
+      vy = (vy / len) * speed * analogScale;
       this.targetLookAngle = Math.atan2(vy, vx);
       if (Math.abs(vx) > Math.abs(vy)) this.facingDirection = vx > 0 ? 'right' : 'left';
       else this.facingDirection = vy > 0 ? 'down' : 'up';
