@@ -6,6 +6,8 @@ import {
   freshGameState,
   ATTACK_COOLDOWN_MS,
   DETENTION_SKILL_CHECKS_REQUIRED,
+  HACK_FAIL_REGRESSION,
+  HACK_AMOUNT_MAX,
   checkWinConditions,
 } from './gameState';
 import type { GameStateRecord, TerminalId } from './types';
@@ -84,7 +86,7 @@ io.on('connection', (socket) => {
     const p = gameState.players[socket.id];
     if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
     if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
-    if (typeof amount !== 'number' || amount < 0 || amount > 20) return;
+    if (typeof amount !== 'number' || amount < 0 || amount > HACK_AMOUNT_MAX) return;
     if (gameState.terminals[terminalId] >= 100) return;
 
     gameState.terminals[terminalId] = Math.min(100, gameState.terminals[terminalId] + amount);
@@ -104,10 +106,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('skillCheckFailed', ({ terminalId }: { terminalId: TerminalId }) => {
-    const p = gameState.players[socket.id];
-    if (!p || p.role !== 'survivor') return;
-    io.emit('firewallAlert', { terminalId, survivorId: socket.id });
-  });
+  const p = gameState.players[socket.id];
+  if (!p || p.role !== 'survivor') return;
+  if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
+
+  gameState.terminals[terminalId] = Math.max(0, gameState.terminals[terminalId] - HACK_FAIL_REGRESSION);
+  io.emit('terminalUpdate', { id: terminalId, progress: gameState.terminals[terminalId] });
+  io.emit('firewallAlert', { terminalId, survivorId: socket.id });
+});
 
   //  ataque do professor 
   socket.on('attack', ({ targetId }: { targetId: string }) => {
@@ -133,13 +139,13 @@ io.on('connection', (socket) => {
   });
 
   //  detencao 
-  socket.on('detentionAnswer', ({ correct }: { correct: boolean }) => {
+  socket.on('detentionAnswer', ({ correct, isGreat }: { correct: boolean; isGreat: boolean }) => {
     const p = gameState.players[socket.id];
     if (!p || !p.downed) return;
     if (typeof correct !== 'boolean') return;
 
     if (correct) {
-      p.detentionHits += 1;
+      p.detentionHits += (isGreat === true) ? 2 : 1;
       if (p.detentionHits >= DETENTION_SKILL_CHECKS_REQUIRED) {
         p.downed = false;
         p.hp = 1;

@@ -8,8 +8,6 @@ interface TerminalObj {
 }
 
 export class TerminalManager {
-  private static readonly FRAME_IDLE = 0;
-  private static readonly FRAME_WORK_START = 0;
   private static readonly FRAME_WORK_END = 7;
   private static readonly FRAME_FAIL = 8;
   private static readonly FRAME_DONE = 9;
@@ -17,14 +15,12 @@ export class TerminalManager {
   // marcador do portao
   gateMarker: Phaser.GameObjects.Rectangle | null = null;
 
-  private scene:     Phaser.Scene;
-  private objects:   Partial<Record<TerminalId, TerminalObj>> = {};
-  private positions: Partial<Record<TerminalId, Vec2>>        = {};
-  private completed = new Set<TerminalId>();
-  private failTimers: Partial<Record<TerminalId, number>> = {};
-  private workingId: TerminalId | null = null;
-  private workFrame = TerminalManager.FRAME_WORK_START;
-  private workFrameElapsed = 0;
+  private scene:         Phaser.Scene;
+  private objects:       Partial<Record<TerminalId, TerminalObj>> = {};
+  private positions:     Partial<Record<TerminalId, Vec2>>        = {};
+  private progressCache: Partial<Record<TerminalId, number>>      = {};
+  private completed       = new Set<TerminalId>();
+  private failingTerminals = new Set<TerminalId>();
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -34,58 +30,27 @@ export class TerminalManager {
     this.objects[id]?.sprite.setFrame(frame);
   }
 
-  setWorking(id: TerminalId | null) {
-    if (this.workingId === id) return;
-
-    if (this.workingId && !this.completed.has(this.workingId) && (this.failTimers[this.workingId] ?? 0) <= 0) {
-      this.setTerminalFrame(this.workingId, TerminalManager.FRAME_IDLE);
-    }
-
-    this.workingId = id;
-    this.workFrame = TerminalManager.FRAME_WORK_START;
-    this.workFrameElapsed = 0;
-
-    if (id && !this.completed.has(id) && (this.failTimers[id] ?? 0) <= 0) {
-      this.setTerminalFrame(id, this.workFrame);
-    }
+  private frameForProgress(progress: number): number {
+    if (progress >= 100) return TerminalManager.FRAME_DONE;
+    return Math.min(Math.floor(progress / (100 / 8)), TerminalManager.FRAME_WORK_END);
   }
+
+  setWorking(_id: TerminalId | null) {}
 
   setFailed(id: TerminalId | string) {
     const terminalId = id as TerminalId;
     if (!this.objects[terminalId] || this.completed.has(terminalId)) return;
-    this.failTimers[terminalId] = 1100;
+    this.failingTerminals.add(terminalId);
     this.setTerminalFrame(terminalId, TerminalManager.FRAME_FAIL);
-  }
-
-  update(delta: number) {
-    (Object.keys(this.objects) as TerminalId[]).forEach((id) => {
-      const failLeft = this.failTimers[id] ?? 0;
-      if (failLeft <= 0) return;
-
-      const next = failLeft - delta;
-      this.failTimers[id] = next;
-      if (next > 0 || this.completed.has(id)) return;
-
-      this.failTimers[id] = 0;
-      if (this.workingId === id) {
-        this.setTerminalFrame(id, this.workFrame);
-      } else {
-        this.setTerminalFrame(id, TerminalManager.FRAME_IDLE);
-      }
+    this.scene.time.delayedCall(1100, () => {
+      this.failingTerminals.delete(terminalId);
+      if (this.completed.has(terminalId)) return;
+      const progress = this.progressCache[terminalId] ?? 0;
+      this.setTerminalFrame(terminalId, this.frameForProgress(progress));
     });
-
-    if (!this.workingId || this.completed.has(this.workingId) || (this.failTimers[this.workingId] ?? 0) > 0) return;
-
-    this.workFrameElapsed += delta;
-    if (this.workFrameElapsed < 90) return;
-
-    this.workFrameElapsed = 0;
-    this.workFrame += 1;
-    if (this.workFrame > TerminalManager.FRAME_WORK_END) {
-      this.workFrame = TerminalManager.FRAME_WORK_START;
-    }
-    this.setTerminalFrame(this.workingId, this.workFrame);
   }
+
+  update(_delta: number) {}
 
   sync(terminals: Record<string, number>, positions: Record<string, Vec2>) {
     // salva posicao dos terminais pra usar na interacao
@@ -101,7 +66,7 @@ export class TerminalManager {
           .sprite(pos.x, pos.y, 'computer-terminal-sheet', 0)
           .setScale(2, 2)
           .setDepth(2);
-        sprite.setFrame(TerminalManager.FRAME_IDLE);
+        sprite.setFrame(0);
 
         const bar = this.scene.add
           .rectangle(pos.x - 16, pos.y + 20, 0, 5, 0x00e676)
@@ -130,18 +95,20 @@ export class TerminalManager {
   }
 
   setProgress(id: TerminalId | string, progress: number) {
-    const t = this.objects[id as TerminalId];
+    const terminalId = id as TerminalId;
+    const t = this.objects[terminalId];
     if (!t) return;
+    this.progressCache[terminalId] = progress;
     t.bar.width = (progress / 100) * 32;
     if (progress >= 100) {
-      this.completed.add(id as TerminalId);
-      this.setTerminalFrame(id as TerminalId, TerminalManager.FRAME_DONE);
+      this.completed.add(terminalId);
+      this.setTerminalFrame(terminalId, TerminalManager.FRAME_DONE);
       t.sprite.setTint(COLOR_TERMINAL_DONE);
     } else {
-      this.completed.delete(id as TerminalId);
+      this.completed.delete(terminalId);
       t.sprite.clearTint();
-      if ((this.failTimers[id as TerminalId] ?? 0) <= 0 && this.workingId !== id) {
-        this.setTerminalFrame(id as TerminalId, TerminalManager.FRAME_IDLE);
+      if (!this.failingTerminals.has(terminalId)) {
+        this.setTerminalFrame(terminalId, this.frameForProgress(progress));
       }
     }
   }
@@ -150,6 +117,7 @@ export class TerminalManager {
     let best: TerminalId | null = null;
     let bestDist = Infinity;
     (Object.keys(this.objects) as TerminalId[]).forEach((id) => {
+      if (this.completed.has(id)) return;
       const pos = this.positions[id];
       if (!pos) return;
       const d = Phaser.Math.Distance.Between(x, y, pos.x, pos.y);

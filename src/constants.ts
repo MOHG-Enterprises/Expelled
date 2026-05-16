@@ -19,10 +19,17 @@ export const STAMINA_MIN_SPRINT = 10;  // vigor mínimo para começar a correr
 
 //  interacoes 
 export const INTERACT_RADIUS    = 48;   // px
-export const HACK_TICK          = 20;   // progresso por skill check certo (5 acertos = 100%)
 export const SKILL_CHECK_WINDOW = 0.18; // parte do circulo q conta como acerto
 export const STAGGER_MS         = 1500; // tempo que o professor fica parado depois de atacar
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
+
+//Hack
+export const HACK_PASSIVE_TICK     = 4;    // % por tick passivo
+export const HACK_PASSIVE_RATE_MS  = 600;  // intervalo do tick passivo
+export const HACK_GREAT_BONUS      = 12;   // % extra no great
+export const HACK_FAIL_REGRESSION = 15;
+export const HACK_AMOUNT_MAX      = 25;
+
 
 //  visao (fov)
 export const FOV_PROFESSOR = 460;

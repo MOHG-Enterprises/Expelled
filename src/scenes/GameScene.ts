@@ -2,8 +2,8 @@ import Phaser from 'phaser';
 import { io, Socket } from 'socket.io-client';
 import {
   PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED,
-  INTERACT_RADIUS, HACK_TICK, MOVE_EMIT_RATE_MS,
-  STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
+  INTERACT_RADIUS, HACK_PASSIVE_RATE_MS,  HACK_PASSIVE_TICK,HACK_GREAT_BONUS,
+   MOVE_EMIT_RATE_MS,  STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
   WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId } from '../types';
@@ -56,6 +56,7 @@ const COLLISION_LAYERS = new Set([
   'ARVORES',
 ]);
 
+
 export class GameScene extends Phaser.Scene {
   //  State 
   private socket!: Socket;
@@ -80,6 +81,7 @@ export class GameScene extends Phaser.Scene {
   private mapWorldHeight = WORLD_HEIGHT;
   private mapRef: Phaser.Tilemaps.Tilemap | null = null;
   private collisionDebugGraphics: Phaser.GameObjects.Graphics | null = null;
+  private playerBodyDebugGraphics: Phaser.GameObjects.Graphics | null = null;
   private collisionDebugEnabled = false;
   private lastCollisionLogAt: Record<string, number> = {};
 
@@ -89,13 +91,15 @@ export class GameScene extends Phaser.Scene {
 
   //  outras classes do jogo
   private skillCheck!:  SkillCheck;
+  private hackNextThreshold = 0;
+  private hackPassiveTimer = 0;
   private fog!:         FogOfWar;
   private hud!:         HUD;
   private terminals!:   TerminalManager;
   private players!:     PlayerManager;
   private staminaBar!:  StaminaBar;
 
-  //  inputs 
+  //  inputs
   private cursors!:    Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!:       Record<string, Phaser.Input.Keyboard.Key>;
   private spaceKey!:   Phaser.Input.Keyboard.Key;
@@ -103,6 +107,15 @@ export class GameScene extends Phaser.Scene {
   private shiftKey!:   Phaser.Input.Keyboard.Key;
   private cKey!:       Phaser.Input.Keyboard.Key;
 
+  // gamepad — flags virtuais atualizadas a cada frame
+  private padActionHeld  = false;
+  private padSprintHeld  = false;
+  private padActionJust  = false;
+  private padAttackJust  = false;
+  private padPrevAction  = false;
+  private padPrevAttack  = false;
+
+  
   private toggleCollisionDebug() {
     if (!this.mapRef) return;
 
@@ -128,11 +141,16 @@ export class GameScene extends Phaser.Scene {
           );
         });
       });
+      if (!this.playerBodyDebugGraphics) {
+        this.playerBodyDebugGraphics = this.add.graphics().setDepth(25);
+      }
+      this.playerBodyDebugGraphics.setVisible(true);
       this.hud.flash('Debug colisao: ON', 0xffcc00, 900);
       return;
     }
 
     this.collisionDebugGraphics?.clear();
+    this.playerBodyDebugGraphics?.setVisible(false);
     this.hud.flash('Debug colisao: OFF', 0xffcc00, 900);
   }
 
@@ -179,6 +197,7 @@ export class GameScene extends Phaser.Scene {
     return map;
   }
 
+
   private getSpawnPoint(role: Role): { x: number; y: number } {
     const centerX = this.mapWorldWidth * 0.5;
     const centerY = this.mapWorldHeight * 0.55;
@@ -187,7 +206,7 @@ export class GameScene extends Phaser.Scene {
       return { x: centerX, y: centerY };
     }
 
-    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const angle = Phaser.Math.FloatBetween(Math.PI * 0.5, Math.PI * 1.5);
     const radius = 180;
     const x = Phaser.Math.Clamp(centerX + Math.cos(angle) * radius, 64, this.mapWorldWidth - 64);
     const y = Phaser.Math.Clamp(centerY + Math.sin(angle) * radius, 64, this.mapWorldHeight - 64);
@@ -197,6 +216,7 @@ export class GameScene extends Phaser.Scene {
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
   private resetLocalState() {
     this.myRole = null;
+    this.hackPassiveTimer = 0;
     this.myHp = 2;
     this.downed = false;
     this.expelled = false;
@@ -232,9 +252,11 @@ export class GameScene extends Phaser.Scene {
     this.player.setDisplaySize(defaultSkin.displayWidth, defaultSkin.displayHeight);
     this.player.setCollideWorldBounds(true);
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
-    playerBody.setSize(16, 16, true);
+    playerBody.setSize(32, 48, false);
+    playerBody.setOffset(defaultSkin.bodyOffset.x, defaultSkin.bodyOffset.y);
     ensurePlayerSkinAnimations(this);
     playRoleAnimation(this.player, 'survivor', 'idle', this.facingDirection);
+    this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
 
     map.layers.forEach((layerData) => {
       const layer = map.getLayer(layerData.name)?.tilemapLayer;
@@ -252,6 +274,7 @@ export class GameScene extends Phaser.Scene {
 
     this.skillCheck  = new SkillCheck(this);
     this.fog         = new FogOfWar(this);
+
     this.hud         = new HUD(this);
     this.terminals   = new TerminalManager(this);
     this.players     = new PlayerManager(this);
@@ -272,6 +295,7 @@ export class GameScene extends Phaser.Scene {
     this.socket.removeAllListeners();
     this.setupSocketEvents();
     this.socket.emit('requestSync');
+
   }
 
   private setupSocketEvents() {
@@ -386,11 +410,9 @@ export class GameScene extends Phaser.Scene {
 
     //progresso do revive
     s.on('detentionProgress', ({ current, required }: { current: number; required: number }) => {
-      if (!this.downed) return;
-      this.hud.flash(`Detenção: ${current}/${required}`, 0xffcc00, 1200);
-      this.startDetention();
-    });
-
+    if (!this.downed) return;
+    this.hud.flash(`Detenção: ${current}/${required}`, 0xffcc00, 1200);
+  });
     //morto
     s.on('expelled', () => {
       this.expelled    = true;
@@ -437,19 +459,35 @@ export class GameScene extends Phaser.Scene {
   private startDetention() {
     this.inputFrozen = true;
     this.skillCheck.show(
-      () => { this.socket.emit('detentionAnswer', { correct: true }); },
-      () => { this.socket.emit('detentionAnswer', { correct: false }); },
+      (isGreat) => {
+        this.socket.emit('detentionAnswer', { correct: true, isGreat });
+        if (this.downed) this.time.delayedCall(Phaser.Math.Between(2000, 4000), () => {
+          if (this.downed) this.startDetention();
+        });
+      },
+      () => {
+        this.socket.emit('detentionAnswer', { correct: false, isGreat: false });
+        if (this.downed) this.time.delayedCall(Phaser.Math.Between(2000, 4000), () => {
+          if (this.downed) this.startDetention();
+        });
+      },
     );
   }
 
   //hack de terminal
-  private runHackSkillCheck(terminalId: TerminalId) {
-    this.inputFrozen = true;
-    this.skillCheck.show(
-      () => { this.inputFrozen = false; this.socket.emit('hackProgress',    { terminalId, amount: HACK_TICK }); },
-      () => { this.inputFrozen = false; this.socket.emit('skillCheckFailed', { terminalId }); },
-    );
-  }
+private runHackSkillCheck(terminalId: TerminalId) {
+  this.inputFrozen = true;
+  this.skillCheck.show(
+    (isGreat) => {
+      this.inputFrozen = false;
+      if (isGreat) this.socket.emit('hackProgress', { terminalId, amount: HACK_GREAT_BONUS });
+    },
+    () => {
+      this.inputFrozen = false;
+      this.socket.emit('skillCheckFailed', { terminalId });
+    },
+  );
+}
 
   //  interacao com o portao (survivor tem q ta perto e clicar no e pra escapar)
   // TODO: devia mostrar as teclas perto do que vc pode apertar, tipo portao e terminal[] 
@@ -459,35 +497,44 @@ export class GameScene extends Phaser.Scene {
     return Phaser.Math.Distance.Between(this.player.x, this.player.y, gm.x, gm.y) < INTERACT_RADIUS;
   }
 
-  private _updateSurvivorInteractions(delta: number) {
-    const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
+private _updateSurvivorInteractions(delta: number) {
+  const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
 
-    if (this.eKey.isDown && nearTerminal && !this.downed) {
-      this.hackingTerminal  = nearTerminal;
-      this.terminals.setWorking(nearTerminal);
-      this.hackHoldTimer   += delta;
-      if (this.hackHoldTimer >= 1000) {
-        this.hackHoldTimer = 0;
-        this.runHackSkillCheck(nearTerminal);
-      }
-      return;
-    } else {
-      this.hackingTerminal = null;
-      this.terminals.setWorking(null);
-      this.hackHoldTimer   = 0;
+  if ((this.eKey.isDown || this.padActionHeld) && nearTerminal && !this.downed) {
+    this.hackingTerminal = nearTerminal;
+    this.terminals.setWorking(nearTerminal);
+
+    this.hackPassiveTimer += delta;
+    if (this.hackPassiveTimer >= HACK_PASSIVE_RATE_MS) {
+      this.hackPassiveTimer = 0;
+      this.socket.emit('hackProgress', { terminalId: nearTerminal, amount: HACK_PASSIVE_TICK });
     }
 
-    if (Phaser.Input.Keyboard.JustDown(this.eKey) && this.gateOpen && this.isNearGate()) {
-      this.socket.emit('escape');
+    this.hackHoldTimer += delta;
+    if (this.hackHoldTimer >= this.hackNextThreshold) {
+      this.hackHoldTimer     = 0;
+      this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
+      this.runHackSkillCheck(nearTerminal);
     }
+    return;
   }
 
+  this.hackingTerminal  = null;
+  this.hackPassiveTimer = 0;
+  this.hackHoldTimer    = 0;
+  this.terminals.setWorking(null);
+
+  if ((Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) && this.gateOpen && this.isNearGate()) {
+    this.socket.emit('escape');
+  }
+}
+
   private _updateProfessorInteractions() {
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust) {
       const target = this.players.nearestSurvivor(this.player.x, this.player.y);
       if (target) this.socket.emit('attack', { targetId: target });
     }
-    if (Phaser.Input.Keyboard.JustDown(this.eKey)) {
+    if (Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) {
       const t = this.terminals.nearest(this.player.x, this.player.y);
       if (t) this.socket.emit('reinforceTerminal', { terminalId: t });
     }
@@ -510,10 +557,22 @@ export class GameScene extends Phaser.Scene {
     this.lookAngle = this.normalizeAngle(this.lookAngle + diff * smoothing);
   }
 
-  //  loop principal do jogo, 60 ticks/s 
+  //  loop principal do jogo, 60 ticks/s
   update(_time: number, delta: number) {
     this.skillCheck.update(delta);
     this.terminals.update(delta);
+
+    // gamepad — lê estado do pad1 e detecta "just pressed" para este frame
+    const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
+    const DEADZONE = 0.2;
+    const padActionNow = pad?.buttons[0].pressed ?? false; // A — ação (E)
+    const padAttackNow = pad?.buttons[2].pressed ?? false; // X — ataque/skill check (SPACE)
+    this.padActionHeld = padActionNow;
+    this.padSprintHeld = pad?.buttons[5].pressed ?? false; // R1 — sprint
+    this.padActionJust = padActionNow && !this.padPrevAction;
+    this.padAttackJust = padAttackNow && !this.padPrevAttack;
+    this.padPrevAction = padActionNow;
+    this.padPrevAttack = padAttackNow;
 
     if (Phaser.Input.Keyboard.JustDown(this.cKey)) {
       this.toggleCollisionDebug();
@@ -521,7 +580,7 @@ export class GameScene extends Phaser.Scene {
 
     // se o input ta congelado, n processa nada além do skill check e do timer de stun
     if (this.inputFrozen) {
-      if (this.skillCheck.active && Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+      if (this.skillCheck.active && (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust)) {
         this.skillCheck.tryHit();
       }
       if (this.staggerTimer > 0) {
@@ -541,7 +600,7 @@ export class GameScene extends Phaser.Scene {
 
     // stamina e corrida (só pros alunos)
     if (this.myRole === 'survivor') {
-      this.sprinting = this.shiftKey.isDown && this.stamina > STAMINA_MIN_SPRINT;
+      this.sprinting = (this.shiftKey.isDown || this.padSprintHeld) && this.stamina > STAMINA_MIN_SPRINT;
       if (this.sprinting) {
         this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN * (delta / 1000));
         if (this.stamina === 0) this.sprinting = false;
@@ -567,6 +626,16 @@ export class GameScene extends Phaser.Scene {
     if (this.cursors.up.isDown    || this.wasd['W'].isDown) vy = -1;
     else if (this.cursors.down.isDown  || this.wasd['S'].isDown) vy = 1;
 
+    // gamepad stick esquerdo sobrepoe teclado se alem da deadzone
+    if (pad) {
+      const sx = pad.leftStick.x;
+      const sy = pad.leftStick.y;
+      if (Math.abs(sx) > DEADZONE || Math.abs(sy) > DEADZONE) {
+        vx = Math.abs(sx) > DEADZONE ? sx : 0;
+        vy = Math.abs(sy) > DEADZONE ? sy : 0;
+      }
+    }
+
     // normaliza a velocidade pra n ficar mais rapido na diagonal
     if (vx !== 0 || vy !== 0) {
       const len = Math.hypot(vx, vy);
@@ -575,6 +644,15 @@ export class GameScene extends Phaser.Scene {
       this.targetLookAngle = Math.atan2(vy, vx);
       if (Math.abs(vx) > Math.abs(vy)) this.facingDirection = vx > 0 ? 'right' : 'left';
       else this.facingDirection = vy > 0 ? 'down' : 'up';
+    }
+
+    // gamepad stick direito define angulo de visao do professor
+    if (this.myRole === 'professor' && pad) {
+      const rx = pad.rightStick.x;
+      const ry = pad.rightStick.y;
+      if (Math.abs(rx) > DEADZONE || Math.abs(ry) > DEADZONE) {
+        this.targetLookAngle = Math.atan2(ry, rx);
+      }
     }
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(vx, vy);
 
@@ -596,5 +674,12 @@ export class GameScene extends Phaser.Scene {
 
     if (this.myRole === 'survivor')  this._updateSurvivorInteractions(delta);
     else if (this.myRole === 'professor') this._updateProfessorInteractions();
+
+    if (this.collisionDebugEnabled && this.playerBodyDebugGraphics) {
+      const body = this.player.body as Phaser.Physics.Arcade.Body;
+      this.playerBodyDebugGraphics.clear();
+      this.playerBodyDebugGraphics.lineStyle(2, 0x00ff00, 1);
+      this.playerBodyDebugGraphics.strokeRect(body.left, body.top, body.width, body.height);
+    }
   }
 }
