@@ -96,6 +96,29 @@ Server on `skillCheckFailed`: regresses terminal by `HACK_FAIL_REGRESSION` (15%)
 
 Server on `detentionAnswer { correct, isGreat }`: if correct, increments `detentionHits` by 2 (great) or 1 (normal). At `DETENTION_SKILL_CHECKS_REQUIRED` (3) the player escapes — `downed = false`, `hp = 1`, broadcasts `playerRevived`. On failure, marks `expelled = true`, broadcasts `playerExpelled`.
 
+### Sistema de salas
+
+4 salas fixas (`sala1`–`sala4`) definidas em `shared/ROOM_NAMES` (re-exportadas de `server/gameState.ts` e `src/constants.ts`). O jogador escolhe uma sala no lobby antes de receber role. O servidor usa `socketToRoom: Map<string, string>` para associar socket → sala. Todos os broadcasts de jogo são escopados via `io.to(roomName)`.
+
+### VoIP (Mediasoup SFU)
+
+Comunicação de voz entre players usando Mediasoup 3 (SFU — Selective Forwarding Unit). Apenas áudio (Opus), sem vídeo.
+
+**Arquivos:**
+- `server/voiceRouter.ts` — Worker + Routers por sala; eventos Socket.io com prefixo `voice-`
+- `src/game/VoiceManager.ts` — cliente Mediasoup; `init()` captura mic e configura send/recv transports; `updateSpatialAudio()` ajusta volume a cada frame
+
+**Eventos Socket.io de voz** (prefixo `voice-` para não colidir com eventos de jogo):
+`voice-join`, `voice-getProducers`, `voice-createTransport`, `voice-transport-connect`, `voice-transport-produce`, `voice-transport-recv-connect`, `voice-consume`, `voice-consumer-resume`, `voice-new-producer`, `voice-producer-closed`
+
+**Lógica de áudio espacial** (calculada no cliente a cada frame em `GameScene.update()`):
+- Survivor: volume = `clamp(1 − dist / VOICE_SURVIVOR_HEAR_RADIUS, 0, 1)` onde raio = 200 px
+- Professor: volume dentro do cone de visão (±40°, até 460 px), 0 fora do cone
+
+`VoiceManager.init()` falha silenciosamente (sem microfone → HUD warning, jogo funciona normalmente). Destroy obrigatório no handler de `gameReset`.
+
+**IP do servidor:** configurável via `process.env.RTC_ANNOUNCED_IP` (default `127.0.0.1` para localhost). Para deploy remoto, setar para o IP público.
+
 ## Backlog
 
 - Gamepad não funciona no Zen Browser — funciona normalmente no Chrome. Causa provável: restrição do browser ao Gamepad API (não é bug do código).
