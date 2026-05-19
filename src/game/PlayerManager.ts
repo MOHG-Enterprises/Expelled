@@ -24,7 +24,7 @@ export class PlayerManager {
     if (!this.others[id]) {
       const role: Role = data.role ?? 'survivor';
       const fallbackSkin = getSkinForRole(role);
-      const sprite = this.scene.add.sprite(data.x ?? 100, data.y ?? 100, fallbackSkin.textureKey).setDepth(5);
+      const sprite = this.scene.add.sprite(data.x ?? 100, data.y ?? 100, fallbackSkin.idle.key).setDepth(5);
       applySkinToSprite(sprite, role);
       this.others[id] = {
         sprite,
@@ -89,6 +89,13 @@ export class PlayerManager {
       result[id] = { x: p.sprite.x, y: p.sprite.y };
     });
     return result;
+  }
+
+  getProfessorPosition(): { x: number; y: number } | null {
+    for (const p of Object.values(this.others)) {
+      if (p.role === 'professor') return { x: p.sprite.x, y: p.sprite.y };
+    }
+    return null;
   }
 
   nearestSurvivor(x: number, y: number): string | null {

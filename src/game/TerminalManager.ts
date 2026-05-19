@@ -12,6 +12,10 @@ export class TerminalManager {
   private static readonly FRAME_FAIL = 8;
   private static readonly FRAME_DONE = 9;
 
+  private static readonly BAR_COLOR_NORMAL     = 0x00e676;
+  private static readonly BAR_COLOR_REGRESSING = 0xff6600;
+  private static readonly BAR_COLOR_LOCKED     = 0xffcc00;
+
   // marcador do portao
   gateMarker: Phaser.GameObjects.Rectangle | null = null;
 
@@ -19,8 +23,9 @@ export class TerminalManager {
   private objects:       Partial<Record<TerminalId, TerminalObj>> = {};
   private positions:     Partial<Record<TerminalId, Vec2>>        = {};
   private progressCache: Partial<Record<TerminalId, number>>      = {};
-  private completed       = new Set<TerminalId>();
+  private completed        = new Set<TerminalId>();
   private failingTerminals = new Set<TerminalId>();
+  private regressingTerminals = new Set<TerminalId>();
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -37,12 +42,38 @@ export class TerminalManager {
 
   setWorking(_id: TerminalId | null) {}
 
-  setFailed(id: TerminalId | string) {
+  setRegressing(id: TerminalId | string, isRegressing: boolean) {
+    const terminalId = id as TerminalId;
+    if (this.completed.has(terminalId)) return;
+    if (isRegressing) {
+      this.regressingTerminals.add(terminalId);
+    } else {
+      this.regressingTerminals.delete(terminalId);
+    }
+    const t = this.objects[terminalId];
+    if (t) {
+      t.bar.setFillStyle(isRegressing ? TerminalManager.BAR_COLOR_REGRESSING : TerminalManager.BAR_COLOR_NORMAL);
+    }
+  }
+
+  setLocked(id: TerminalId | string, durationMs: number) {
+    const terminalId = id as TerminalId;
+    const t = this.objects[terminalId];
+    if (!t || this.completed.has(terminalId)) return;
+    t.bar.setFillStyle(TerminalManager.BAR_COLOR_LOCKED);
+    this.scene.time.delayedCall(durationMs, () => {
+      if (this.completed.has(terminalId)) return;
+      const isRegressing = this.regressingTerminals.has(terminalId);
+      t.bar.setFillStyle(isRegressing ? TerminalManager.BAR_COLOR_REGRESSING : TerminalManager.BAR_COLOR_NORMAL);
+    });
+  }
+
+  setFailed(id: TerminalId | string, durationMs = 1100) {
     const terminalId = id as TerminalId;
     if (!this.objects[terminalId] || this.completed.has(terminalId)) return;
     this.failingTerminals.add(terminalId);
     this.setTerminalFrame(terminalId, TerminalManager.FRAME_FAIL);
-    this.scene.time.delayedCall(1100, () => {
+    this.scene.time.delayedCall(durationMs, () => {
       this.failingTerminals.delete(terminalId);
       if (this.completed.has(terminalId)) return;
       const progress = this.progressCache[terminalId] ?? 0;
@@ -102,6 +133,7 @@ export class TerminalManager {
     t.bar.width = (progress / 100) * 32;
     if (progress >= 100) {
       this.completed.add(terminalId);
+      this.regressingTerminals.delete(terminalId);
       this.setTerminalFrame(terminalId, TerminalManager.FRAME_DONE);
       t.sprite.setTint(COLOR_TERMINAL_DONE);
     } else {
@@ -110,7 +142,16 @@ export class TerminalManager {
       if (!this.failingTerminals.has(terminalId)) {
         this.setTerminalFrame(terminalId, this.frameForProgress(progress));
       }
+      t.bar.setFillStyle(
+        this.regressingTerminals.has(terminalId)
+          ? TerminalManager.BAR_COLOR_REGRESSING
+          : TerminalManager.BAR_COLOR_NORMAL,
+      );
     }
+  }
+
+  getProgress(id: TerminalId): number {
+    return this.progressCache[id] ?? 0;
   }
 
   getCount(): { done: number; total: number } {

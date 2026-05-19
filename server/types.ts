@@ -15,6 +15,7 @@ export interface PlayerRecord {
   expelled: boolean;
   escaped: boolean;
   lastAttackTime: number;
+  lookAngle: number;
 }
 
 export interface GameStateRecord {
@@ -24,4 +25,10 @@ export interface GameStateRecord {
   hackedCount:       number;
   gateOpen:          boolean;
   phase:             GamePhase;
+  chase: {
+    target:    string | null;
+    elapsed:   number;
+    tier:      0 | 1 | 2 | 3;
+    losLostAt: number | null;
+  };
 }

@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { SKILL_CHECK_WINDOW } from '../constants';
 
-const GREAT_ZONE_RATIO = 0.20;
+const GREAT_ZONE_RATIO  = 0.20;
+const MIN_ZONE_START    = 0.15;
+const MAX_ZONE_START    = 1 - 2 * SKILL_CHECK_WINDOW;
 
 export class SkillCheck {
   active = false;
@@ -27,7 +29,7 @@ export class SkillCheck {
     this.totalRotation = 0;
     this.onSuccess     = onSuccess;
     this.onFail        = onFail;
-    this.zoneStart     = Math.random() * (1 - SKILL_CHECK_WINDOW);
+    this.zoneStart     = MIN_ZONE_START + Math.random() * (MAX_ZONE_START - MIN_ZONE_START);
 
     if (!this.container) {
       this.container = this.scene.add.container(400, 300)
@@ -67,6 +69,12 @@ export class SkillCheck {
 
     if (inSuccess) this.onSuccess?.(inGreat);
     else           this.onFail?.();
+  }
+
+  cancel() {
+    if (!this.active) return;
+    this.hide();
+    this.onFail?.();
   }
 
   update(delta: number) {

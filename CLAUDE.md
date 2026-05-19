@@ -57,7 +57,7 @@ If a constant is needed server-side it must live in `shared/gameRules.ts` and be
 | `FogOfWar` | `src/game/FogOfWar.ts` | Flashlight / visibility cone |
 | `HUD` | `src/game/HUD.ts` | Heads-up display |
 | `StaminaBar` | `src/game/StaminaBar.ts` | Sprint stamina |
-| `playerSkins` | `src/game/playerSkins.ts` | Skin definitions per role; `ROLE_DEFAULT_SKINS` maps role → skin key |
+| `playerSkins` | `src/game/playerSkins.ts` | Skin definitions per role; `ROLE_DEFAULT_SKINS` maps role → skin key. Each skin has two LPC sheets (`idle`, `walk`), both 13 cols × 4 rows @ 64 px (row order: down=0, left=1, right=2, up=3). Assets live in `public/personagens/{professor,arthur,gustavo}/`. |
 
 `TerminalManager.setWorking()` is currently a no-op (placeholder for future visual effects).
 

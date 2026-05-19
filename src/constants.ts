@@ -1,5 +1,13 @@
 // exporta regras compartilhadas com server
-export { ATTACK_COOLDOWN_MS, DETENTION_SKILL_CHECKS_REQUIRED, HACK_FAIL_REGRESSION, HACK_AMOUNT_MAX } from '../shared/gameRules';
+export {
+  ATTACK_COOLDOWN_MS,
+  DETENTION_SKILL_CHECKS_REQUIRED,
+  HACK_FAIL_REGRESSION,
+  HACK_FAIL_LOCK_MS,
+  HACK_AMOUNT_MAX,
+  ATTACK_HITBOX_WIDTH,
+  ATTACK_HITBOX_DEPTH,
+} from '../shared/gameRules';
 
 //  mundo 
 export const WORLD_WIDTH  = 1600;
@@ -26,8 +34,11 @@ export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 //Hack
 export const HACK_PASSIVE_TICK    = 4;    // % por tick passivo
 export const HACK_PASSIVE_RATE_MS = 600;  // intervalo do tick passivo
-export const HACK_GREAT_BONUS     = 12;   // % extra no great
+export const HACK_GREAT_BONUS     = 6;    // % extra no great
 
+
+//  terror radius (professor)
+export const TERROR_RADIUS = 450; // px — raio do terror do professor
 
 //  visao (fov)
 export const FOV_PROFESSOR = 460;

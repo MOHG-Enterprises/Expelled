@@ -2,9 +2,12 @@ import Phaser from 'phaser';
 import { io, Socket } from 'socket.io-client';
 import {
   PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED,
-  INTERACT_RADIUS, HACK_PASSIVE_RATE_MS,  HACK_PASSIVE_TICK,HACK_GREAT_BONUS,
-   MOVE_EMIT_RATE_MS,  STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
+  INTERACT_RADIUS, HACK_PASSIVE_RATE_MS, HACK_PASSIVE_TICK, HACK_GREAT_BONUS,
+  HACK_FAIL_LOCK_MS,
+  MOVE_EMIT_RATE_MS, STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
   WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
+  ATTACK_HITBOX_WIDTH, ATTACK_HITBOX_DEPTH,
+  TERROR_RADIUS,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId } from '../types';
 import { SkillCheck }      from '../game/SkillCheck';
@@ -48,6 +51,7 @@ const MAP_TILESETS: TilesetConfig[] = [
 
 const PAD_DEADZONE = 0.2;
 
+
 const COLLISION_LAYERS = new Set([
   'OBSTACULOS',
   'Parede',
@@ -73,16 +77,27 @@ export class GameScene extends Phaser.Scene {
   private inputFrozen    = false;
   private staggerTimer   = 0;
   private gateOpen       = false;
+  private isSwinging     = false;
+  private isLunging      = false;
+  private swingDirection: MoveDirection | null = null;
+  private lungeVec:       { x: number; y: number } | null = null;
+  private lungeSpeed      = 0;
+  private isHitStagger   = false;
+  private slashSprite:   Phaser.GameObjects.Sprite | null = null;
+  private isKicking      = false;
+  private kickSprite:    Phaser.GameObjects.Sprite | null = null;
 
   private survivorOrder: string[] = [];
-  private survivorInfo  = new Map<string, { hp: number; downed: boolean; expelled: boolean; escaped: boolean }>();
-  private hackingTerminal: TerminalId | null = null;
-  private hackHoldTimer  = 0;
+  private survivorInfo  = new Map<string, { hp: number; downed: boolean; expelled: boolean; escaped: boolean; hacking: boolean }>();
+  private hackingTerminal:    TerminalId | null = null;
+  private prevHackingEmitted: TerminalId | null = null;
+  private hackHoldTimer    = 0;
+  private hackTimerTerminal: TerminalId | null = null;
   private lastMoveEmit   = 0;
   private lookAngle      = 0;
   private targetLookAngle = 0;
   private facingDirection: MoveDirection = 'down';
-  private gamePhase: GamePhase = 'lobby';
+
   private mapWorldWidth = WORLD_WIDTH;
   private mapWorldHeight = WORLD_HEIGHT;
   private mapRef: Phaser.Tilemaps.Tilemap | null = null;
@@ -116,6 +131,7 @@ export class GameScene extends Phaser.Scene {
 
   // gamepad — flags virtuais atualizadas a cada frame
   private padActionHeld  = false;
+  private padAttackHeld  = false;
   private padSprintHeld  = false;
   private padActionJust  = false;
   private padAttackJust  = false;
@@ -172,11 +188,162 @@ export class GameScene extends Phaser.Scene {
 
   constructor() { super('GameScene'); }
 
+  private playProfessorHurtAnimation(ms: number) {
+    if (!this.textures.exists('professor-hurt')) return;
+    if (this.anims.exists('professor:hurt')) this.anims.remove('professor:hurt');
+    this.anims.create({
+      key: 'professor:hurt',
+      frames: [
+        { key: 'professor-hurt', frame: 0 },
+        { key: 'professor-hurt', frame: 1 },
+        { key: 'professor-hurt', frame: 2 },
+        { key: 'professor-hurt', frame: 2 },
+        { key: 'professor-hurt', frame: 1 },
+        { key: 'professor-hurt', frame: 0 },
+      ],
+      duration: ms,
+      repeat: 0,
+    });
+    this.player.play('professor:hurt');
+  }
+
+  private createProfessorSlashAnimations() {
+    const dirs: [MoveDirection, number][] = [['up', 0], ['left', 1], ['down', 2], ['right', 3]];
+    dirs.forEach(([dir, row]) => {
+      const slashKey = `professor-slash:${dir}`;
+      if (!this.anims.exists(slashKey)) {
+        this.anims.create({
+          key: slashKey,
+          frames: this.anims.generateFrameNumbers('professor-slash', { start: row * 6, end: row * 6 + 5 }),
+          frameRate: 12,
+          repeat: 0,
+        });
+      }
+      const kickKey = `professor-kick:${dir}`;
+      if (!this.anims.exists(kickKey)) {
+        this.anims.create({
+          key: kickKey,
+          frames: this.anims.generateFrameNumbers('professor-slash', { start: row * 6, end: row * 6 + 5 }),
+          frameRate: 5,
+          repeat: 1,
+        });
+      }
+    });
+  }
+
+  private showAttackHitbox(x: number, y: number, angle: number) {
+    const depth = ATTACK_HITBOX_DEPTH;
+    const half  = ATTACK_HITBOX_WIDTH / 2;
+    const cosA  = Math.cos(angle);
+    const sinA  = Math.sin(angle);
+    const pts = [
+      { x: x + half * sinA,                          y: y - half * cosA },
+      { x: x + half * sinA + depth * cosA,           y: y - half * cosA + depth * sinA },
+      { x: x - half * sinA + depth * cosA,           y: y + half * cosA + depth * sinA },
+      { x: x - half * sinA,                          y: y + half * cosA },
+    ];
+    const g = this.add.graphics().setDepth(30);
+    g.lineStyle(2, 0xff2222, 1);
+    g.strokePoints(pts, true);
+    g.fillStyle(0xff2222, 0.25);
+    g.fillPoints(pts, true);
+    this.time.delayedCall(500, () => g.destroy());
+  }
+
+  private playProfessorKick(terminalId: TerminalId) {
+    if (this.isKicking || this.isSwinging) return;
+    this.isKicking = true;
+    this.player.setVisible(false);
+
+    const kick = this.add.sprite(this.player.x, this.player.y, 'professor-slash')
+      .setDepth(6)
+      .setDisplaySize(128, 128);
+    this.kickSprite = kick;
+    kick.play(`professor-kick:${this.facingDirection}`);
+
+    kick.once('animationcomplete', () => {
+      kick.destroy();
+      this.kickSprite = null;
+      this.player.setVisible(true);
+      this.isKicking = false;
+      this.socket.emit('reinforceTerminal', { terminalId });
+    });
+  }
+
+  private playProfessorSlash() {
+    if (this.isSwinging || this.isKicking) return;
+    this.isSwinging     = true;
+    this.swingDirection = this.facingDirection;
+
+    let lvx = 0, lvy = 0;
+    if (this.cursors.left.isDown  || this.wasd['A'].isDown) lvx = -1;
+    else if (this.cursors.right.isDown || this.wasd['D'].isDown) lvx = 1;
+    if (this.cursors.up.isDown    || this.wasd['W'].isDown) lvy = -1;
+    else if (this.cursors.down.isDown  || this.wasd['S'].isDown) lvy = 1;
+    const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
+    if (pad) {
+      const sx = pad.leftStick.x, sy = pad.leftStick.y;
+      if (Math.hypot(sx, sy) > PAD_DEADZONE) { lvx = sx; lvy = sy; }
+    }
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const currentSpeed = Math.hypot(body.velocity.x, body.velocity.y);
+    this.lungeSpeed = Math.max(currentSpeed, PROFESSOR_SPEED) * 1.5;
+
+    const len = Math.hypot(lvx, lvy);
+    this.lungeVec = len > 0
+      ? { x: lvx / len, y: lvy / len }
+      : { x: Math.cos(this.lookAngle), y: Math.sin(this.lookAngle) };
+
+    this.player.setVisible(false);
+
+    const dir = this.swingDirection;
+    const slash = this.add.sprite(this.player.x, this.player.y, 'professor-slash')
+      .setDepth(6)
+      .setDisplaySize(128, 128);
+    this.slashSprite = slash;
+    slash.play(`professor-slash:${dir}`);
+
+    this.time.delayedCall(250, () => {
+      if (!this.isSwinging) return;
+      if (this.spaceKey.isDown || this.padAttackHeld) {
+        this.isLunging = true;
+        this.time.delayedCall(230, () => {
+          this.isLunging = false;
+          const angle = Math.atan2(this.lungeVec!.y, this.lungeVec!.x);
+          this.showAttackHitbox(this.player.x, this.player.y, angle);
+          this.socket.emit('attack', { x: this.player.x, y: this.player.y, angle, lunge: true });
+        });
+      } else {
+        const angle = Math.atan2(this.lungeVec!.y, this.lungeVec!.x);
+        this.showAttackHitbox(this.player.x, this.player.y, angle);
+        this.socket.emit('attack', { x: this.player.x, y: this.player.y, angle, lunge: false });
+      }
+    });
+
+    slash.once('animationcomplete', () => {
+      slash.destroy();
+      this.slashSprite    = null;
+      this.isLunging      = false;
+      this.swingDirection = null;
+      this.lungeVec       = null;
+      this.player.setVisible(true);
+      this.isSwinging     = false;
+    });
+  }
+
   preload() {
     this.load.tilemapTiledJSON('school-map', '/maps/mapa.phaser.json');
     this.load.spritesheet('computer-terminal-sheet', '/Computer Room Spritesheet 1 (1).png', {
       frameWidth: 32,
       frameHeight: 32,
+    });
+    this.load.spritesheet('professor-slash', '/personagens/professor/slash_128.png', {
+      frameWidth: 128,
+      frameHeight: 128,
+    });
+    this.load.spritesheet('professor-hurt', '/personagens/professor/hurt.png', {
+      frameWidth: 64,
+      frameHeight: 64,
     });
     MAP_TILESETS.forEach((tileset) => {
       this.load.image(tileset.key, encodeURI(tileset.image));
@@ -220,12 +387,14 @@ export class GameScene extends Phaser.Scene {
     return { x, y };
   }
 
+  private static readonly SURVIVOR_SKIN_SLOTS = ['arthur', 'gustavo', 'arthur', 'gustavo'] as const;
+
   private refreshSurvivorHUD() {
     const statuses = this.survivorOrder.map((id, i) => {
-      const info = this.survivorInfo.get(id) ?? { hp: 2, downed: false, expelled: false, escaped: false };
-      return { label: `A${i + 1}`, ...info };
+      const info = this.survivorInfo.get(id) ?? { hp: 2, downed: false, expelled: false, escaped: false, hacking: false };
+      return { label: `A${i + 1}`, skinId: GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur', ...info };
     });
-    this.hud.setSurvivorStatuses(statuses);
+    this.hud.setSurvivorStatuses(statuses, this.myRole === 'survivor');
   }
 
   private refreshTerminalHUD() {
@@ -235,7 +404,8 @@ export class GameScene extends Phaser.Scene {
 
   private trackSurvivor(id: string, info: { hp: number; downed: boolean; expelled: boolean; escaped: boolean }) {
     if (!this.survivorOrder.includes(id)) this.survivorOrder.push(id);
-    this.survivorInfo.set(id, info);
+    const existing = this.survivorInfo.get(id);
+    this.survivorInfo.set(id, { hacking: existing?.hacking ?? false, ...info });
   }
 
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
@@ -249,13 +419,20 @@ export class GameScene extends Phaser.Scene {
     this.inputFrozen = false;
     this.staggerTimer = 0;
     this.gateOpen = false;
+    this.isSwinging = false;
+    this.isLunging = false;
+    this.swingDirection = null;
+    this.lungeVec = null;
+    this.isHitStagger = false;
+    this.isKicking = false;
     this.hackingTerminal = null;
+    this.hackTimerTerminal = null;
     this.hackHoldTimer = 0;
     this.lastMoveEmit = 0;
     this.lookAngle = 0;
     this.targetLookAngle = 0;
     this.facingDirection = 'down';
-    this.gamePhase = 'playing';
+
     this.stamina = STAMINA_MAX;
     this.sprinting = false;
     this.survivorOrder = [];
@@ -275,13 +452,15 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, this.mapWorldWidth, this.mapWorldHeight);
 
     const defaultSkin = getSkinForRole('survivor');
-    this.player = this.physics.add.sprite(400, 300, defaultSkin.textureKey).setDepth(5);
+    this.player = this.physics.add.sprite(400, 300, defaultSkin.idle.key).setDepth(5);
     this.player.setDisplaySize(defaultSkin.displayWidth, defaultSkin.displayHeight);
     this.player.setCollideWorldBounds(true);
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     playerBody.setSize(32, 48, false);
     playerBody.setOffset(defaultSkin.bodyOffset.x, defaultSkin.bodyOffset.y);
     ensurePlayerSkinAnimations(this);
+    this.createProfessorSlashAnimations();
+
     playRoleAnimation(this.player, 'survivor', 'idle', this.facingDirection);
     this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
 
@@ -379,8 +558,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     //mujdanca de cena
-    s.on('gamePhase', (phase: GamePhase) => {
-      this.gamePhase = phase;
+    s.on('gamePhase', (_phase: GamePhase) => {
       this.hud.update(this.myRole, this.myHp, this.downed);
     });
 
@@ -397,10 +575,20 @@ export class GameScene extends Phaser.Scene {
       this.refreshSurvivorHUD();
     });
 
+    s.on('survivorActivity', ({ socketId, terminalId }: { socketId: string; terminalId: string | null }) => {
+      const info = this.survivorInfo.get(socketId);
+      if (!info) return;
+      this.survivorInfo.set(socketId, { ...info, hacking: terminalId !== null });
+      this.refreshSurvivorHUD();
+    });
+
     // atualizacao de terminal
     s.on('terminalUpdate', ({ id, progress }: { id: string; progress: number }) => {
       this.terminals.setProgress(id, progress);
       this.refreshTerminalHUD();
+      if (this.hackingTerminal === id) {
+        this.hud.setHackProgress(progress);
+      }
     });
 
     // terminal hackeado
@@ -410,13 +598,19 @@ export class GameScene extends Phaser.Scene {
       this.hud.flash('Terminal hackeado!', 0x00e676);
     });
 
-    // firewall ativada(aluno errou skillcheck)
-    // TODO: talvez seja interessante mandar o id do terminal pra mostrar um alerta visual nele, tipo piscar ou algo assim
     s.on('firewallAlert', ({ terminalId }: { terminalId: string }) => {
-      this.terminals.setFailed(terminalId);
+      this.terminals.setFailed(terminalId, HACK_FAIL_LOCK_MS);
+      this.terminals.setLocked(terminalId, HACK_FAIL_LOCK_MS);
       if (this.myRole === 'professor') {
         this.hud.flash(`Firewall: ${terminalId}`, 0xffcc00);
         this.terminals.flashAlert(terminalId, this.tweens);
+      }
+    });
+
+    s.on('terminalRegressing', ({ terminalId, isRegressing }: { terminalId: string; isRegressing: boolean }) => {
+      this.terminals.setRegressing(terminalId, isRegressing);
+      if (this.myRole === 'professor' && isRegressing) {
+        this.hud.flash(`Terminal ${terminalId} regredindo!`, 0xff6600, 2000);
       }
     });
 
@@ -459,6 +653,10 @@ export class GameScene extends Phaser.Scene {
     s.on('attackStagger', (ms: number) => {
       this.inputFrozen  = true;
       this.staggerTimer = ms;
+      if (this.myRole === 'professor') {
+        this.isHitStagger = true;
+        this.playProfessorHurtAnimation(ms);
+      }
     });
 
     // reviveu
@@ -575,9 +773,19 @@ export class GameScene extends Phaser.Scene {
   private _updateSurvivorInteractions(delta: number) {
     const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
 
+    if (nearTerminal !== this.hackTimerTerminal) {
+      this.hackTimerTerminal = nearTerminal;
+      this.hackHoldTimer = 0;
+    }
+
     if ((this.eKey.isDown || this.padActionHeld) && nearTerminal && !this.downed) {
       this.hackingTerminal = nearTerminal;
+      if (this.prevHackingEmitted !== nearTerminal) {
+        this.prevHackingEmitted = nearTerminal;
+        this.socket.emit('setHacking', { terminalId: nearTerminal });
+      }
       this.terminals.setWorking(nearTerminal);
+      this.hud.setHackProgress(this.terminals.getProgress(nearTerminal));
 
       this.hackPassiveTimer += delta;
       if (this.hackPassiveTimer >= HACK_PASSIVE_RATE_MS) {
@@ -594,24 +802,46 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.prevHackingEmitted !== null) {
+      this.prevHackingEmitted = null;
+      this.socket.emit('setHacking', { terminalId: null });
+    }
     this.hackingTerminal  = null;
     this.hackPassiveTimer = 0;
-    this.hackHoldTimer    = 0;
     this.terminals.setWorking(null);
+    this.hud.setHackProgress(null);
 
     if ((Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) && this.gateOpen && this.isNearGate()) {
       this.socket.emit('escape');
     }
   }
 
+  private _updateTerrorRadius() {
+    if (this.myRole !== 'survivor') {
+      this.hud.setTerrorLevel(0);
+      return;
+    }
+    const profPos = this.players.getProfessorPosition();
+    if (!profPos) {
+      this.hud.setTerrorLevel(0);
+      return;
+    }
+    const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, profPos.x, profPos.y);
+    let level: 0 | 1 | 2 | 3 = 0;
+    if (dist <= TERROR_RADIUS) {
+      const t = dist / TERROR_RADIUS;
+      level = t > 2 / 3 ? 1 : t > 1 / 3 ? 2 : 3;
+    }
+    this.hud.setTerrorLevel(level);
+  }
+
   private _updateProfessorInteractions() {
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust) {
-      const target = this.players.nearestSurvivor(this.player.x, this.player.y);
-      if (target) this.socket.emit('attack', { targetId: target });
+      this.playProfessorSlash();
     }
     if (Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) {
       const t = this.terminals.nearest(this.player.x, this.player.y);
-      if (t) this.socket.emit('reinforceTerminal', { terminalId: t });
+      if (t) this.playProfessorKick(t);
     }
   }
 
@@ -636,6 +866,7 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number) {
     this.skillCheck.update(delta);
     this.terminals.update(delta);
+    this._updateTerrorRadius();
 
     // gamepad — lê estado do pad1 e detecta "just pressed" para este frame
     const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
@@ -644,6 +875,7 @@ export class GameScene extends Phaser.Scene {
     const padActionNow = pad?.buttons[0].pressed ?? false; // A — ação (E)
     const padAttackNow = pad?.buttons[2].pressed ?? false; // X — ataque/skill check (SPACE)
     this.padActionHeld = padActionNow;
+    this.padAttackHeld = padAttackNow;
     this.padSprintHeld = pad?.buttons[5].pressed ?? false; // R1 — sprint
     this.padActionJust = padActionNow && !this.padPrevAction;
     this.padAttackJust = padAttackNow && !this.padPrevAttack;
@@ -659,17 +891,34 @@ export class GameScene extends Phaser.Scene {
       if (this.skillCheck.active && (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust)) {
         this.skillCheck.tryHit();
       }
+      if (this.skillCheck.active && this.hackingTerminal !== null && !this.eKey.isDown && !this.padActionHeld) {
+        this.skillCheck.cancel();
+      }
       if (this.staggerTimer > 0) {
         this.staggerTimer -= delta;
         if (this.staggerTimer <= 0) {
           this.staggerTimer = 0;
-          if (!this.expelled && !this.escaped) this.inputFrozen = false;
+          if (!this.expelled && !this.escaped) {
+            this.inputFrozen = false;
+            this.isHitStagger = false;
+            this.isSwinging = false;
+            this.isLunging  = false;
+            this.swingDirection = null;
+            this.lungeVec = null;
+            if (this.slashSprite) { this.slashSprite.destroy(); this.slashSprite = null; }
+            this.isKicking = false;
+            if (this.kickSprite) { this.kickSprite.destroy(); this.kickSprite = null; }
+            this.player.setVisible(true);
+          }
         }
       }
       this.smoothLookAngle(delta);
       this.fog.update(this.player, this.lookAngle);
       (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-      if (this.myRole) playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+      if (this.myRole && !this.isHitStagger) {
+        const frozenAnim = (this.downed && this.myRole === 'survivor') ? 'sit' : 'idle';
+        playRoleAnimation(this.player, this.myRole, frozenAnim, this.facingDirection);
+      }
       this.players.update(this.time.now);
       return;
     }
@@ -735,9 +984,28 @@ export class GameScene extends Phaser.Scene {
     }
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(vx, vy);
 
+    if (this.isSwinging) {
+      const swingBody = this.player.body as Phaser.Physics.Arcade.Body;
+      if (this.isLunging && this.lungeVec) {
+        swingBody.setVelocity(this.lungeVec.x * this.lungeSpeed, this.lungeVec.y * this.lungeSpeed);
+      } else {
+        swingBody.setVelocity(0, 0);
+      }
+      this.slashSprite?.setPosition(this.player.x, this.player.y);
+    }
+
+    if (this.isKicking) {
+      (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      this.kickSprite?.setPosition(this.player.x, this.player.y);
+    }
+
     if (this.myRole) {
-      if (vx !== 0 || vy !== 0) playRoleAnimation(this.player, this.myRole, 'walk', this.facingDirection);
-      else playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+      if (vx !== 0 || vy !== 0) {
+        const moveAnim = (this.myRole === 'survivor' && this.sprinting) ? 'run' : 'walk';
+        playRoleAnimation(this.player, this.myRole, moveAnim, this.facingDirection);
+      } else {
+        playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+      }
     }
 
     // emite o movimento p server

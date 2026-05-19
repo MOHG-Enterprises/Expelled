@@ -11,7 +11,25 @@
       "Bash(node -e \"const m = require\\('mediasoup-client'\\); console.log\\(Object.keys\\(m.types || {}\\)\\)\")",
       "Bash(node -e \"try{require\\('mediasoup-client/lib/types'\\); console.log\\('ok'\\)}catch\\(e\\){console.log\\(e.message\\)}\")",
       "Bash(node -e \"const m = require\\('mediasoup'\\); console.log\\(typeof m, typeof m.createWorker, Object.keys\\(m\\).slice\\(0,5\\)\\)\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\" -Recurse)",
+      "Bash(Select-Object FullName, Length)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Arthur\\\\standard\\\\run.png\"    \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\arthur\\\\run.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Gustavo\\\\standard\\\\run.png\"   \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\gustavo\\\\run.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Professor\\\\standard\\\\run.png\" \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\professor\\\\run.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Professor\\\\standard\\\\slash_128.png\" \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\professor\\\\slash_128.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Arthur\\\\standard\\\\sit.png\"    \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\arthur\\\\sit.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Gustavo\\\\standard\\\\sit.png\"   \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\gustavo\\\\sit.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\personagens\\\\Professor\\\\standard\\\\sit.png\" \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\public\\\\personagens\\\\professor\\\\sit.png\")",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "Bash(findstr /R \"lookAngle\" server\\\\*.ts src\\\\*.ts)",
+      "mcp__plugin_context-mode_context-mode__ctx_execute"
     ]
   }
 }
