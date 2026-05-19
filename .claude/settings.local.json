@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Davi\\\\projects\\\\Expelled\\\\exemplo_voip\" -Recurse)",
+      "Bash(npx tsc *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const m = require\\('mediasoup-client'\\); console.log\\(Object.keys\\(m\\)\\)\")",
+      "Bash(node -e \"const m = require\\('mediasoup-client'\\); console.log\\(Object.keys\\(m.types || {}\\)\\)\")",
+      "Bash(node -e \"try{require\\('mediasoup-client/lib/types'\\); console.log\\('ok'\\)}catch\\(e\\){console.log\\(e.message\\)}\")",
+      "Bash(node -e \"const m = require\\('mediasoup'\\); console.log\\(typeof m, typeof m.createWorker, Object.keys\\(m\\).slice\\(0,5\\)\\)\")",
+      "Bash(npm run *)"
+    ]
+  }
+}

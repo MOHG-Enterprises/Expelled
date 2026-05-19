@@ -2,11 +2,6 @@ import Phaser from 'phaser';
 import { FOV_PROFESSOR, FOV_SURVIVOR, FOV_PROFESSOR_CONE_DEG } from '../constants';
 import type { Role } from '../types';
 
-// fog de guerra
-// - desenha um overlay preto na tela toda
-// - usa mask pra "abrir" a area visivel
-// - survivor enxerga em circulo
-// - professor enxerga em cone na direcao q ta olhando
 export class FogOfWar {
   private scene: Phaser.Scene;
   private overlay: Phaser.GameObjects.Rectangle | null = null;
@@ -25,7 +20,6 @@ export class FogOfWar {
     this.overlay?.destroy();
     this.maskGraphics?.destroy();
 
-    // overlay preto fixo na tela
     this.overlay = this.scene.add
       .rectangle(0, 0, 800, 600, 0x000000)
       .setOrigin(0, 0)
@@ -56,7 +50,7 @@ export class FogOfWar {
     if (this.role === 'professor') {
       const halfCone = Phaser.Math.DegToRad(FOV_PROFESSOR_CONE_DEG) / 2;
       const start = lookAngle - halfCone;
-      const end = lookAngle + halfCone;
+      const end   = lookAngle + halfCone;
 
       g.beginPath();
       g.moveTo(sx, sy);
@@ -64,7 +58,6 @@ export class FogOfWar {
       g.closePath();
       g.fillPath();
 
-      // garante visao curta ao redor do professor mesmo com cone estreito
       g.fillCircle(sx, sy, 36);
       return;
     }
@@ -72,4 +65,3 @@ export class FogOfWar {
     g.fillCircle(sx, sy, this.fovRadius);
   }
 }
-

@@ -1,28 +1,33 @@
 import Phaser from 'phaser';
 import { SKILL_CHECK_WINDOW } from '../constants';
 
+const GREAT_ZONE_RATIO = 0.20;
+
 export class SkillCheck {
   active = false;
-
   private scene: Phaser.Scene;
+  private startAngle = 0;
   private angle = 0;
-  private readonly speed = 0.55; // giro por segundo
+  private totalRotation = 0;
+  private readonly speed = 0.55;
   private zoneStart = 0;
   private container: Phaser.GameObjects.Container | null = null;
   private graphics: Phaser.GameObjects.Graphics | null = null;
-  private onSuccess: (() => void) | null = null;
+  private onSuccess: ((isGreat: boolean) => void) | null = null;
   private onFail: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
-  show(onSuccess: () => void, onFail: () => void) {
-    this.active     = true;
-    this.angle      = 0;
-    this.onSuccess  = onSuccess;
-    this.onFail     = onFail;
-    this.zoneStart  = Math.random() * (1 - SKILL_CHECK_WINDOW);
+  show(onSuccess: (isGreat: boolean) => void, onFail: () => void) {
+    this.active        = true;
+    this.startAngle    = 0;
+    this.angle         = this.startAngle;
+    this.totalRotation = 0;
+    this.onSuccess     = onSuccess;
+    this.onFail        = onFail;
+    this.zoneStart     = Math.random() * (1 - SKILL_CHECK_WINDOW);
 
     if (!this.container) {
       this.container = this.scene.add.container(400, 300)
@@ -49,28 +54,44 @@ export class SkillCheck {
 
   tryHit() {
     if (!this.active) return;
-    const hit =
+
+    const inSuccess =
       this.angle >= this.zoneStart &&
       this.angle <= this.zoneStart + SKILL_CHECK_WINDOW;
+
+    const inGreat =
+      this.angle >= this.zoneStart &&
+      this.angle <= this.zoneStart + SKILL_CHECK_WINDOW * GREAT_ZONE_RATIO;
+
     this.hide();
-    if (hit) this.onSuccess?.();
-    else     this.onFail?.();
+
+    if (inSuccess) this.onSuccess?.(inGreat);
+    else           this.onFail?.();
   }
 
   update(delta: number) {
     if (!this.active || !this.graphics) return;
+    const step = this.speed * (delta / 1000);
+    this.totalRotation += step;
 
-    this.angle = (this.angle + this.speed * (delta / 1000)) % 1;
+    if (this.totalRotation >= 1.0) {
+      this.hide();
+      this.onFail?.();
+      return;
+    }
+
+    this.angle = (this.startAngle + this.totalRotation) % 1;
 
     const R = 50;
     const g = this.graphics;
     g.clear();
 
-    // circulo base do minigame
+    g.fillStyle(0x000000, 0.6);
+    g.fillCircle(0, 0, R + 8);
+
     g.lineStyle(4, 0x444444, 0.8);
     g.strokeCircle(0, 0, R);
 
-    // area verde q conta como hit
     const startA = this.zoneStart * Math.PI * 2 - Math.PI / 2;
     const endA   = (this.zoneStart + SKILL_CHECK_WINDOW) * Math.PI * 2 - Math.PI / 2;
     g.lineStyle(6, 0x00e676, 1);
@@ -78,7 +99,12 @@ export class SkillCheck {
     g.arc(0, 0, R, startA, endA, false);
     g.strokePath();
 
-    // ponteiro girando no tempo
+    const greatEndA = (this.zoneStart + SKILL_CHECK_WINDOW * GREAT_ZONE_RATIO) * Math.PI * 2 - Math.PI / 2;
+    g.lineStyle(6, 0xffee00, 1);
+    g.beginPath();
+    g.arc(0, 0, R, startA, greatEndA, false);
+    g.strokePath();
+
     const pA = this.angle * Math.PI * 2 - Math.PI / 2;
     g.lineStyle(3, 0xffffff, 1);
     g.beginPath();

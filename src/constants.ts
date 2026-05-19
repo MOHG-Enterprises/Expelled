@@ -1,5 +1,5 @@
-// exporta regra compartilhada com server
-export { ATTACK_COOLDOWN_MS, DETENTION_SKILL_CHECKS_REQUIRED } from '../shared/gameRules';
+// exporta regras compartilhadas com server
+export { ATTACK_COOLDOWN_MS, DETENTION_SKILL_CHECKS_REQUIRED, HACK_FAIL_REGRESSION, HACK_AMOUNT_MAX } from '../shared/gameRules';
 
 //  mundo 
 export const WORLD_WIDTH  = 1600;
@@ -19,15 +19,25 @@ export const STAMINA_MIN_SPRINT = 10;  // vigor mínimo para começar a correr
 
 //  interacoes 
 export const INTERACT_RADIUS    = 48;   // px
-export const HACK_TICK          = 20;   // progresso por skill check certo (5 acertos = 100%)
 export const SKILL_CHECK_WINDOW = 0.18; // parte do circulo q conta como acerto
 export const STAGGER_MS         = 1500; // tempo que o professor fica parado depois de atacar
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
+
+//Hack
+export const HACK_PASSIVE_TICK    = 4;    // % por tick passivo
+export const HACK_PASSIVE_RATE_MS = 600;  // intervalo do tick passivo
+export const HACK_GREAT_BONUS     = 12;   // % extra no great
+
 
 //  visao (fov)
 export const FOV_PROFESSOR = 460;
 export const FOV_SURVIVOR  = 280;
 export const FOV_PROFESSOR_CONE_DEG = 80;
+
+//  voz
+export const VOICE_SURVIVOR_HEAR_RADIUS = 200;
+export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
+export type  RoomName   = typeof ROOM_NAMES[number];
 
 //  cores
 export const COLOR_SELF_SURVIVOR  = 0x4fc3f7;

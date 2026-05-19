@@ -8,6 +8,7 @@ const config: Phaser.Types.Core.GameConfig = {
   height: 600,
   backgroundColor: '#1a1a2e',
   physics: { default: 'arcade', arcade: { debug: false } },
+  input: { gamepad: true },
   scene: [LobbyScene, GameScene], // Lobby primeiro, dps poartida
 };
 

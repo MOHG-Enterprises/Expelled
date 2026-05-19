@@ -14,6 +14,7 @@ export interface PlayerSkin {
   idleFrameIndices: Record<MoveDirection, number>;
   displayWidth: number;
   displayHeight: number;
+  bodyOffset: { x: number; y: number };
 }
 
 export const PLAYER_SKINS: Record<string, PlayerSkin> = {
@@ -35,8 +36,9 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
       right: 25,
       up: 26,
     },
-    displayWidth: 40,
-    displayHeight: 40,
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 8 },
   },
   sabrinaTorres: {
     id: 'sabrinaTorres',
@@ -56,8 +58,9 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
       right: 25,
       up: 26,
     },
-    displayWidth: 40,
-    displayHeight: 40,
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 16 },
   },
 };
 

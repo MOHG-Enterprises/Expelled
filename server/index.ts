@@ -4,10 +4,17 @@ import { Server } from 'socket.io';
 import path from 'path';
 import {
   freshGameState,
+  getOrCreateRoom,
+  getRoomSummary,
+  rooms,
+  ROOM_NAMES,
   ATTACK_COOLDOWN_MS,
   DETENTION_SKILL_CHECKS_REQUIRED,
+  HACK_FAIL_REGRESSION,
+  HACK_AMOUNT_MAX,
   checkWinConditions,
 } from './gameState';
+import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
 import type { GameStateRecord, TerminalId } from './types';
 
 const app    = express();
@@ -16,103 +23,147 @@ const io     = new Server(server);
 
 app.use(express.static(path.join(__dirname, '../')));
 
-let gameState: GameStateRecord = freshGameState();
 const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
-const DEFAULT_SURVIVOR_SPAWN = { x: 1680, y: 2155 };
+const DEFAULT_SURVIVOR_SPAWN  = { x: 1680, y: 2155 };
+
+// mapeia socketId → roomName para lookup O(1)
+const socketToRoom = new Map<string, string>();
+
+function getRoomForSocket(socketId: string): { roomName: string; state: GameStateRecord } | null {
+  const roomName = socketToRoom.get(socketId);
+  if (!roomName) return null;
+  const state = rooms[roomName];
+  if (!state) return null;
+  return { roomName, state };
+}
 
 io.on('connection', (socket) => {
   console.log(`Jogador conectou: ${socket.id}`);
 
-  const isProfessor = Object.keys(gameState.players).length === 0;
-  gameState.players[socket.id] = {
-    x: isProfessor ? DEFAULT_PROFESSOR_SPAWN.x : DEFAULT_SURVIVOR_SPAWN.x,
-    y: isProfessor ? DEFAULT_PROFESSOR_SPAWN.y : DEFAULT_SURVIVOR_SPAWN.y,
-    role: isProfessor ? 'professor' : 'survivor',
-    ready: false,
-    detentionHits: 0,
-    hp: 2,
-    downed: false,
-    expelled: false,
-    escaped: false,
-    lastAttackTime: 0,
-  };
+  // envia lista de salas disponíveis para o cliente escolher
+  socket.emit('roomList', getRoomSummary());
 
-  socket.emit('roleAssigned', gameState.players[socket.id].role);
-  io.emit('gameState', gameState);
+  // player escolhe sala — atribui role e entra no estado de jogo daquela sala
+  socket.on('joinRoom', ({ roomName }: { roomName: string }) => {
+    if (!(ROOM_NAMES as readonly string[]).includes(roomName)) return;
+    if (socketToRoom.has(socket.id)) return; // já está em uma sala
+
+    const state = getOrCreateRoom(roomName);
+    socket.join(roomName);
+    socketToRoom.set(socket.id, roomName);
+
+    const isProfessor = Object.keys(state.players).length === 0;
+    state.players[socket.id] = {
+      x:               isProfessor ? DEFAULT_PROFESSOR_SPAWN.x : DEFAULT_SURVIVOR_SPAWN.x,
+      y:               isProfessor ? DEFAULT_PROFESSOR_SPAWN.y : DEFAULT_SURVIVOR_SPAWN.y,
+      role:            isProfessor ? 'professor' : 'survivor',
+      ready:           false,
+      detentionHits:   0,
+      hp:              2,
+      downed:          false,
+      expelled:        false,
+      escaped:         false,
+      lastAttackTime:  0,
+    };
+
+    socket.emit('roleAssigned', state.players[socket.id].role);
+    io.to(roomName).emit('gameState', state);
+    io.emit('roomList', getRoomSummary());
+  });
 
   socket.on('setReady', ({ ready }: { ready: boolean }) => {
-    const p = gameState.players[socket.id];
-    if (!p || p.role !== 'survivor' || gameState.phase !== 'lobby') return;
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (!p || p.role !== 'survivor' || state.phase !== 'lobby') return;
     if (typeof ready !== 'boolean') return;
     p.ready = ready;
-    io.emit('gameState', gameState);
+    io.to(roomName).emit('gameState', state);
   });
 
   socket.on('startMatch', () => {
-    const p = gameState.players[socket.id];
-    if (!p || p.role !== 'professor' || gameState.phase !== 'lobby') return;
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (!p || p.role !== 'professor' || state.phase !== 'lobby') return;
 
-    const survivors = Object.values(gameState.players).filter((player) => player.role === 'survivor');
+    const survivors = Object.values(state.players).filter((pl) => pl.role === 'survivor');
     if (survivors.length < 1) return;
-    if (!survivors.every((player) => player.ready)) return;
+    if (!survivors.every((pl) => pl.ready)) return;
 
-    gameState.phase = 'playing';
-    io.emit('gamePhase', 'playing');
+    state.phase = 'playing';
+    io.to(roomName).emit('gamePhase', 'playing');
   });
 
-  // pede sync novo dps da troca de cena
   socket.on('requestSync', () => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { state } = room;
+    const p = state.players[socket.id];
     if (!p) return;
     socket.emit('roleAssigned', p.role);
-    socket.emit('gameState', gameState);
-    socket.emit('gamePhase', gameState.phase);
+    socket.emit('gameState', state);
+    socket.emit('gamePhase', state.phase);
   });
 
-  //  movimento 
   socket.on('move', (data: { x: number; y: number }) => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || p.expelled || p.escaped) return;
     if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
     p.x = data.x;
     p.y = data.y;
-    socket.broadcast.emit('playerMoved', { id: socket.id, x: data.x, y: data.y });
+    socket.to(roomName).emit('playerMoved', { id: socket.id, x: data.x, y: data.y });
   });
 
-  //  hack 
   socket.on('hackProgress', ({ terminalId, amount }: { terminalId: TerminalId; amount: number }) => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
-    if (typeof amount !== 'number' || amount < 0 || amount > 20) return;
-    if (gameState.terminals[terminalId] >= 100) return;
+    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
+    if (typeof amount !== 'number' || amount < 0 || amount > HACK_AMOUNT_MAX) return;
+    if (state.terminals[terminalId] >= 100) return;
 
-    gameState.terminals[terminalId] = Math.min(100, gameState.terminals[terminalId] + amount);
+    state.terminals[terminalId] = Math.min(100, state.terminals[terminalId] + amount);
 
-    if (gameState.terminals[terminalId] >= 100) {
-      gameState.hackedCount++;
-      io.emit('terminalHacked', terminalId);
-      // qtde de terminal pra ganhar = qtde de survivor
-      const survivorCount = Object.values(gameState.players).filter(p => p.role === 'survivor').length;
-      if (gameState.hackedCount >= survivorCount && !gameState.gateOpen) {
-        gameState.gateOpen = true;
-        io.emit('gateUnlocked');
+    if (state.terminals[terminalId] >= 100) {
+      state.hackedCount++;
+      io.to(roomName).emit('terminalHacked', terminalId);
+      const survivorCount = Object.values(state.players).filter((pl) => pl.role === 'survivor').length;
+      if (state.hackedCount >= survivorCount && !state.gateOpen) {
+        state.gateOpen = true;
+        io.to(roomName).emit('gateUnlocked');
       }
     }
 
-    io.emit('terminalUpdate', { id: terminalId, progress: gameState.terminals[terminalId] });
+    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
   });
 
   socket.on('skillCheckFailed', ({ terminalId }: { terminalId: TerminalId }) => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || p.role !== 'survivor') return;
-    io.emit('firewallAlert', { terminalId, survivorId: socket.id });
+    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
+
+    state.terminals[terminalId] = Math.max(0, state.terminals[terminalId] - HACK_FAIL_REGRESSION);
+    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
+    io.to(roomName).emit('firewallAlert', { terminalId, survivorId: socket.id });
   });
 
-  //  ataque do professor 
   socket.on('attack', ({ targetId }: { targetId: string }) => {
-    const attacker = gameState.players[socket.id];
-    const target   = gameState.players[targetId];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const attacker = state.players[socket.id];
+    const target   = state.players[targetId];
     if (!attacker || attacker.role !== 'professor') return;
     if (!target || target.role !== 'survivor' || target.downed || target.expelled) return;
 
@@ -122,81 +173,106 @@ io.on('connection', (socket) => {
 
     target.hp--;
     if (target.hp <= 0) {
-      target.hp     = 0;
-      target.downed = true;
+      target.hp            = 0;
+      target.downed        = true;
       target.detentionHits = 0;
-      io.emit('playerDowned', targetId);
+      io.to(roomName).emit('playerDowned', targetId);
     } else {
-      io.emit('playerHit', { targetId, hp: target.hp });
+      io.to(roomName).emit('playerHit', { targetId, hp: target.hp });
     }
     socket.emit('attackStagger', ATTACK_COOLDOWN_MS);
   });
 
-  //  detencao 
-  socket.on('detentionAnswer', ({ correct }: { correct: boolean }) => {
-    const p = gameState.players[socket.id];
+  socket.on('detentionAnswer', ({ correct, isGreat }: { correct: boolean; isGreat: boolean }) => {
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || !p.downed) return;
     if (typeof correct !== 'boolean') return;
 
     if (correct) {
-      p.detentionHits += 1;
+      p.detentionHits += (isGreat === true) ? 2 : 1;
       if (p.detentionHits >= DETENTION_SKILL_CHECKS_REQUIRED) {
-        p.downed = false;
-        p.hp = 1;
+        p.downed        = false;
+        p.hp            = 1;
         p.detentionHits = 0;
         socket.emit('detentionEscaped');
-        io.emit('playerRevived', socket.id);
+        io.to(roomName).emit('playerRevived', socket.id);
       } else {
         socket.emit('detentionProgress', {
-          current: p.detentionHits,
+          current:  p.detentionHits,
           required: DETENTION_SKILL_CHECKS_REQUIRED,
         });
       }
     } else {
-      p.expelled = true;
+      p.expelled      = true;
       p.detentionHits = 0;
       socket.emit('expelled');
-      io.emit('playerExpelled', socket.id);
-      checkWinConditions(gameState, (e, ...a) => io.emit(e, ...a));
+      io.to(roomName).emit('playerExpelled', socket.id);
+      checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
     }
   });
 
-  //  reforco de terminal (prof)
   socket.on('reinforceTerminal', ({ terminalId }: { terminalId: TerminalId }) => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || p.role !== 'professor') return;
-    if (!Object.prototype.hasOwnProperty.call(gameState.terminals, terminalId)) return;
-    if (gameState.terminals[terminalId] >= 100) return;
+    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
+    if (state.terminals[terminalId] >= 100) return;
 
-    gameState.terminals[terminalId] = Math.max(0, gameState.terminals[terminalId] - 30);
-    io.emit('terminalUpdate', { id: terminalId, progress: gameState.terminals[terminalId] });
+    state.terminals[terminalId] = Math.max(0, state.terminals[terminalId] - 30);
+    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
   });
 
-  //  fuga 
   socket.on('escape', () => {
-    const p = gameState.players[socket.id];
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
     if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (!gameState.gateOpen) return;
+    if (!state.gateOpen) return;
     p.escaped = true;
-    io.emit('playerEscaped', socket.id);
-    checkWinConditions(gameState, (e, ...a) => io.emit(e, ...a));
+    io.to(roomName).emit('playerEscaped', socket.id);
+    checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
   });
 
-  //  quit/disconnect 
   socket.on('disconnect', () => {
     console.log(`Jogador desconectou: ${socket.id}`);
-    const wasProf = gameState.players[socket.id]?.role === 'professor';
-    delete gameState.players[socket.id];
-    io.emit('playerLeft', socket.id);
+    const room = getRoomForSocket(socket.id);
+    if (room) {
+      const { roomName, state } = room;
+      const wasProf = state.players[socket.id]?.role === 'professor';
+      delete state.players[socket.id];
+      socketToRoom.delete(socket.id);
 
-    if (wasProf) {
-      gameState = freshGameState();
-      io.emit('gameReset');
+      io.to(roomName).emit('playerLeft', socket.id);
+
+      if (wasProf) {
+        rooms[roomName] = freshGameState();
+        io.to(roomName).emit('gameReset');
+      } else {
+        checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
+      }
+      io.emit('roomList', getRoomSummary());
     } else {
-      checkWinConditions(gameState, (e, ...a) => io.emit(e, ...a));
+      socketToRoom.delete(socket.id);
     }
+  });
+
+  // registra handlers de voz no mesmo socket
+  registerVoiceSocket(socket, (id) => socketToRoom.get(id) ?? null, {
+    to: (roomOrId: string) => ({ emit: (event: string, data: unknown) => io.to(roomOrId).emit(event, data) }),
   });
 });
 
 const PORT = 3000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando em http://0.0.0.0:${PORT}`));
+
+initVoiceWorker().then(() => {
+  server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando em http://0.0.0.0:${PORT}`));
+}).catch((err) => {
+  console.error('Falha ao inicializar mediasoup:', err);
+  process.exit(1);
+});
