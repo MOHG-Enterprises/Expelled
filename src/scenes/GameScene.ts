@@ -13,6 +13,7 @@ import { HUD }             from '../game/HUD';
 import { TerminalManager } from '../game/TerminalManager';
 import { PlayerManager }   from '../game/PlayerManager';
 import { StaminaBar }      from '../game/StaminaBar';
+import { VoiceManager }   from '../game/VoiceManager';
 import {
   applySkinToSprite,
   ensurePlayerSkinAnimations,
@@ -45,6 +46,8 @@ const MAP_TILESETS: TilesetConfig[] = [
   { name: 'conundrum', key: 'tileset-conundrum', image: '/mapa/Expelled/abc/titleGame.png', tileWidth: 16, tileHeight: 16 },
 ];
 
+const PAD_DEADZONE = 0.2;
+
 const COLLISION_LAYERS = new Set([
   'OBSTACULOS',
   'Parede',
@@ -70,6 +73,9 @@ export class GameScene extends Phaser.Scene {
   private inputFrozen    = false;
   private staggerTimer   = 0;
   private gateOpen       = false;
+
+  private survivorOrder: string[] = [];
+  private survivorInfo  = new Map<string, { hp: number; downed: boolean; expelled: boolean; escaped: boolean }>();
   private hackingTerminal: TerminalId | null = null;
   private hackHoldTimer  = 0;
   private lastMoveEmit   = 0;
@@ -98,6 +104,7 @@ export class GameScene extends Phaser.Scene {
   private terminals!:   TerminalManager;
   private players!:     PlayerManager;
   private staminaBar!:  StaminaBar;
+  private voiceManager: VoiceManager | null = null;
 
   //  inputs
   private cursors!:    Phaser.Types.Input.Keyboard.CursorKeys;
@@ -213,6 +220,24 @@ export class GameScene extends Phaser.Scene {
     return { x, y };
   }
 
+  private refreshSurvivorHUD() {
+    const statuses = this.survivorOrder.map((id, i) => {
+      const info = this.survivorInfo.get(id) ?? { hp: 2, downed: false, expelled: false, escaped: false };
+      return { label: `A${i + 1}`, ...info };
+    });
+    this.hud.setSurvivorStatuses(statuses);
+  }
+
+  private refreshTerminalHUD() {
+    const { done, total } = this.terminals.getCount();
+    this.hud.setTerminalCount(done, total);
+  }
+
+  private trackSurvivor(id: string, info: { hp: number; downed: boolean; expelled: boolean; escaped: boolean }) {
+    if (!this.survivorOrder.includes(id)) this.survivorOrder.push(id);
+    this.survivorInfo.set(id, info);
+  }
+
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
   private resetLocalState() {
     this.myRole = null;
@@ -233,6 +258,8 @@ export class GameScene extends Phaser.Scene {
     this.gamePhase = 'playing';
     this.stamina = STAMINA_MAX;
     this.sprinting = false;
+    this.survivorOrder = [];
+    this.survivorInfo.clear();
   }
 
   create(data?: { socket?: Socket }) {
@@ -306,6 +333,14 @@ export class GameScene extends Phaser.Scene {
     this.setupSocketEvents();
     this.socket.emit('requestSync');
 
+    this.voiceManager = new VoiceManager();
+    this.voiceManager.init(this.socket)
+      .then(() => { this.hud.setMicState('active'); })
+      .catch(() => {
+        this.hud.flash('Microfone nao detectado — sem voz', 0xff8800, 3000);
+        this.hud.setMicState('error');
+      });
+
   }
 
   private setupSocketEvents() {
@@ -323,8 +358,12 @@ export class GameScene extends Phaser.Scene {
       //setta outros estados
       (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
       this.fog.setup(role);
-      this.hud.update(role, this.myHp, this.gamePhase, false);
+      this.hud.update(role, this.myHp, false);
       this.staminaBar.setVisible(role === 'survivor');
+      if (role === 'survivor') {
+        this.trackSurvivor(s.id!, { hp: this.myHp, downed: false, expelled: false, escaped: false });
+        this.refreshSurvivorHUD();
+      }
     });
 
     // recebe o estado completo do jogo (usado no sync inicial e qnd alguem entra)
@@ -332,13 +371,17 @@ export class GameScene extends Phaser.Scene {
       this.terminals.sync(state.terminals, state.terminalPositions);
       Object.entries(state.players).forEach(([id, p]) => {
         if (id !== s.id) this.players.getOrCreate(id, p);
+        if (p.role === 'survivor') this.trackSurvivor(id, { hp: p.hp, downed: p.downed, expelled: p.expelled, escaped: p.escaped });
       });
+      this.hud.setTerminalCount(state.hackedCount, Object.keys(state.terminals).length);
+      this.hud.setGateOpen(state.gateOpen);
+      this.refreshSurvivorHUD();
     });
 
     //mujdanca de cena
     s.on('gamePhase', (phase: GamePhase) => {
       this.gamePhase = phase;
-      this.hud.update(this.myRole, this.myHp, phase, this.downed);
+      this.hud.update(this.myRole, this.myHp, this.downed);
     });
 
     // outros players se movendo
@@ -349,16 +392,21 @@ export class GameScene extends Phaser.Scene {
     // player kita
     s.on('playerLeft', (id: string) => {
       this.players.remove(id);
+      this.survivorInfo.delete(id);
+      this.survivorOrder = this.survivorOrder.filter((sid) => sid !== id);
+      this.refreshSurvivorHUD();
     });
-  
+
     // atualizacao de terminal
     s.on('terminalUpdate', ({ id, progress }: { id: string; progress: number }) => {
       this.terminals.setProgress(id, progress);
+      this.refreshTerminalHUD();
     });
 
     // terminal hackeado
     s.on('terminalHacked', (id: string) => {
       this.terminals.setProgress(id, 100);
+      this.refreshTerminalHUD();
       this.hud.flash('Terminal hackeado!', 0x00e676);
     });
 
@@ -376,31 +424,35 @@ export class GameScene extends Phaser.Scene {
     s.on('gateUnlocked', () => {
       this.gateOpen = true;
       this.terminals.unlockGate();
+      this.hud.setGateOpen(true);
       this.hud.flash('Portão aberto, fuja!', 0x00e676);
     });
 
     // player atacado
-
     s.on('playerHit', ({ targetId, hp }: { targetId: string; hp: number }) => {
       if (targetId === s.id) {
         this.myHp = hp;
-        this.hud.update(this.myRole, this.myHp, this.gamePhase, this.downed);
+        this.hud.update(this.myRole, this.myHp, this.downed);
         this.hud.flash('Você foi atingido!', 0xff4444);
       }
+      const info = this.survivorInfo.get(targetId);
+      if (info) { this.survivorInfo.set(targetId, { ...info, hp }); this.refreshSurvivorHUD(); }
     });
 
-    // player detido 
+    // player detido
     // TODO: queria q as skill check aqui fossem mais dificeis, nao era pra ta colocando aqui mas lembrei agora
     s.on('playerDowned', (targetId: string) => {
       if (targetId === s.id) {
         this.downed = true;
         this.myHp   = 0;
-        this.hud.update(this.myRole, this.myHp, this.gamePhase, true);
+        this.hud.update(this.myRole, this.myHp, true);
         this.hud.flash('Em DETENÇÃO! Passe no exame!', 0xff4444);
         this.startDetention();
       } else if (this.myRole === 'professor') {
         this.hud.flash('Aluno detido!', 0xffcc00);
       }
+      const info = this.survivorInfo.get(targetId);
+      if (info) { this.survivorInfo.set(targetId, { ...info, hp: 0, downed: true }); this.refreshSurvivorHUD(); }
     });
 
     // stun q o killer toma por hittar
@@ -414,20 +466,23 @@ export class GameScene extends Phaser.Scene {
       this.downed = false;
       this.myHp   = 1;
       this.inputFrozen = false;
-      this.hud.update(this.myRole, this.myHp, this.gamePhase, false);
+      this.hud.update(this.myRole, this.myHp, false);
       this.hud.flash('Você escapou da detenção!', 0x4fc3f7);
+      const info = this.survivorInfo.get(s.id!);
+      if (info) { this.survivorInfo.set(s.id!, { ...info, hp: 1, downed: false }); this.refreshSurvivorHUD(); }
     });
 
     //progresso do revive
     s.on('detentionProgress', ({ current, required }: { current: number; required: number }) => {
-    if (!this.downed) return;
-    this.hud.flash(`Detenção: ${current}/${required}`, 0xffcc00, 1200);
-  });
+      if (!this.downed) return;
+      this.hud.flash(`Detenção: ${current}/${required}`, 0xffcc00, 1200);
+    });
+
     //morto
     s.on('expelled', () => {
       this.expelled    = true;
       this.inputFrozen = true;
-      this.hud.update(this.myRole, this.myHp, this.gamePhase, false);
+      this.hud.update(this.myRole, this.myHp, false);
       this.hud.flash('EXPULSO!', 0xff4444, 4000);
     });
 
@@ -435,6 +490,8 @@ export class GameScene extends Phaser.Scene {
     s.on('playerRevived', (id: string) => {
       if (this.myRole === 'professor' && id !== s.id)
         this.hud.flash('Aluno escapou da detenção!', 0x4fc3f7);
+      const info = this.survivorInfo.get(id);
+      if (info) { this.survivorInfo.set(id, { ...info, hp: 1, downed: false }); this.refreshSurvivorHUD(); }
     });
 
     //alerta pra qnd aluno morre
@@ -442,6 +499,8 @@ export class GameScene extends Phaser.Scene {
       this.players.setAlpha(id, 0.25);
       if (this.myRole === 'professor' && id !== s.id)
         this.hud.flash('Aluno expulso!', 0x00e676);
+      const info = this.survivorInfo.get(id);
+      if (info) { this.survivorInfo.set(id, { ...info, expelled: true }); this.refreshSurvivorHUD(); }
     });
 
     //yay escapou
@@ -453,6 +512,8 @@ export class GameScene extends Phaser.Scene {
       } else {
         this.players.setVisible(id, false);
       }
+      const info = this.survivorInfo.get(id);
+      if (info) { this.survivorInfo.set(id, { ...info, escaped: true }); this.refreshSurvivorHUD(); }
     });
 
     s.on('gameOver', ({ winner }: { winner: string }) => {
@@ -462,7 +523,12 @@ export class GameScene extends Phaser.Scene {
       this.hud.flash(msg, col, 8000);
     });
 
-    s.on('gameReset', () => { this.scene.restart(); });
+    s.on('gameReset', () => {
+      this.voiceManager?.destroy();
+      this.voiceManager = null;
+      this.hud.setMicState('off');
+      this.scene.restart();
+    });
   }
 
   //detencao
@@ -484,20 +550,19 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  //hack de terminal
-private runHackSkillCheck(terminalId: TerminalId) {
-  this.inputFrozen = true;
-  this.skillCheck.show(
-    (isGreat) => {
-      this.inputFrozen = false;
-      if (isGreat) this.socket.emit('hackProgress', { terminalId, amount: HACK_GREAT_BONUS });
-    },
-    () => {
-      this.inputFrozen = false;
-      this.socket.emit('skillCheckFailed', { terminalId });
-    },
-  );
-}
+  private runHackSkillCheck(terminalId: TerminalId) {
+    this.inputFrozen = true;
+    this.skillCheck.show(
+      (isGreat) => {
+        this.inputFrozen = false;
+        if (isGreat) this.socket.emit('hackProgress', { terminalId, amount: HACK_GREAT_BONUS });
+      },
+      () => {
+        this.inputFrozen = false;
+        this.socket.emit('skillCheckFailed', { terminalId });
+      },
+    );
+  }
 
   //  interacao com o portao (survivor tem q ta perto e clicar no e pra escapar)
   // TODO: devia mostrar as teclas perto do que vc pode apertar, tipo portao e terminal[] 
@@ -507,37 +572,37 @@ private runHackSkillCheck(terminalId: TerminalId) {
     return Phaser.Math.Distance.Between(this.player.x, this.player.y, gm.x, gm.y) < INTERACT_RADIUS;
   }
 
-private _updateSurvivorInteractions(delta: number) {
-  const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
+  private _updateSurvivorInteractions(delta: number) {
+    const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
 
-  if ((this.eKey.isDown || this.padActionHeld) && nearTerminal && !this.downed) {
-    this.hackingTerminal = nearTerminal;
-    this.terminals.setWorking(nearTerminal);
+    if ((this.eKey.isDown || this.padActionHeld) && nearTerminal && !this.downed) {
+      this.hackingTerminal = nearTerminal;
+      this.terminals.setWorking(nearTerminal);
 
-    this.hackPassiveTimer += delta;
-    if (this.hackPassiveTimer >= HACK_PASSIVE_RATE_MS) {
-      this.hackPassiveTimer = 0;
-      this.socket.emit('hackProgress', { terminalId: nearTerminal, amount: HACK_PASSIVE_TICK });
+      this.hackPassiveTimer += delta;
+      if (this.hackPassiveTimer >= HACK_PASSIVE_RATE_MS) {
+        this.hackPassiveTimer = 0;
+        this.socket.emit('hackProgress', { terminalId: nearTerminal, amount: HACK_PASSIVE_TICK });
+      }
+
+      this.hackHoldTimer += delta;
+      if (this.hackHoldTimer >= this.hackNextThreshold) {
+        this.hackHoldTimer     = 0;
+        this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
+        this.runHackSkillCheck(nearTerminal);
+      }
+      return;
     }
 
-    this.hackHoldTimer += delta;
-    if (this.hackHoldTimer >= this.hackNextThreshold) {
-      this.hackHoldTimer     = 0;
-      this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
-      this.runHackSkillCheck(nearTerminal);
+    this.hackingTerminal  = null;
+    this.hackPassiveTimer = 0;
+    this.hackHoldTimer    = 0;
+    this.terminals.setWorking(null);
+
+    if ((Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) && this.gateOpen && this.isNearGate()) {
+      this.socket.emit('escape');
     }
-    return;
   }
-
-  this.hackingTerminal  = null;
-  this.hackPassiveTimer = 0;
-  this.hackHoldTimer    = 0;
-  this.terminals.setWorking(null);
-
-  if ((Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) && this.gateOpen && this.isNearGate()) {
-    this.socket.emit('escape');
-  }
-}
 
   private _updateProfessorInteractions() {
     if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust) {
@@ -575,7 +640,7 @@ private _updateSurvivorInteractions(delta: number) {
     // gamepad — lê estado do pad1 e detecta "just pressed" para este frame
     const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
     this.hud.setGamepadConnected(pad !== null);
-    const DEADZONE = 0.2;
+    const DEADZONE = PAD_DEADZONE;
     const padActionNow = pad?.buttons[0].pressed ?? false; // A — ação (E)
     const padAttackNow = pad?.buttons[2].pressed ?? false; // X — ataque/skill check (SPACE)
     this.padActionHeld = padActionNow;
@@ -686,8 +751,20 @@ private _updateSurvivorInteractions(delta: number) {
     this.fog.update(this.player, this.lookAngle);
     this.players.update(this.time.now);
 
+    if (this.voiceManager && this.myRole) {
+      this.voiceManager.updateSpatialAudio(
+        { x: this.player.x, y: this.player.y },
+        this.myRole,
+        this.players.getPositions(),
+        this.lookAngle,
+      );
+    }
+
     if (this.myRole === 'survivor')  this._updateSurvivorInteractions(delta);
-    else if (this.myRole === 'professor') this._updateProfessorInteractions();
+    else if (this.myRole === 'professor') {
+      this._updateProfessorInteractions();
+      this.hud.setAttackCooldown(this.staggerTimer);
+    }
 
     if (this.collisionDebugEnabled && this.playerBodyDebugGraphics) {
       const body = this.player.body as Phaser.Physics.Arcade.Body;

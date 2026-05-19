@@ -83,6 +83,14 @@ export class PlayerManager {
     this.others[id]?.sprite.setVisible(visible);
   }
 
+  getPositions(): Record<string, { x: number; y: number }> {
+    const result: Record<string, { x: number; y: number }> = {};
+    Object.entries(this.others).forEach(([id, p]) => {
+      result[id] = { x: p.sprite.x, y: p.sprite.y };
+    });
+    return result;
+  }
+
   nearestSurvivor(x: number, y: number): string | null {
     // pega o survivor mais perto dentro do range de interacao
     let best: string | null = null;

@@ -113,6 +113,10 @@ export class TerminalManager {
     }
   }
 
+  getCount(): { done: number; total: number } {
+    return { done: this.completed.size, total: Object.keys(this.objects).length };
+  }
+
   nearest(x: number, y: number): TerminalId | null {
     let best: TerminalId | null = null;
     let bestDist = Infinity;
