@@ -65,10 +65,39 @@ export class SkillCheck {
       this.angle >= this.zoneStart &&
       this.angle <= this.zoneStart + SKILL_CHECK_WINDOW * GREAT_ZONE_RATIO;
 
+    if (inGreat) this.showGreatFeedback();
     this.hide();
 
     if (inSuccess) this.onSuccess?.(inGreat);
     else           this.onFail?.();
+  }
+
+  private showGreatFeedback() {
+    const text = this.scene.add
+      .text(400, 265, 'GREAT!', {
+        fontSize: '30px',
+        fontStyle: 'bold',
+        color: '#ffee00',
+        stroke: '#000000',
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(45)
+      .setScale(0.6);
+
+    this.scene.tweens.add({
+      targets: text,
+      y: 205,
+      alpha: 0,
+      scaleX: 1.4,
+      scaleY: 1.4,
+      duration: 750,
+      ease: 'Cubic.Out',
+      onComplete: () => text.destroy(),
+    });
+
+    this.scene.cameras.main.flash(180, 255, 220, 0, true);
   }
 
   cancel() {

@@ -27,7 +27,6 @@ import {
   CHASE_LOS_TIMEOUT_MS,
   CHASE_FOV_HALF_DEG,
   BLOODLUST_TIER_TIMES_MS,
-  BLOODLUST_SPEED_BONUS_PX_S,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
 import type { GameStateRecord, TerminalId } from './types';
@@ -122,7 +121,7 @@ setInterval(() => {
     const prevTier   = state.chase.tier;
     const wasActive  = state.chase.target !== null;
     const fovHalfRad = (CHASE_FOV_HALF_DEG * Math.PI) / 180;
-    const now2       = Date.now();
+    const now        = Date.now();
 
     if (!prof || survivors.length === 0) {
       if (wasActive) {
@@ -155,10 +154,10 @@ setInterval(() => {
           if (inView) {
             state.chase.losLostAt = null;
           } else if (state.chase.losLostAt === null) {
-            state.chase.losLostAt = now2;
+            state.chase.losLostAt = now;
           }
 
-          const losTimeout = state.chase.losLostAt !== null && now2 - state.chase.losLostAt > CHASE_LOS_TIMEOUT_MS;
+          const losTimeout = state.chase.losLostAt !== null && now - state.chase.losLostAt > CHASE_LOS_TIMEOUT_MS;
           const tooFar     = dist > CHASE_END_RADIUS_PX;
 
           if (losTimeout || tooFar) {
@@ -344,7 +343,7 @@ io.on('connection', (socket) => {
     io.to(roomName).emit('firewallAlert', { terminalId, survivorId: socket.id });
   });
 
-  socket.on('attack', ({ x, y, angle, lunge }: { x: number; y: number; angle: number; lunge: boolean }) => {
+  socket.on('attack', ({ x, y, angle, lunge: _lunge }: { x: number; y: number; angle: number; lunge: boolean }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
@@ -357,7 +356,6 @@ io.on('connection', (socket) => {
     if (now - attacker.lastAttackTime < ATTACK_COOLDOWN_MS) return;
     attacker.lastAttackTime = now;
 
-    const isLunge = lunge === true;
     const depth = ATTACK_HITBOX_DEPTH;
     const half  = ATTACK_HITBOX_WIDTH / 2;
     const cosA  = Math.cos(angle);
@@ -372,11 +370,6 @@ io.on('connection', (socket) => {
       const perp  = dx * (-sinA) + dy * cosA;
       if (along < 0 || along > depth || Math.abs(perp) > half) return;
       hitAny = true;
-      if (state.chase.elapsed > 0 || state.chase.tier > 0) {
-        state.chase.elapsed = 0;
-        state.chase.tier    = 0;
-        io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: state.chase.target !== null });
-      }
       target.hp--;
       if (target.hp <= 0) {
         target.hp = 0;
@@ -387,6 +380,12 @@ io.on('connection', (socket) => {
         io.to(roomName).emit('playerHit', { targetId: id, hp: target.hp });
       }
     });
+
+    if (hitAny && (state.chase.elapsed > 0 || state.chase.tier > 0)) {
+      state.chase.elapsed = 0;
+      state.chase.tier    = 0;
+      io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: state.chase.target !== null });
+    }
 
     const stagger = hitAny ? ATTACK_STAGGER_HIT_MS : ATTACK_STAGGER_MISS_MS;
     socket.emit('attackStagger', stagger);
@@ -431,6 +430,7 @@ io.on('connection', (socket) => {
     if (!p || p.role !== 'professor') return;
     if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
     if (state.terminals[terminalId] >= 100) return;
+    if (state.terminals[terminalId] <= 0) return;
 
     const meta = getTerminalMeta(roomName, terminalId);
     if (meta.regressionEvents >= HACK_REGRESSION_EVENTS_MAX) return;

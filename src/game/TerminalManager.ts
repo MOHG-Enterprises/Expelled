@@ -45,14 +45,16 @@ export class TerminalManager {
   setRegressing(id: TerminalId | string, isRegressing: boolean) {
     const terminalId = id as TerminalId;
     if (this.completed.has(terminalId)) return;
+    const t = this.objects[terminalId];
     if (isRegressing) {
       this.regressingTerminals.add(terminalId);
+      this.setTerminalFrame(terminalId, TerminalManager.FRAME_FAIL);
+      t?.bar.setFillStyle(TerminalManager.BAR_COLOR_REGRESSING);
     } else {
       this.regressingTerminals.delete(terminalId);
-    }
-    const t = this.objects[terminalId];
-    if (t) {
-      t.bar.setFillStyle(isRegressing ? TerminalManager.BAR_COLOR_REGRESSING : TerminalManager.BAR_COLOR_NORMAL);
+      const progress = this.progressCache[terminalId] ?? 0;
+      this.setTerminalFrame(terminalId, this.frameForProgress(progress));
+      t?.bar.setFillStyle(TerminalManager.BAR_COLOR_NORMAL);
     }
   }
 
@@ -139,7 +141,7 @@ export class TerminalManager {
     } else {
       this.completed.delete(terminalId);
       t.sprite.clearTint();
-      if (!this.failingTerminals.has(terminalId)) {
+      if (!this.failingTerminals.has(terminalId) && !this.regressingTerminals.has(terminalId)) {
         this.setTerminalFrame(terminalId, this.frameForProgress(progress));
       }
       t.bar.setFillStyle(

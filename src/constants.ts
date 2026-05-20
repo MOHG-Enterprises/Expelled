@@ -7,6 +7,12 @@ export {
   HACK_AMOUNT_MAX,
   ATTACK_HITBOX_WIDTH,
   ATTACK_HITBOX_DEPTH,
+  CHASE_START_RADIUS_PX,
+  CHASE_END_RADIUS_PX,
+  CHASE_LOS_TIMEOUT_MS,
+  CHASE_FOV_HALF_DEG,
+  BLOODLUST_TIER_TIMES_MS,
+  BLOODLUST_SPEED_BONUS_PX_S,
 } from '../shared/gameRules';
 
 //  mundo 
@@ -27,14 +33,14 @@ export const STAMINA_MIN_SPRINT = 10;  // vigor mínimo para começar a correr
 
 //  interacoes 
 export const INTERACT_RADIUS    = 48;   // px
-export const SKILL_CHECK_WINDOW = 0.18; // parte do circulo q conta como acerto
+export const SKILL_CHECK_WINDOW = 0.10; // parte do circulo q conta como acerto
 export const STAGGER_MS         = 1500; // tempo que o professor fica parado depois de atacar
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //Hack
-export const HACK_PASSIVE_TICK    = 4;    // % por tick passivo
+export const HACK_PASSIVE_TICK    = 2;    // % por tick passivo
 export const HACK_PASSIVE_RATE_MS = 600;  // intervalo do tick passivo
-export const HACK_GREAT_BONUS     = 6;    // % extra no great
+export const HACK_GREAT_BONUS     = 3;    // % extra no great
 
 
 //  terror radius (professor)
@@ -44,6 +50,13 @@ export const TERROR_RADIUS = 450; // px — raio do terror do professor
 export const FOV_PROFESSOR = 460;
 export const FOV_SURVIVOR  = 280;
 export const FOV_PROFESSOR_CONE_DEG = 80;
+
+export const TILE_WORLD_SIZE = 32; // 16px tile × MAP_SCALE 2
+
+export const FOV_BLOCKING_LAYERS = new Set([
+  'Parede',
+  'PORTAO',
+]);
 
 //  voz
 export const VOICE_SURVIVOR_HEAR_RADIUS = 200;

@@ -55,6 +55,8 @@ export class HUD {
   private terrorHeart!: Phaser.GameObjects.Text;
   private terrorTween:  Phaser.Tweens.Tween | null = null;
   private currentTerrorLevel = -1;
+  private chaseIndicatorBg!:   Phaser.GameObjects.Graphics;
+  private chaseIndicatorText!: Phaser.GameObjects.Text;
 
   private hackBarGraphic!: Phaser.GameObjects.Graphics;
   private hackBarLabel!:   Phaser.GameObjects.Text;
@@ -115,6 +117,19 @@ export class HUD {
     this.hackBarPct = this.scene.add
       .text(400, 480, '', { fontSize: '10px', color: '#cce8ff' })
       .setOrigin(0.5, 0).setScrollFactor(0).setDepth(32).setAlpha(0);
+
+    this.chaseIndicatorBg = this.scene.add
+      .graphics()
+      .setScrollFactor(0)
+      .setDepth(30)
+      .setAlpha(0);
+
+    this.chaseIndicatorText = this.scene.add
+      .text(762, 28, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
+      .setOrigin(1, 0)
+      .setScrollFactor(0)
+      .setDepth(31)
+      .setAlpha(0);
 
     this._buildSurvivorCards();
   }
@@ -424,6 +439,35 @@ export class HUD {
       .text(400, 200, text, { fontSize: '22px', color: hex, stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setScrollFactor(0).setDepth(50);
     this.scene.time.delayedCall(duration, () => t.destroy());
+  }
+
+  setChaseState(active: boolean, tier: 0 | 1 | 2 | 3): void {
+    if (this.currentRole !== 'professor') return;
+
+    this.chaseIndicatorBg.clear();
+
+    if (!active) {
+      this.chaseIndicatorBg.setAlpha(0);
+      this.chaseIndicatorText.setAlpha(0);
+      return;
+    }
+
+    const tierColors: Record<number, { bg: number; text: string }> = {
+      0: { bg: 0x333333, text: '#cccccc' },
+      1: { bg: 0x665500, text: '#ffdd00' },
+      2: { bg: 0x663300, text: '#ff8800' },
+      3: { bg: 0x660000, text: '#ff2200' },
+    };
+    const { bg, text } = tierColors[tier];
+    const tierLabel = tier === 0 ? 'CHASE' : `CHASE  ${'I'.repeat(tier)}`;
+
+    this.chaseIndicatorBg.fillStyle(bg, 0.85);
+    this.chaseIndicatorBg.fillRoundedRect(668, 26, 100, 20, 4);
+    this.chaseIndicatorBg.lineStyle(1, 0xffffff, 0.2);
+    this.chaseIndicatorBg.strokeRoundedRect(668, 26, 100, 20, 4);
+    this.chaseIndicatorBg.setAlpha(1);
+
+    this.chaseIndicatorText.setText(tierLabel).setColor(text).setAlpha(1);
   }
 
   private refreshHint() {

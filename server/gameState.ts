@@ -27,10 +27,10 @@ export type  RoomName   = typeof ROOM_NAMES[number];
 // posicao fixa dos terminais no mapa
 export const TERMINAL_POSITIONS: Record<TerminalId, Vec2> = {
   t1: { x: 2140, y: 2520 },
-  t2: { x: 500,  y: 150  },
-  t3: { x: 200,  y: 400  },
-  t4: { x: 500,  y: 400  },
-  t5: { x: 350,  y: 280  },
+  t2: { x: 785,  y: 86  },
+  t3: { x: 848,  y: 1830 },
+  t4: { x: 780,  y: 3720  },
+  t5: { x: 1510,  y: 1430  },
 };
 
 export { ATTACK_COOLDOWN_MS };

@@ -8,6 +8,7 @@ import {
   WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
   ATTACK_HITBOX_WIDTH, ATTACK_HITBOX_DEPTH,
   TERROR_RADIUS,
+  BLOODLUST_SPEED_BONUS_PX_S,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId } from '../types';
 import { SkillCheck }      from '../game/SkillCheck';
@@ -83,6 +84,8 @@ export class GameScene extends Phaser.Scene {
   private lungeVec:       { x: number; y: number } | null = null;
   private lungeSpeed      = 0;
   private isHitStagger   = false;
+  private bloodlustTier:  0 | 1 | 2 | 3 = 0;
+  private chaseActive     = false;
   private slashSprite:   Phaser.GameObjects.Sprite | null = null;
   private isKicking      = false;
   private kickSprite:    Phaser.GameObjects.Sprite | null = null;
@@ -141,7 +144,7 @@ export class GameScene extends Phaser.Scene {
   
   private toggleCollisionDebug() {
     if (!this.mapRef) return;
-
+    console.log(this.player.x, this.player.y);
     this.collisionDebugEnabled = !this.collisionDebugEnabled;
     if (this.collisionDebugEnabled) {
       if (!this.collisionDebugGraphics) {
@@ -536,7 +539,7 @@ export class GameScene extends Phaser.Scene {
       this.player.setPosition(spawn.x, spawn.y);
       //setta outros estados
       (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
-      this.fog.setup(role);
+      this.fog.setup(role, this.mapRef!);
       this.hud.update(role, this.myHp, false);
       this.staminaBar.setVisible(role === 'survivor');
       if (role === 'survivor') {
@@ -719,6 +722,12 @@ export class GameScene extends Phaser.Scene {
       const msg = winner === 'survivors' ? 'ALUNOS VENCERAM!' : 'PROFESSOR VENCEU!';
       const col = winner === 'survivors' ? 0x4fc3f7 : 0xe94560;
       this.hud.flash(msg, col, 8000);
+    });
+
+    s.on('bloodlustUpdate', ({ tier, chaseActive }: { tier: 0 | 1 | 2 | 3; chaseActive: boolean }) => {
+      this.bloodlustTier = tier;
+      this.chaseActive   = chaseActive;
+      this.hud.setChaseState(chaseActive, tier);
     });
 
     s.on('gameReset', () => {
@@ -938,7 +947,7 @@ export class GameScene extends Phaser.Scene {
     //  Movimento
     let speed: number;
     if (this.myRole === 'professor') {
-      speed = PROFESSOR_SPEED;
+      speed = PROFESSOR_SPEED + BLOODLUST_SPEED_BONUS_PX_S[this.bloodlustTier];
     } else {
       speed = this.sprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
     }
@@ -1012,7 +1021,7 @@ export class GameScene extends Phaser.Scene {
     this.lastMoveEmit += delta;
     if ((vx !== 0 || vy !== 0) && this.lastMoveEmit > MOVE_EMIT_RATE_MS) {
       this.lastMoveEmit = 0;
-      this.socket.emit('move', { x: this.player.x, y: this.player.y });
+      this.socket.emit('move', { x: this.player.x, y: this.player.y, angle: this.lookAngle });
     }
 
     this.smoothLookAngle(delta);
