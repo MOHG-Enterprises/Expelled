@@ -8,10 +8,15 @@ export const HACK_KICK_REGRESSION = 5;
 export const HACK_REGRESSION_RATE_PCT_S = 4;
 export const HACK_REGRESSION_EVENTS_MAX = 8;
 
-export const ATTACK_HITBOX_WIDTH = 96;
-export const ATTACK_HITBOX_DEPTH = 100;
 export const ATTACK_STAGGER_HIT_MS = 2700;
 export const ATTACK_STAGGER_MISS_MS = 1500;
+
+export const LUNGE_THRESHOLD_MS         = 300;
+export const LUNGE_MAX_HOLD_MS          = 800;
+export const QUICK_ATTACK_RADIUS        = 90;
+export const QUICK_ATTACK_HALF_ANGLE_RAD = Math.PI * 50 / 180;
+export const LUNGE_ATTACK_RADIUS        = 160;
+export const LUNGE_ATTACK_HALF_ANGLE_RAD = Math.PI * 40 / 180;
 
 export const CHASE_START_RADIUS_PX = 384;
 export const CHASE_END_RADIUS_PX = 576;
