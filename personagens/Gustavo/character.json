@@ -109,9 +109,11 @@
       "zPos": 10,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "body/bodies/teen/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "body/bodies/teen/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -138,9 +140,11 @@
       "zPos": 15,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "feet/shoes/basic/thin/spellcast/black.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "feet/shoes/basic/thin/spellcast/black.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -169,9 +173,11 @@
       "zPos": 20,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "legs/fur/thin/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "legs/fur/thin/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -200,9 +206,11 @@
       "zPos": 35,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "torso/clothes/shortsleeve/shortsleeve/teen/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "torso/clothes/shortsleeve/shortsleeve/teen/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -231,9 +239,11 @@
       "zPos": 75,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "arms/hands/ring/stud/thin/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "arms/hands/ring/stud/thin/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -259,9 +269,11 @@
       "zPos": 100,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "head/heads/human/male/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "head/heads/human/male/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -290,9 +302,11 @@
       "zPos": 101,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "head/faces/male/neutral/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "head/faces/male/neutral/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -319,9 +333,11 @@
       "zPos": 111,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "beards/mustache/french/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "beards/mustache/french/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
@@ -350,9 +366,11 @@
       "zPos": 120,
       "layerNum": 1,
       "yPos": 0,
-      "isCustom": false,
       "needsRecolor": false,
-      "fileName": "hair/buzzcut/adult/spellcast.png",
+      "source": {
+        "kind": "catalog",
+        "spritePath": "hair/buzzcut/adult/spellcast.png"
+      },
       "supportedAnimations": [
         "spellcast",
         "thrust",
