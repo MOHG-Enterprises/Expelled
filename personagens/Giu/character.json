@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "bodyType": "teen",
+  "bodyType": "female",
   "selections": {
     "body": {
       "itemId": "body",
@@ -9,61 +9,68 @@
       "recolor": "light",
       "name": "Body Color (light)"
     },
-    "head": {
-      "itemId": "heads_human_male",
-      "subId": null,
-      "variant": "",
-      "recolor": "light",
-      "name": "Human Male (light)"
-    },
     "expression": {
-      "itemId": "face_neutral",
+      "itemId": "face_happy",
       "subId": null,
       "variant": "",
       "recolor": "light",
-      "name": "Neutral (light)"
+      "name": "Happy (light)"
     },
-    "shoes": {
-      "itemId": "feet_shoes_basic",
+    "head": {
+      "itemId": "heads_human_female",
       "subId": null,
-      "variant": "black",
-      "recolor": "",
-      "name": "Basic Shoes (black)"
+      "variant": "",
+      "recolor": "light",
+      "name": "Human Female (light)"
+    },
+    "eyebrows": {
+      "itemId": "eyebrows_thin",
+      "subId": null,
+      "variant": "",
+      "recolor": "platinum",
+      "name": "Thin Eyebrows (platinum)"
+    },
+    "nose": {
+      "itemId": "head_nose_button",
+      "subId": null,
+      "variant": "",
+      "recolor": "light",
+      "name": "Button nose (light)"
+    },
+    "hair": {
+      "itemId": "hair_bangslong2",
+      "subId": null,
+      "variant": "",
+      "recolor": "red",
+      "name": "Bangslong2 (red)"
+    },
+    "clothes": {
+      "itemId": "torso_clothes_shortsleeve_cardigan",
+      "subId": null,
+      "variant": "",
+      "recolor": "black",
+      "name": "Shortsleeve Cardigan (black)"
     },
     "legs": {
-      "itemId": "legs_fur",
+      "itemId": "legs_pantaloons",
       "subId": null,
       "variant": "",
       "recolor": "gray",
-      "name": "Fur Pants (gray)"
+      "name": "Pantaloons (gray)"
     },
-    "clothes": {
-      "itemId": "torso_clothes_shortsleeve",
+    "shoes": {
+      "itemId": "feet_shoes_ghillies",
       "subId": null,
-      "variant": "",
-      "recolor": "charcoal",
-      "name": "Shortsleeve (charcoal)"
+      "variant": "black",
+      "recolor": "",
+      "name": "Ghillies (black)"
     },
-    "hair": {
-      "itemId": "hair_buzzcut",
+    "shoes_toe": {
+      "itemId": "feet_plate_toe",
       "subId": null,
-      "variant": "",
-      "recolor": "dark_brown",
-      "name": "Buzzcut (dark_brown)"
-    },
-    "mustache": {
-      "itemId": "beards_french",
-      "subId": null,
-      "variant": "",
-      "recolor": "gold",
-      "name": "French Mustache (gold)"
-    },
-    "ring": {
-      "itemId": "arms_hands_ring_stud",
-      "subId": null,
-      "variant": "",
-      "recolor": "maroon",
-      "name": "Stud Ring (maroon)"
+      "variant": "steel",
+      "recolor": "",
+      "name": "Plated Toe (steel)"
     }
   },
   "selectedAnimation": "walk",
@@ -97,8 +104,41 @@
     "1h_backslash": false,
     "1h_halfslash": false
   },
-  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=teen&body=Body_Color_light&head=Human_Male_light&expression=Neutral_light&shoes=Basic_Shoes_black&legs=Fur_Pants_gray&clothes=Shortsleeve_charcoal&hair=Buzzcut_dark_brown&mustache=French_Mustache_gold&ring=Stud_Ring_maroon",
+  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=female&body=Body_Color_light&expression=Happy_light&head=Human_Female_light&eyebrows=Thin_Eyebrows_platinum&nose=Button_nose_light&hair=Bangslong2_red&clothes=Shortsleeve_Cardigan_black&legs=Pantaloons_gray&shoes=Ghillies_black&shoes_toe=Plated_Toe_steel",
   "layers": [
+    {
+      "itemId": "hair_bangslong2",
+      "name": "Bangslong2 (red)",
+      "variant": "",
+      "recolors": {
+        "hair": "red"
+      },
+      "zPos": 9,
+      "layerNum": 2,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "hair/bangslong2/adult/bg/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
     {
       "itemId": "body",
       "name": "Body Color (light)",
@@ -112,7 +152,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "body/bodies/teen/spellcast.png"
+        "spritePath": "body/bodies/female/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -133,8 +173,8 @@
       ]
     },
     {
-      "itemId": "feet_shoes_basic",
-      "name": "Basic Shoes (black)",
+      "itemId": "feet_shoes_ghillies",
+      "name": "Ghillies (black)",
       "variant": "black",
       "recolors": null,
       "zPos": 15,
@@ -143,7 +183,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "feet/shoes/basic/thin/spellcast/black.png"
+        "spritePath": "feet/shoes/ghillies/thin/spellcast/black.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -164,8 +204,8 @@
       ]
     },
     {
-      "itemId": "legs_fur",
-      "name": "Fur Pants (gray)",
+      "itemId": "legs_pantaloons",
+      "name": "Pantaloons (gray)",
       "variant": "",
       "recolors": {
         "legs": "gray"
@@ -176,7 +216,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "legs/fur/thin/spellcast.png"
+        "spritePath": "legs/pantaloons/thin/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -197,11 +237,42 @@
       ]
     },
     {
-      "itemId": "torso_clothes_shortsleeve",
-      "name": "Shortsleeve (charcoal)",
+      "itemId": "feet_plate_toe",
+      "name": "Plated Toe (steel)",
+      "variant": "steel",
+      "recolors": null,
+      "zPos": 27,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "feet/accessory/plate_toe/thin/spellcast/steel.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "torso_clothes_shortsleeve_cardigan",
+      "name": "Shortsleeve Cardigan (black)",
       "variant": "",
       "recolors": {
-        "clothes": "charcoal"
+        "clothes": "black"
       },
       "zPos": 35,
       "layerNum": 1,
@@ -209,7 +280,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "torso/clothes/shortsleeve/shortsleeve/teen/spellcast.png"
+        "spritePath": "torso/clothes/shortsleeve/shortsleeve_cardigan/female/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -230,38 +301,8 @@
       ]
     },
     {
-      "itemId": "arms_hands_ring_stud",
-      "name": "Stud Ring (maroon)",
-      "variant": "",
-      "recolors": {
-        "ring": "maroon"
-      },
-      "zPos": 75,
-      "layerNum": 1,
-      "yPos": 0,
-      "needsRecolor": false,
-      "source": {
-        "kind": "catalog",
-        "spritePath": "arms/hands/ring/stud/thin/spellcast.png"
-      },
-      "supportedAnimations": [
-        "spellcast",
-        "thrust",
-        "walk",
-        "slash",
-        "shoot",
-        "hurt",
-        "climb",
-        "idle",
-        "jump",
-        "sit",
-        "emote",
-        "run"
-      ]
-    },
-    {
-      "itemId": "heads_human_male",
-      "name": "Human Male (light)",
+      "itemId": "heads_human_female",
+      "name": "Human Female (light)",
       "variant": "",
       "recolors": {
         "head": "light"
@@ -272,7 +313,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "head/heads/human/male/spellcast.png"
+        "spritePath": "head/heads/human/female/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -293,8 +334,8 @@
       ]
     },
     {
-      "itemId": "face_neutral",
-      "name": "Neutral (light)",
+      "itemId": "face_happy",
+      "name": "Happy (light)",
       "variant": "",
       "recolors": {
         "expression": "light"
@@ -305,7 +346,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "head/faces/male/neutral/spellcast.png"
+        "spritePath": "head/faces/female/happy/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -324,19 +365,19 @@
       ]
     },
     {
-      "itemId": "beards_french",
-      "name": "French Mustache (gold)",
+      "itemId": "head_nose_button",
+      "name": "Button nose (light)",
       "variant": "",
       "recolors": {
-        "mustache": "gold"
+        "nose": "light"
       },
-      "zPos": 111,
+      "zPos": 105,
       "layerNum": 1,
       "yPos": 0,
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "beards/mustache/french/spellcast.png"
+        "spritePath": "head/nose/button/adult/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -357,11 +398,44 @@
       ]
     },
     {
-      "itemId": "hair_buzzcut",
-      "name": "Buzzcut (dark_brown)",
+      "itemId": "eyebrows_thin",
+      "name": "Thin Eyebrows (platinum)",
       "variant": "",
       "recolors": {
-        "hair": "dark_brown"
+        "eyebrows": "platinum"
+      },
+      "zPos": 106,
+      "layerNum": 1,
+      "yPos": 0,
+      "needsRecolor": false,
+      "source": {
+        "kind": "catalog",
+        "spritePath": "eyes/eyebrows/thin/adult/spellcast.png"
+      },
+      "supportedAnimations": [
+        "spellcast",
+        "thrust",
+        "walk",
+        "slash",
+        "shoot",
+        "hurt",
+        "climb",
+        "idle",
+        "jump",
+        "sit",
+        "emote",
+        "run",
+        "combat_idle",
+        "backslash",
+        "halfslash"
+      ]
+    },
+    {
+      "itemId": "hair_bangslong2",
+      "name": "Bangslong2 (red)",
+      "variant": "",
+      "recolors": {
+        "hair": "red"
       },
       "zPos": 120,
       "layerNum": 1,
@@ -369,7 +443,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "hair/buzzcut/adult/spellcast.png"
+        "spritePath": "hair/bangslong2/adult/fg/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -392,18 +466,18 @@
   ],
   "credits": [
     {
-      "fileName": "body/bodies/teen/walk.png",
-      "file": "body/bodies/teen",
-      "notes": "",
+      "fileName": "body/bodies/female/walk.png",
+      "file": "body/bodies/female",
+      "notes": "see details at https://opengameart.org/content/lpc-character-bases",
       "authors": [
-        "bluecarrot16",
-        "Evert",
-        "TheraHedwig",
         "Benjamin K. Smith (BenCreating)",
+        "bluecarrot16",
+        "TheraHedwig",
+        "Evert",
         "MuffinElZangano",
         "Durrani",
         "Pierre Vigier (pvigier)",
-        "Eliza Wyatt (ElizaWy)",
+        "ElizaWy",
         "Matthew Krohn (makrohn)",
         "Johannes Sjölund (wulax)",
         "Stephen Challener (Redshrike)"
@@ -417,36 +491,17 @@
         "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
         "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
         "https://opengameart.org/content/lpc-ladies",
-        "https://opengameart.org/content/lpc-teen-unisex-base-clothes",
+        "https://opengameart.org/content/lpc-7-womens-shirts",
         "https://opengameart.org/content/lpc-jump-expanded",
-        "https://opengameart.org/content/lpc-revised-character-basics",
         "https://opengameart.org/content/lpc-be-seated",
+        "https://opengameart.org/content/lpc-revised-character-basics",
         "https://gitlab.com/vagabondgame/lpc-characters",
         "https://opengameart.org/content/lpc-male-jumping-animation-by-durrani",
-        "https://opengameart.org/content/lpc-jump-expanded"
+        "https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle"
       ]
     },
     {
-      "fileName": "head/heads/human/male/walk.png",
-      "file": "head/heads/human/male",
-      "notes": "original head by Redshrike, tweaks by BenCreating, modular version by bluecarrot16",
-      "authors": [
-        "bluecarrot16",
-        "Benjamin K. Smith (BenCreating)",
-        "Stephen Challener (Redshrike)"
-      ],
-      "licenses": [
-        "OGA-BY 3.0",
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
-        "https://opengameart.org/content/lpc-character-bases"
-      ]
-    },
-    {
-      "fileName": "head/faces/male/neutral/walk.png",
+      "fileName": "head/faces/female/happy/walk.png",
       "file": "head/faces",
       "notes": "Original by Redshrike, Expressions by ElizaWy, mapped to all frames by JaidynReiman",
       "authors": [
@@ -463,57 +518,12 @@
       ]
     },
     {
-      "fileName": "feet/shoes/basic/thin/walk/black.png",
-      "file": "feet/shoes",
-      "notes": "original by wulax, edited for v3 base by bluecarrot16, Jump/Sit/Emote/Run/Revised Combat by JaidynReiman",
+      "fileName": "head/heads/human/female/walk.png",
+      "file": "head/heads/human/female",
+      "notes": "original head by Redshrike, tweaks by BenCreating, modular version by bluecarrot16",
       "authors": [
-        "JaidynReiman",
         "bluecarrot16",
-        "Johannes Sjölund (wulax)"
-      ],
-      "licenses": [
-        "OGA-BY 3.0",
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
-        "http://opengameart.org/content/lpc-clothing-updates",
-        "https://opengameart.org/content/lpc-expanded-socks-shoes"
-      ]
-    },
-    {
-      "fileName": "legs/fur/thin/walk.png",
-      "file": "legs/fur",
-      "notes": "Original pants by Stephen Challener (Redshrike), thrust/shoot bases by Wulax, Fur Pants Color by Evert, Edited to V3 Bases by Bluecarrot16, climb/jump/run/sit/emotes/revised combat by JaidynReiman",
-      "authors": [
-        "Bluecarrot16",
-        "JaidynReiman",
-        "Evert",
-        "ElizaWy",
-        "Nila122",
-        "Johannes Sjölund (wulax)",
-        "Stephen Challener (Redshrike)"
-      ],
-      "licenses": [
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
-        "https://opengameart.org/content/lpc-faun-and-minotaur",
-        "https://opengameart.org/content/lpc-expanded-pants"
-      ]
-    },
-    {
-      "fileName": "torso/clothes/shortsleeve/shortsleeve/teen/walk.png",
-      "file": "torso/clothes/shortsleeve/shortsleeve/teen",
-      "notes": "original by ElizaWy walkcycle only; extended to all animations by adapting from longsleeve, edited to v3 bases by bluecarrot16; teen version by Nyom; cleanup and climb/jump/run/sit/emote/revised combat adapted from LPC Revised by JaidynReiman",
-      "authors": [
-        "Nyom",
-        "bluecarrot16",
-        "ElizaWy",
-        "JaidynReiman",
+        "Benjamin K. Smith (BenCreating)",
         "Stephen Challener (Redshrike)"
       ],
       "licenses": [
@@ -522,19 +532,13 @@
         "GPL 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
-        "https://opengameart.org/content/lpc-7-womens-shirts",
-        "http://opengameart.org/content/lpc-revised-character-basics",
-        "http://opengameart.org/content/lpc-clothing-updates",
-        "https://opengameart.org/content/lpc-teen-androgynous-short-sleeve-shirt",
-        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
-        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
-        "https://opengameart.org/content/lpc-expanded-simple-shirts"
+        "https://opengameart.org/content/",
+        "https://opengameart.org/content/lpc-character-bases"
       ]
     },
     {
-      "fileName": "hair/buzzcut/adult/walk.png",
-      "file": "hair/buzzcut",
+      "fileName": "eyes/eyebrows/thin/adult/walk.png",
+      "file": "eyes/eyebrows/thin",
       "notes": "",
       "authors": [
         "ElizaWy"
@@ -543,39 +547,123 @@
         "OGA-BY 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/lpc-hair"
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Hair",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more"
       ]
     },
     {
-      "fileName": "beards/mustache/french/walk.png",
-      "file": "beards/mustache/french",
-      "notes": "Original by Pennomi, repositioning by JaidynReiman.",
+      "fileName": "head/nose/button/adult/walk.png",
+      "file": "head/nose/button",
+      "notes": "",
       "authors": [
-        "JaidynReiman",
         "Thane Brimhall (pennomi)",
-        "laetissima"
+        "laetissima",
+        "Matthew Krohn (makrohn)"
       ],
       "licenses": [
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
+        "GPL 3.0",
+        "CC-BY-SA 3.0"
       ],
       "urls": [
         "https://opengameart.org/content/lpc-base-character-expressions"
       ]
     },
     {
-      "fileName": "arms/hands/ring/stud/thin/walk.png",
-      "file": "arms/hands/ring/stud",
-      "notes": "original by bluecarrot16, climb/jump/sit/emote/run by JaidynReiman",
+      "fileName": "hair/bangslong2/adult/fg/walk.png",
+      "file": "hair/bangslong2",
+      "notes": "",
+      "authors": [
+        "JaidynReiman",
+        "Barbara Riviera",
+        "Manuel Riecke (MrBeast)"
+      ],
+      "licenses": [
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
+        "https://opengameart.org/content/concept-art-for-lpc-entry",
+        "https://opengameart.org/content/lpc-expanded-hair"
+      ]
+    },
+    {
+      "fileName": "torso/clothes/shortsleeve/shortsleeve_cardigan/female/walk.png",
+      "file": "torso/clothes/shortsleeve/shortsleeve_cardigan",
+      "notes": "original by ElizaWy; shortsleeve cardigan adapted from original by JaidynReiman",
+      "authors": [
+        "ElizaWy",
+        "JaidynReiman",
+        "Stephen Challener (Redshrike)",
+        "Johannes Sjölund (wulax)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0"
+      ],
+      "urls": [
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+        "https://opengameart.org/content/lpc-expanded-simple-shirts"
+      ]
+    },
+    {
+      "fileName": "legs/pantaloons/thin/walk.png",
+      "file": "legs/pantaloons",
+      "notes": "Original bases by Redshrike, thrust/shoot bases by Wulax, Original Pantaloons by Nila122, climb/jump/run/sit/emotes/revised combat by JaidynReiman",
+      "authors": [
+        "Nila122",
+        "JaidynReiman",
+        "Johannes Sjölund (wulax)",
+        "Stephen Challener (Redshrike)"
+      ],
+      "licenses": [
+        "OGA-BY 3.0",
+        "GPL 2.0",
+        "GPL 3.0",
+        "CC-BY-SA 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-pirates",
+        "https://opengameart.org/content/more-lpc-clothes-and-hair",
+        "https://opengameart.org/content/lpc-expanded-pants"
+      ]
+    },
+    {
+      "fileName": "feet/shoes/ghillies/thin/walk/black.png",
+      "file": "feet/shoes/ghillies",
+      "notes": "original by pennomi, laetissima and makrohn; edited for v3 bases by bluecarrot16, Jump/Sit/Emote/Run/Revised Combat by JaidynReiman",
       "authors": [
         "bluecarrot16",
+        "JaidynReiman",
+        "Thane Brimhall (pennomi)",
+        "laetissima",
+        "Matthew Krohn (makrohn)"
+      ],
+      "licenses": [
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-2-characters",
+        "http://opengameart.org/content/lpc-clothing-updates",
+        "https://opengameart.org/content/lpc-expanded-socks-shoes"
+      ]
+    },
+    {
+      "fileName": "feet/accessory/plate_toe/thin/walk/steel.png",
+      "file": "feet/accessory/plate_toe",
+      "notes": "",
+      "authors": [
         "JaidynReiman"
       ],
       "licenses": [
-        "CC0"
+        "OGA-BY 3.0+",
+        "CC-BY 3.0+",
+        "GPL 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/lpc-jewelry"
+        "https://opengameart.org/content/lpc-kimono-relm",
+        "https://opengameart.org/content/lpc-expanded-socks-shoes"
       ]
     }
   ]

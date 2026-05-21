@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "bodyType": "teen",
+  "bodyType": "female",
   "selections": {
     "body": {
       "itemId": "body",
@@ -23,50 +23,36 @@
       "recolor": "light",
       "name": "Neutral (light)"
     },
-    "shoes": {
-      "itemId": "feet_shoes_basic",
+    "socks": {
+      "itemId": "feet_socks_high",
       "subId": null,
       "variant": "black",
       "recolor": "",
-      "name": "Basic Shoes (black)"
+      "name": "High Socks (black)"
+    },
+    "hair": {
+      "itemId": "hair_long_messy2",
+      "subId": null,
+      "variant": "",
+      "recolor": "dark_brown",
+      "name": "Long messy2 (dark_brown)"
     },
     "legs": {
       "itemId": "legs_fur",
       "subId": null,
       "variant": "",
-      "recolor": "gray",
-      "name": "Fur Pants (gray)"
+      "recolor": "black",
+      "name": "Fur Pants (black)"
     },
     "clothes": {
-      "itemId": "torso_clothes_shortsleeve",
+      "itemId": "torso_clothes_longsleeve2_vneck",
       "subId": null,
       "variant": "",
-      "recolor": "charcoal",
-      "name": "Shortsleeve (charcoal)"
-    },
-    "hair": {
-      "itemId": "hair_buzzcut",
-      "subId": null,
-      "variant": "",
-      "recolor": "dark_brown",
-      "name": "Buzzcut (dark_brown)"
-    },
-    "mustache": {
-      "itemId": "beards_french",
-      "subId": null,
-      "variant": "",
-      "recolor": "gold",
-      "name": "French Mustache (gold)"
-    },
-    "ring": {
-      "itemId": "arms_hands_ring_stud",
-      "subId": null,
-      "variant": "",
-      "recolor": "maroon",
-      "name": "Stud Ring (maroon)"
+      "recolor": "navy",
+      "name": "Longsleeve 2 VNeck (navy)"
     }
   },
-  "selectedAnimation": "walk",
+  "selectedAnimation": "run",
   "showTransparencyGrid": true,
   "applyTransparencyMask": false,
   "matchBodyColorEnabled": true,
@@ -97,7 +83,7 @@
     "1h_backslash": false,
     "1h_halfslash": false
   },
-  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=teen&body=Body_Color_light&head=Human_Male_light&expression=Neutral_light&shoes=Basic_Shoes_black&legs=Fur_Pants_gray&clothes=Shortsleeve_charcoal&hair=Buzzcut_dark_brown&mustache=French_Mustache_gold&ring=Stud_Ring_maroon",
+  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=female&body=Body_Color_light&head=Human_Male_light&expression=Neutral_light&socks=High_Socks_black&hair=Long_messy2_dark_brown&legs=Fur_Pants_black&clothes=Longsleeve_2_VNeck_navy",
   "layers": [
     {
       "itemId": "body",
@@ -112,7 +98,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "body/bodies/teen/spellcast.png"
+        "spritePath": "body/bodies/female/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -133,17 +119,17 @@
       ]
     },
     {
-      "itemId": "feet_shoes_basic",
-      "name": "Basic Shoes (black)",
+      "itemId": "feet_socks_high",
+      "name": "High Socks (black)",
       "variant": "black",
       "recolors": null,
-      "zPos": 15,
+      "zPos": 14,
       "layerNum": 1,
       "yPos": 0,
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "feet/shoes/basic/thin/spellcast/black.png"
+        "spritePath": "feet/socks/high/thin/spellcast/black.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -165,10 +151,10 @@
     },
     {
       "itemId": "legs_fur",
-      "name": "Fur Pants (gray)",
+      "name": "Fur Pants (black)",
       "variant": "",
       "recolors": {
-        "legs": "gray"
+        "legs": "black"
       },
       "zPos": 20,
       "layerNum": 1,
@@ -197,11 +183,11 @@
       ]
     },
     {
-      "itemId": "torso_clothes_shortsleeve",
-      "name": "Shortsleeve (charcoal)",
+      "itemId": "torso_clothes_longsleeve2_vneck",
+      "name": "Longsleeve 2 VNeck (navy)",
       "variant": "",
       "recolors": {
-        "clothes": "charcoal"
+        "clothes": "navy"
       },
       "zPos": 35,
       "layerNum": 1,
@@ -209,7 +195,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "torso/clothes/shortsleeve/shortsleeve/teen/spellcast.png"
+        "spritePath": "torso/clothes/longsleeve/longsleeve2_vneck/female/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -227,36 +213,6 @@
         "combat_idle",
         "backslash",
         "halfslash"
-      ]
-    },
-    {
-      "itemId": "arms_hands_ring_stud",
-      "name": "Stud Ring (maroon)",
-      "variant": "",
-      "recolors": {
-        "ring": "maroon"
-      },
-      "zPos": 75,
-      "layerNum": 1,
-      "yPos": 0,
-      "needsRecolor": false,
-      "source": {
-        "kind": "catalog",
-        "spritePath": "arms/hands/ring/stud/thin/spellcast.png"
-      },
-      "supportedAnimations": [
-        "spellcast",
-        "thrust",
-        "walk",
-        "slash",
-        "shoot",
-        "hurt",
-        "climb",
-        "idle",
-        "jump",
-        "sit",
-        "emote",
-        "run"
       ]
     },
     {
@@ -324,41 +280,8 @@
       ]
     },
     {
-      "itemId": "beards_french",
-      "name": "French Mustache (gold)",
-      "variant": "",
-      "recolors": {
-        "mustache": "gold"
-      },
-      "zPos": 111,
-      "layerNum": 1,
-      "yPos": 0,
-      "needsRecolor": false,
-      "source": {
-        "kind": "catalog",
-        "spritePath": "beards/mustache/french/spellcast.png"
-      },
-      "supportedAnimations": [
-        "spellcast",
-        "thrust",
-        "walk",
-        "slash",
-        "shoot",
-        "hurt",
-        "climb",
-        "idle",
-        "jump",
-        "sit",
-        "emote",
-        "run",
-        "combat_idle",
-        "backslash",
-        "halfslash"
-      ]
-    },
-    {
-      "itemId": "hair_buzzcut",
-      "name": "Buzzcut (dark_brown)",
+      "itemId": "hair_long_messy2",
+      "name": "Long messy2 (dark_brown)",
       "variant": "",
       "recolors": {
         "hair": "dark_brown"
@@ -369,7 +292,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "hair/buzzcut/adult/spellcast.png"
+        "spritePath": "hair/long_messy2/adult/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -392,18 +315,18 @@
   ],
   "credits": [
     {
-      "fileName": "body/bodies/teen/walk.png",
-      "file": "body/bodies/teen",
-      "notes": "",
+      "fileName": "body/bodies/female/run.png",
+      "file": "body/bodies/female",
+      "notes": "see details at https://opengameart.org/content/lpc-character-bases",
       "authors": [
-        "bluecarrot16",
-        "Evert",
-        "TheraHedwig",
         "Benjamin K. Smith (BenCreating)",
+        "bluecarrot16",
+        "TheraHedwig",
+        "Evert",
         "MuffinElZangano",
         "Durrani",
         "Pierre Vigier (pvigier)",
-        "Eliza Wyatt (ElizaWy)",
+        "ElizaWy",
         "Matthew Krohn (makrohn)",
         "Johannes Sjölund (wulax)",
         "Stephen Challener (Redshrike)"
@@ -417,17 +340,17 @@
         "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
         "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
         "https://opengameart.org/content/lpc-ladies",
-        "https://opengameart.org/content/lpc-teen-unisex-base-clothes",
+        "https://opengameart.org/content/lpc-7-womens-shirts",
         "https://opengameart.org/content/lpc-jump-expanded",
-        "https://opengameart.org/content/lpc-revised-character-basics",
         "https://opengameart.org/content/lpc-be-seated",
+        "https://opengameart.org/content/lpc-revised-character-basics",
         "https://gitlab.com/vagabondgame/lpc-characters",
         "https://opengameart.org/content/lpc-male-jumping-animation-by-durrani",
-        "https://opengameart.org/content/lpc-jump-expanded"
+        "https://opengameart.org/content/lpc-runcycle-and-diagonal-walkcycle"
       ]
     },
     {
-      "fileName": "head/heads/human/male/walk.png",
+      "fileName": "head/heads/human/male/run.png",
       "file": "head/heads/human/male",
       "notes": "original head by Redshrike, tweaks by BenCreating, modular version by bluecarrot16",
       "authors": [
@@ -446,7 +369,7 @@
       ]
     },
     {
-      "fileName": "head/faces/male/neutral/walk.png",
+      "fileName": "head/faces/male/neutral/run.png",
       "file": "head/faces",
       "notes": "Original by Redshrike, Expressions by ElizaWy, mapped to all frames by JaidynReiman",
       "authors": [
@@ -463,27 +386,41 @@
       ]
     },
     {
-      "fileName": "feet/shoes/basic/thin/walk/black.png",
-      "file": "feet/shoes",
-      "notes": "original by wulax, edited for v3 base by bluecarrot16, Jump/Sit/Emote/Run/Revised Combat by JaidynReiman",
+      "fileName": "feet/socks/high/thin/run/black.png",
+      "file": "feet/socks/high",
+      "notes": "original by ElizaWy, remaining frames by JaidynReiman",
       "authors": [
-        "JaidynReiman",
-        "bluecarrot16",
-        "Johannes Sjölund (wulax)"
+        "ElizaWy",
+        "JaidynReiman"
       ],
       "licenses": [
-        "OGA-BY 3.0",
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
+        "OGA-BY 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
-        "http://opengameart.org/content/lpc-clothing-updates",
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
         "https://opengameart.org/content/lpc-expanded-socks-shoes"
       ]
     },
     {
-      "fileName": "legs/fur/thin/walk.png",
+      "fileName": "hair/long_messy2/adult/run.png",
+      "file": "hair/long_messy2",
+      "notes": "(shura)",
+      "authors": [
+        "Yamilian",
+        "bluecarrot16"
+      ],
+      "licenses": [
+        "CC-BY-SA 3.0",
+        "GPL 3.0"
+      ],
+      "urls": [
+        "https://opengameart.org/content/lpc-heroine-2",
+        "https://opengameart.org/content/lpc-hair"
+      ]
+    },
+    {
+      "fileName": "legs/fur/thin/run.png",
       "file": "legs/fur",
       "notes": "Original pants by Stephen Challener (Redshrike), thrust/shoot bases by Wulax, Fur Pants Color by Evert, Edited to V3 Bases by Bluecarrot16, climb/jump/run/sit/emotes/revised combat by JaidynReiman",
       "authors": [
@@ -506,76 +443,23 @@
       ]
     },
     {
-      "fileName": "torso/clothes/shortsleeve/shortsleeve/teen/walk.png",
-      "file": "torso/clothes/shortsleeve/shortsleeve/teen",
-      "notes": "original by ElizaWy walkcycle only; extended to all animations by adapting from longsleeve, edited to v3 bases by bluecarrot16; teen version by Nyom; cleanup and climb/jump/run/sit/emote/revised combat adapted from LPC Revised by JaidynReiman",
+      "fileName": "torso/clothes/longsleeve/longsleeve2_vneck/female/run.png",
+      "file": "torso/clothes/longsleeve/longsleeve2_vneck",
+      "notes": "original by ElizaWy; spellcast/thrust/shoot/hurt/male adapted from original by JaidynReiman",
       "authors": [
-        "Nyom",
-        "bluecarrot16",
         "ElizaWy",
         "JaidynReiman",
-        "Stephen Challener (Redshrike)"
-      ],
-      "licenses": [
-        "OGA-BY 3.0",
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/liberated-pixel-cup-lpc-base-assets-sprites-map-tiles",
-        "https://opengameart.org/content/lpc-7-womens-shirts",
-        "http://opengameart.org/content/lpc-revised-character-basics",
-        "http://opengameart.org/content/lpc-clothing-updates",
-        "https://opengameart.org/content/lpc-teen-androgynous-short-sleeve-shirt",
-        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
-        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
-        "https://opengameart.org/content/lpc-expanded-simple-shirts"
-      ]
-    },
-    {
-      "fileName": "hair/buzzcut/adult/walk.png",
-      "file": "hair/buzzcut",
-      "notes": "",
-      "authors": [
-        "ElizaWy"
+        "Stephen Challener (Redshrike)",
+        "Johannes Sjölund (wulax)"
       ],
       "licenses": [
         "OGA-BY 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/lpc-hair"
-      ]
-    },
-    {
-      "fileName": "beards/mustache/french/walk.png",
-      "file": "beards/mustache/french",
-      "notes": "Original by Pennomi, repositioning by JaidynReiman.",
-      "authors": [
-        "JaidynReiman",
-        "Thane Brimhall (pennomi)",
-        "laetissima"
-      ],
-      "licenses": [
-        "CC-BY-SA 3.0",
-        "GPL 3.0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/lpc-base-character-expressions"
-      ]
-    },
-    {
-      "fileName": "arms/hands/ring/stud/thin/walk.png",
-      "file": "arms/hands/ring/stud",
-      "notes": "original by bluecarrot16, climb/jump/sit/emote/run by JaidynReiman",
-      "authors": [
-        "bluecarrot16",
-        "JaidynReiman"
-      ],
-      "licenses": [
-        "CC0"
-      ],
-      "urls": [
-        "https://opengameart.org/content/lpc-jewelry"
+        "http://opengameart.org/content/lpc-revised-character-basics",
+        "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+        "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+        "https://opengameart.org/content/lpc-expanded-simple-shirts"
       ]
     }
   ]
