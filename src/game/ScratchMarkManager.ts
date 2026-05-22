@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Socket } from 'socket.io-client';
 import type { MoveDirection } from './playerSkins';
 
 const FRAME_SIZE        = 16;
@@ -39,6 +40,7 @@ export class ScratchMarkManager {
 
   private scene: Phaser.Scene;
   private pool: Mark[] = [];
+  private spawnTimer = 0;
 
   static preload(scene: Phaser.Scene) {
     scene.load.spritesheet(ScratchMarkManager.TEXTURE_KEY, '/scratchMarks.png', {
@@ -62,6 +64,31 @@ export class ScratchMarkManager {
         .setDepth(2);
       this.pool.push({ image: img, elapsed: 0 });
     });
+  }
+
+  resetTimer() {
+    this.spawnTimer = 0;
+  }
+
+  tickEmit(
+    socket: Socket,
+    px: number, py: number,
+    facing: MoveDirection,
+    delta: number,
+    sprinting: boolean,
+    intendedToMove: boolean,
+    selfVisible: boolean,
+  ) {
+    if (!sprinting || !intendedToMove) {
+      this.spawnTimer = 0;
+      return;
+    }
+    this.spawnTimer += delta;
+    if (this.spawnTimer >= ScratchMarkManager.SPAWN_INTERVAL_MS) {
+      this.spawnTimer = 0;
+      socket.emit('scratchMark', { x: px, y: py, direction: facing });
+      if (selfVisible) this.spawn(px, py, facing);
+    }
   }
 
   update(delta: number) {

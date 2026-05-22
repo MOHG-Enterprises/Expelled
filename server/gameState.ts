@@ -84,7 +84,13 @@ export { HEAL_SELF_CAP };
 export function freshGameState(): GameStateRecord {
   return {
     players:           {},
-    terminals:         { t1: 0, t2: 0, t3: 0, t4: 0, t5: 0 },
+    terminals: {
+      t1: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
+      t2: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
+      t3: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
+      t4: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
+      t5: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
+    },
     terminalPositions: TERMINAL_POSITIONS,
     hackedCount:       0,
     gates:             { g1: 0, g2: 0 },

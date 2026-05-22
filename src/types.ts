@@ -23,7 +23,7 @@ export interface PlayerState {
 
 export interface GameState {
   players:           Record<string, PlayerState>;
-  terminals:         Record<TerminalId, number>;
+  terminals:         Record<TerminalId, { progress: number }>;
   terminalPositions: Record<TerminalId, Vec2>;
   hackedCount:       number;
   gates:             Record<string, number>;

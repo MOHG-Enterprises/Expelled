@@ -18,6 +18,9 @@ interface RemotePlayer {
   lastMoveAt: number;
   isCharging: boolean;
   isDowned: boolean;
+  pendingStagger: boolean;
+  staggerMs: number;
+  isPlayingHurt: boolean;
 }
 
 export class PlayerManager {
@@ -41,6 +44,9 @@ export class PlayerManager {
         lastMoveAt: 0,
         isCharging: false,
         isDowned: false,
+        pendingStagger: false,
+        staggerMs: 0,
+        isPlayingHurt: false,
       };
       playRoleAnimation(sprite, role, 'idle', 'down');
     }
@@ -133,7 +139,16 @@ export class PlayerManager {
     slash.play(`professor-slash:${dir}`);
     slash.once('animationcomplete', () => {
       slash.destroy();
-      if (this.others[id]) this.others[id].sprite.setVisible(true);
+      if (!this.others[id]) return;
+      const tracked = this.others[id];
+      tracked.sprite.setVisible(true);
+      if (tracked.pendingStagger) {
+        tracked.pendingStagger = false;
+        this._playHurtNow(id, tracked.staggerMs);
+      } else {
+        applySkinToSprite(tracked.sprite, tracked.role);
+        playRoleAnimation(tracked.sprite, tracked.role, 'idle', tracked.facingDirection);
+      }
     });
   }
 
@@ -147,7 +162,16 @@ export class PlayerManager {
     kick.play(`professor-kick:${dir}`);
     kick.once('animationcomplete', () => {
       kick.destroy();
-      if (this.others[id]) this.others[id].sprite.setVisible(true);
+      if (!this.others[id]) return;
+      const tracked = this.others[id];
+      tracked.sprite.setVisible(true);
+      if (tracked.pendingStagger) {
+        tracked.pendingStagger = false;
+        this._playHurtNow(id, tracked.staggerMs);
+      } else {
+        applySkinToSprite(tracked.sprite, tracked.role);
+        playRoleAnimation(tracked.sprite, tracked.role, 'idle', tracked.facingDirection);
+      }
     });
   }
 
@@ -155,17 +179,59 @@ export class PlayerManager {
     const p = this.others[id];
     if (!p || p.role !== 'professor') return;
     if (!this.scene.textures.exists('professor-hurt')) return;
-    p.sprite.setTexture('professor-hurt', 0);
-    this.scene.time.delayedCall(ms, () => {
+    if (p.sprite.visible) {
+      this._playHurtNow(id, ms);
+    } else {
+      p.pendingStagger = true;
+      p.staggerMs = ms;
+    }
+  }
+
+  private _playHurtNow(id: string, ms: number) {
+    const p = this.others[id];
+    if (!p) return;
+    p.isPlayingHurt = true;
+
+    const key = 'professor:stagger';
+    if (this.scene.anims.exists(key)) this.scene.anims.remove(key);
+    this.scene.anims.create({
+      key,
+      frames: [
+        { key: 'professor-hurt', frame: 0 },
+        { key: 'professor-hurt', frame: 1 },
+        { key: 'professor-hurt', frame: 2 },
+        { key: 'professor-hurt', frame: 1 },
+        { key: 'professor-hurt', frame: 0 },
+      ],
+      duration: ms,
+      repeat: 0,
+    });
+    p.sprite.play(key);
+
+    p.sprite.once('animationcomplete', () => {
       if (!this.others[id]) return;
+      p.isPlayingHurt = false;
       applySkinToSprite(p.sprite, p.role);
       playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
     });
   }
 
+  updateFacing(id: string, dir: MoveDirection) {
+    const p = this.others[id];
+    if (!p || p.isDowned) return;
+    p.facingDirection = dir;
+    const isIdle = (this.scene.time.now - p.lastMoveAt) > 120;
+    if (!isIdle || p.isPlayingHurt) return;
+    if (p.isCharging) {
+      playCombatAnimation(p.sprite, p.role, dir);
+    } else {
+      playRoleAnimation(p.sprite, p.role, 'idle', dir);
+    }
+  }
+
   update(now: number) {
     Object.values(this.others).forEach((player) => {
-      if (player.isDowned || player.isCharging) return;
+      if (player.isDowned || player.isCharging || player.isPlayingHurt) return;
       if (now - player.lastMoveAt > 120) {
         playRoleAnimation(player.sprite, player.role, 'idle', player.facingDirection);
       }

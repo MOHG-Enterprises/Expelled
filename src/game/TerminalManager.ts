@@ -87,8 +87,7 @@ export class TerminalManager {
 
   update(_delta: number) {}
 
-  sync(terminals: Record<string, number>, positions: Record<string, Vec2>) {
-    // salva posicao dos terminais pra usar na interacao
+  sync(terminals: Record<string, { progress: number }>, positions: Record<string, Vec2>) {
     this.positions = positions as Record<TerminalId, Vec2>;
 
     (Object.keys(terminals) as TerminalId[]).forEach((id) => {
@@ -96,7 +95,6 @@ export class TerminalManager {
       if (!pos) return;
 
       if (!this.objects[id]) {
-        // cria computador animado + barrinha + nome
         const sprite = this.scene.add
           .sprite(pos.x, pos.y, 'computer-terminal-sheet', 0)
           .setScale(2, 2)
@@ -114,7 +112,7 @@ export class TerminalManager {
         this.objects[id] = { sprite, bar };
       }
 
-      this.setProgress(id, terminals[id]);
+      this.setProgress(id, terminals[id].progress);
     });
   }
 

@@ -29,7 +29,7 @@ export interface PlayerSkin {
 }
 
 export const DOWNED_DIRECTION_FRAMES: Record<MoveDirection, number> = {
-  down: 6, right: 7, up: 8, left: 9,
+  right: 6, left: 7, up: 8, down: 5,
 };
 
 // Universal LPC Spritesheet Generator row order

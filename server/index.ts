@@ -8,35 +8,28 @@ import {
   getRoomSummary,
   rooms,
   ROOM_NAMES,
-  ATTACK_COOLDOWN_MS,
-  HACK_FAIL_REGRESSION,
-  HACK_FAIL_LOCK_MS,
-  HACK_AMOUNT_MAX,
-  HACK_EFFICIENCY_PENALTY,
-  HACK_KICK_REGRESSION,
-  HACK_REGRESSION_RATE_PCT_S,
-  HACK_REGRESSION_EVENTS_MAX,
-  QUICK_ATTACK_RADIUS,
-  QUICK_ATTACK_HALF_ANGLE_RAD,
-  LUNGE_ATTACK_RADIUS,
-  LUNGE_ATTACK_HALF_ANGLE_RAD,
-  ATTACK_STAGGER_HIT_MS,
-  ATTACK_STAGGER_MISS_MS,
-  checkWinConditions,
-  CHASE_START_RADIUS_PX,
-  CHASE_END_RADIUS_PX,
-  CHASE_LOS_TIMEOUT_MS,
-  CHASE_FOV_HALF_DEG,
-  BLOODLUST_TIER_TIMES_MS,
   GATE_TICK_AMOUNT,
   ENDGAME_DURATION_MS,
   HEAL_AMOUNT_MAX,
   HEAL_FAIL_LOCK_MS,
   HEAL_FAIL_REGRESSION,
   HEAL_SELF_CAP,
+  checkWinConditions,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
-import type { GameStateRecord, GateId, PlayerRecord, TerminalId } from './types';
+import type { EmitContext, GameStateRecord, GateId, TerminalId } from './types';
+import {
+  tickTerminalRegression,
+  processHackProgress,
+  processSetHacking,
+  processSkillCheckFailed,
+  processReinforceTerminal,
+  removeHackerSocket,
+  clearHackingState,
+} from './systems/hacking';
+import { processLungeTick, processAttack, processKick } from './systems/combat';
+import { tickChase } from './systems/chase';
+import { processEscape, tickBleedOut } from './systems/detention';
 
 const app    = express();
 const server = http.createServer(app);
@@ -47,38 +40,10 @@ app.use(express.static(path.join(__dirname, '../')));
 const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
 const DEFAULT_SURVIVOR_SPAWN  = { x: 1680, y: 2155 };
 
-// mapeia socketId → roomName para lookup O(1)
 const socketToRoom = new Map<string, string>();
 
-interface TerminalMeta {
-  regressing: boolean;
-  regressionEvents: number;
-  failLockUntil: number;
-}
-
-// room → terminalId → TerminalMeta
-const roomTerminalMeta = new Map<string, Record<string, TerminalMeta>>();
-// room → terminalId → set de socketIds consertando
-const roomHackingMap = new Map<string, Map<string, Set<string>>>();
 // room → healerId → targetId
 const roomHealingMap = new Map<string, Map<string, string>>();
-
-function getTerminalMeta(roomName: string, terminalId: string): TerminalMeta {
-  if (!roomTerminalMeta.has(roomName)) roomTerminalMeta.set(roomName, {});
-  const meta = roomTerminalMeta.get(roomName)!;
-  if (!meta[terminalId]) meta[terminalId] = { regressing: false, regressionEvents: 0, failLockUntil: 0 };
-  return meta[terminalId];
-}
-
-function getRepairerCount(roomName: string, terminalId: string): number {
-  return roomHackingMap.get(roomName)?.get(terminalId)?.size ?? 0;
-}
-
-function clearRoomMeta(roomName: string) {
-  roomTerminalMeta.delete(roomName);
-  roomHackingMap.delete(roomName);
-  roomHealingMap.delete(roomName);
-}
 
 function getRoomForSocket(socketId: string): { roomName: string; state: GameStateRecord } | null {
   const roomName = socketToRoom.get(socketId);
@@ -88,151 +53,24 @@ function getRoomForSocket(socketId: string): { roomName: string; state: GameStat
   return { roomName, state };
 }
 
-function angleDiff(a: number, b: number): number {
-  let d = (a - b) % (2 * Math.PI);
-  if (d >  Math.PI) d -= 2 * Math.PI;
-  if (d < -Math.PI) d += 2 * Math.PI;
-  return d;
+function makeEmit(roomName: string, socketId: string): EmitContext {
+  return {
+    all:    (e, d) => io.to(roomName).emit(e, d),
+    others: (e, d) => io.to(roomName).except(socketId).emit(e, d),
+    self:   (e, d) => io.to(socketId).emit(e, d),
+  };
 }
-
-setInterval(() => {
-  for (const roomName of Object.keys(rooms)) {
-    const state = rooms[roomName];
-    if (!state || state.phase !== 'playing') continue;
-    const meta = roomTerminalMeta.get(roomName);
-    if (!meta) continue;
-
-    (Object.keys(state.terminals) as TerminalId[]).forEach((id) => {
-      const m = meta[id];
-      if (!m?.regressing) return;
-
-      if (getRepairerCount(roomName, id) > 0) {
-        m.regressing = false;
-        io.to(roomName).emit('terminalRegressing', { terminalId: id, isRegressing: false });
-        return;
-      }
-
-      const prev = state.terminals[id];
-      state.terminals[id] = Math.max(0, prev - HACK_REGRESSION_RATE_PCT_S * 0.5);
-      if (state.terminals[id] === 0) {
-        m.regressing = false;
-        io.to(roomName).emit('terminalRegressing', { terminalId: id, isRegressing: false });
-      }
-      if (prev !== state.terminals[id]) {
-        io.to(roomName).emit('terminalUpdate', { id, progress: state.terminals[id] });
-      }
-    });
-
-    const prof = Object.entries(state.players).find(([, p]) => p.role === 'professor');
-    const survivors = Object.entries(state.players).filter(
-      ([, p]) => p.role === 'survivor' && !p.expelled && !p.downed,
-    );
-
-    const prevTier   = state.chase.tier;
-    const wasActive  = state.chase.target !== null;
-    const fovHalfRad = (CHASE_FOV_HALF_DEG * Math.PI) / 180;
-    const now        = Date.now();
-
-    if (!prof || survivors.length === 0) {
-      if (wasActive) {
-        state.chase = { target: null, elapsed: 0, tier: 0, losLostAt: null };
-        io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: false });
-      }
-    } else {
-      const [, profData] = prof;
-
-      if (state.chase.target === null) {
-        for (const [sid, s] of survivors) {
-          const dist  = Math.hypot(s.x - profData.x, s.y - profData.y);
-          const angle = Math.abs(angleDiff(Math.atan2(s.y - profData.y, s.x - profData.x), profData.lookAngle));
-          if (dist <= CHASE_START_RADIUS_PX && angle <= fovHalfRad) {
-            state.chase = { target: sid, elapsed: 0, tier: 0, losLostAt: null };
-            io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: true });
-            break;
-          }
-        }
-      } else {
-        const target = state.players[state.chase.target];
-        if (!target || target.expelled || target.downed) {
-          state.chase = { target: null, elapsed: 0, tier: 0, losLostAt: null };
-          io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: false });
-        } else {
-          const dist  = Math.hypot(target.x - profData.x, target.y - profData.y);
-          const angle = Math.abs(angleDiff(Math.atan2(target.y - profData.y, target.x - profData.x), profData.lookAngle));
-          const inView = dist <= CHASE_END_RADIUS_PX && angle <= fovHalfRad;
-
-          if (inView) {
-            state.chase.losLostAt = null;
-          } else if (state.chase.losLostAt === null) {
-            state.chase.losLostAt = now;
-          }
-
-          const losTimeout = state.chase.losLostAt !== null && now - state.chase.losLostAt > CHASE_LOS_TIMEOUT_MS;
-          const tooFar     = dist > CHASE_END_RADIUS_PX;
-
-          if (losTimeout || tooFar) {
-            state.chase = { target: null, elapsed: 0, tier: 0, losLostAt: null };
-            io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: false });
-          } else {
-            state.chase.elapsed += 500;
-            const newTier = (
-              state.chase.elapsed >= BLOODLUST_TIER_TIMES_MS[2] ? 3 :
-              state.chase.elapsed >= BLOODLUST_TIER_TIMES_MS[1] ? 2 :
-              state.chase.elapsed >= BLOODLUST_TIER_TIMES_MS[0] ? 1 : 0
-            ) as 0 | 1 | 2 | 3;
-
-            if (newTier !== prevTier) {
-              state.chase.tier = newTier;
-              io.to(roomName).emit('bloodlustUpdate', { tier: newTier, chaseActive: true });
-            }
-          }
-        }
-      }
-    }
-
-    Object.entries(state.players).forEach(([id, p]) => {
-      if (!p.downed || p.expelled) return;
-      p.downBleedMs += 500;
-      if (p.downBleedMs < 70_000) return;
-
-      if (p.downCount === 1) {
-        p.downCount   = 2;
-        p.downBleedMs = 0;
-        p.healPct     = 0;
-        if (p.beingHealed) {
-          p.beingHealed = false;
-          io.to(roomName).emit('setBeingHealed', { targetId: id, isBeingHealed: false });
-        }
-        io.to(roomName).emit('downCountUpdated', { id, downCount: 2 });
-      } else if (p.downCount >= 2) {
-        p.expelled    = true;
-        p.downed      = false;
-        if (p.beingHealed) {
-          p.beingHealed = false;
-          io.to(roomName).emit('setBeingHealed', { targetId: id, isBeingHealed: false });
-        }
-        io.to(roomName).emit('playerExpelled', id);
-        checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
-      }
-    });
-  }
-}, 500);
-
-const endgameIntervals = new Map<string, ReturnType<typeof setInterval>>();
 
 function startEndgameInterval(roomName: string): void {
   const handle = setInterval(() => {
     const state = rooms[roomName];
     if (!state?.endgameStartedAt || state.phase !== 'playing') {
       clearInterval(handle);
-      endgameIntervals.delete(roomName);
       return;
     }
     if (Date.now() - state.endgameStartedAt < ENDGAME_DURATION_MS) return;
 
     clearInterval(handle);
-    endgameIntervals.delete(roomName);
-
     const survivors = Object.entries(state.players).filter(
       ([, p]) => p.role === 'survivor' && !p.expelled && !p.escaped,
     );
@@ -242,48 +80,32 @@ function startEndgameInterval(roomName: string): void {
     }
     checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
   }, 1000);
-  endgameIntervals.set(roomName, handle);
 }
 
-function applyDamage(
-  state: GameStateRecord,
-  id: string,
-  target: PlayerRecord,
-  roomName: string,
-): void {
-  target.hp--;
-  if (target.hp > 0) {
-    io.to(roomName).emit('playerHit', { targetId: id, hp: target.hp });
-    return;
+setInterval(() => {
+  for (const roomName of Object.keys(rooms)) {
+    const state = rooms[roomName];
+    if (!state || state.phase !== 'playing') continue;
+
+    const emit: EmitContext = {
+      all:    (e, d) => io.to(roomName).emit(e, d),
+      others: (_e, _d) => {},
+      self:   (_e, _d) => {},
+    };
+
+    tickTerminalRegression(state, roomName, emit);
+    tickChase(state, emit);
+    tickBleedOut(state, emit);
   }
-  target.hp = 0;
-  if (target.downCount >= 2) {
-    target.expelled = true;
-    io.to(roomName).emit('playerExpelled', id);
-    checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
-    return;
-  }
-  target.downCount = (target.downCount + 1) as 0 | 1 | 2;
-  target.downed      = true;
-  target.healPct     = 0;
-  target.downBleedMs = 0;
-  if (target.beingHealed) {
-    target.beingHealed = false;
-    io.to(roomName).emit('setBeingHealed', { targetId: id, isBeingHealed: false });
-  }
-  io.to(roomName).emit('playerDowned', { id, downCount: target.downCount });
-}
+}, 500);
 
 io.on('connection', (socket) => {
   console.log(`Jogador conectou: ${socket.id}`);
-
-  // envia lista de salas disponíveis para o cliente escolher
   socket.emit('roomList', getRoomSummary());
 
-  // player escolhe sala — atribui role e entra no estado de jogo daquela sala
   socket.on('joinRoom', ({ roomName }: { roomName: string }) => {
     if (!(ROOM_NAMES as readonly string[]).includes(roomName)) return;
-    if (socketToRoom.has(socket.id)) return; // já está em uma sala
+    if (socketToRoom.has(socket.id)) return;
 
     const state = getOrCreateRoom(roomName);
     socket.join(roomName);
@@ -330,11 +152,8 @@ io.on('connection', (socket) => {
     const { roomName, state } = room;
     const p = state.players[socket.id];
     if (!p || p.role !== 'professor' || state.phase !== 'lobby') return;
-
     const survivors = Object.values(state.players).filter((pl) => pl.role === 'survivor');
-    if (survivors.length < 1) return;
-    if (!survivors.every((pl) => pl.ready)) return;
-
+    if (survivors.length < 1 || !survivors.every((pl) => pl.ready)) return;
     state.phase = 'playing';
     io.to(roomName).emit('gamePhase', 'playing');
   });
@@ -399,61 +218,14 @@ io.on('connection', (socket) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (p.beingHealed) return;
-    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
-    if (typeof amount !== 'number' || amount < 0 || amount > HACK_AMOUNT_MAX) return;
-    if (state.terminals[terminalId] >= 100) return;
-
-    const meta = getTerminalMeta(roomName, terminalId);
-    if (Date.now() < meta.failLockUntil) return;
-    if (state.endgameStartedAt !== null) return;
-
-    const repairerCount = getRepairerCount(roomName, terminalId);
-    const penaltyFactor = Math.max(0, repairerCount - 1) * (HACK_EFFICIENCY_PENALTY / 100);
-    const effective = amount * Math.max(0.1, 1 - penaltyFactor);
-
-    state.terminals[terminalId] = Math.min(100, state.terminals[terminalId] + effective);
-
-    if (state.terminals[terminalId] >= 100) {
-      state.hackedCount++;
-      io.to(roomName).emit('terminalHacked', terminalId);
-      const survivorCount = Object.values(state.players).filter((pl) => pl.role === 'survivor').length;
-      const threshold = survivorCount + 1;
-      if (state.hackedCount >= threshold && !state.gatesPowered) {
-        state.gatesPowered = true;
-        io.to(roomName).emit('gatesPowered');
-      }
-    }
-
-    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
+    processHackProgress(state, roomName, socket.id, terminalId, amount, makeEmit(roomName, socket.id));
   });
 
   socket.on('setHacking', ({ terminalId }: { terminalId: string | null }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor' || p.expelled) return;
-
-    const roomHackMap = roomHackingMap.get(roomName) ?? new Map<string, Set<string>>();
-    if (!roomHackingMap.has(roomName)) roomHackingMap.set(roomName, roomHackMap);
-    roomHackMap.forEach((set) => set.delete(socket.id));
-
-    if (terminalId && Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) {
-      const termSet = roomHackMap.get(terminalId) ?? new Set<string>();
-      if (!roomHackMap.has(terminalId)) roomHackMap.set(terminalId, termSet);
-      termSet.add(socket.id);
-
-      const m = getTerminalMeta(roomName, terminalId);
-      if (m.regressing) {
-        m.regressing = false;
-        io.to(roomName).emit('terminalRegressing', { terminalId, isRegressing: false });
-      }
-    }
-
-    io.to(roomName).emit('survivorActivity', { socketId: socket.id, terminalId: terminalId ?? null });
+    processSetHacking(state, roomName, socket.id, terminalId, makeEmit(roomName, socket.id));
   });
 
   socket.on('setHealing', ({ targetId }: { targetId: string | null }) => {
@@ -475,10 +247,7 @@ io.on('connection', (socket) => {
       }
     }
 
-    if (!targetId) {
-      roomHealMap.delete(socket.id);
-      return;
-    }
+    if (!targetId) { roomHealMap.delete(socket.id); return; }
 
     const target = state.players[targetId];
     if (!target || target.role !== 'survivor' || target.expelled || target.escaped) return;
@@ -534,125 +303,42 @@ io.on('connection', (socket) => {
     const { roomName, state } = room;
     const p = state.players[socket.id];
     if (!p || p.role !== 'survivor') return;
-
     const target = state.players[targetId];
     if (!target || target.role !== 'survivor') return;
-
     target.healFailLockUntil = Date.now() + HEAL_FAIL_LOCK_MS;
     target.healPct = Math.max(0, target.healPct - HEAL_FAIL_REGRESSION);
     io.to(roomName).emit('healUpdate', { targetId, healPct: target.healPct });
-    io.to(roomName).emit('healAlert', { targetId, healerId: socket.id });
+    if (targetId !== socket.id) {
+      io.to(roomName).emit('healAlert', { targetId, healerId: socket.id });
+    }
   });
 
   socket.on('skillCheckFailed', ({ terminalId }: { terminalId: TerminalId }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor') return;
-    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
-
-    const meta = getTerminalMeta(roomName, terminalId);
-    meta.failLockUntil = Date.now() + HACK_FAIL_LOCK_MS;
-
-    state.terminals[terminalId] = Math.max(0, state.terminals[terminalId] - HACK_FAIL_REGRESSION);
-    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
-    io.to(roomName).emit('firewallAlert', { terminalId, survivorId: socket.id });
+    processSkillCheckFailed(state, socket.id, terminalId, makeEmit(roomName, socket.id));
   });
 
-  socket.on('lungeTick', ({ x, y, angle }: { x: number; y: number; angle: number }) => {
+  socket.on('lungeTick', (payload: { x: number; y: number; angle: number }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const attacker = state.players[socket.id];
-    if (!attacker || attacker.role !== 'professor') return;
-    if (typeof x !== 'number' || typeof y !== 'number') return;
-    if (typeof angle !== 'number' || !isFinite(angle)) return;
-
-    const now = Date.now();
-    if (now - attacker.lastAttackTime < ATTACK_COOLDOWN_MS) return;
-
-    if (!attacker.activeLunge) {
-      attacker.activeLunge = { hitTargets: new Set() };
-    }
-
-    const radius    = LUNGE_ATTACK_RADIUS;
-    const halfAngle = LUNGE_ATTACK_HALF_ANGLE_RAD;
-
-    Object.entries(state.players).forEach(([id, target]) => {
-      if (target.role !== 'survivor' || target.downed || target.expelled) return;
-      if (attacker.activeLunge!.hitTargets.has(id)) return;
-
-      const dx = target.x - x;
-      const dy = target.y - y;
-      if (dx * dx + dy * dy > radius * radius) return;
-
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - angle);
-      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-      if (angleDiff > halfAngle) return;
-
-      attacker.activeLunge!.hitTargets.add(id);
-      applyDamage(state, id, target, roomName);
-    });
+    processLungeTick(state, socket.id, payload, makeEmit(roomName, socket.id));
   });
 
-  socket.on('attack', ({ x, y, angle, lunge, dir }: { x: number; y: number; angle: number; lunge: boolean; dir?: string }) => {
+  socket.on('attack', (payload: { x: number; y: number; angle: number; lunge: boolean; dir?: string }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const attacker = state.players[socket.id];
-    if (!attacker || attacker.role !== 'professor') return;
-    if (typeof x !== 'number' || typeof y !== 'number') return;
-    if (typeof angle !== 'number' || !isFinite(angle)) return;
-
-    const now = Date.now();
-    if (now - attacker.lastAttackTime < ATTACK_COOLDOWN_MS) return;
-    attacker.lastAttackTime = now;
-
-    socket.to(roomName).emit('professorAttacked', { id: socket.id, x, y, dir: dir ?? 'down' });
-
-    const radius    = lunge ? LUNGE_ATTACK_RADIUS    : QUICK_ATTACK_RADIUS;
-    const halfAngle = lunge ? LUNGE_ATTACK_HALF_ANGLE_RAD : QUICK_ATTACK_HALF_ANGLE_RAD;
-    const exclude   = lunge ? attacker.activeLunge?.hitTargets : undefined;
-
-    let hitAny = false;
-    Object.entries(state.players).forEach(([id, target]) => {
-      if (target.role !== 'survivor' || target.downed || target.expelled) return;
-      if (exclude?.has(id)) return;
-
-      const dx = target.x - x;
-      const dy = target.y - y;
-      if (dx * dx + dy * dy > radius * radius) return;
-
-      let angleDiff = Math.abs(Math.atan2(dy, dx) - angle);
-      if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-      if (angleDiff > halfAngle) return;
-
-      hitAny = true;
-      applyDamage(state, id, target, roomName);
-    });
-
-    attacker.activeLunge = undefined;
-
-    if (hitAny && (state.chase.elapsed > 0 || state.chase.tier > 0)) {
-      state.chase.elapsed = 0;
-      state.chase.tier    = 0;
-      io.to(roomName).emit('bloodlustUpdate', { tier: 0, chaseActive: state.chase.target !== null });
-    }
-
-    const stagger = hitAny ? ATTACK_STAGGER_HIT_MS : ATTACK_STAGGER_MISS_MS;
-    socket.emit('attackStagger', stagger);
-    socket.to(roomName).emit('professorStaggered', { id: socket.id, ms: stagger });
+    processAttack(state, socket.id, payload, makeEmit(roomName, socket.id));
   });
 
-  socket.on('kick', ({ x, y, dir }: { x: number; y: number; dir: string }) => {
+  socket.on('kick', (payload: { x: number; y: number; dir: string }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
-    const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'professor') return;
-    if (typeof x !== 'number' || typeof y !== 'number') return;
-    socket.to(roomName).emit('professorKicked', { id: socket.id, x, y, dir: dir ?? 'down' });
+    const { roomName } = room;
+    processKick(socket.id, payload, makeEmit(roomName, socket.id));
   });
 
   socket.on('professorCharge', ({ charging }: { charging: boolean }) => {
@@ -664,38 +350,26 @@ io.on('connection', (socket) => {
     socket.to(roomName).emit('professorCharge', { id: socket.id, charging: !!charging });
   });
 
+  socket.on('facing', ({ dir }: { dir: string }) => {
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    if (!state.players[socket.id]) return;
+    socket.to(roomName).emit('playerFacing', { id: socket.id, dir });
+  });
+
   socket.on('reinforceTerminal', ({ terminalId }: { terminalId: TerminalId }) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'professor') return;
-    if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
-    if (state.terminals[terminalId] >= 100) return;
-    if (state.terminals[terminalId] <= 0) return;
-
-    const meta = getTerminalMeta(roomName, terminalId);
-    if (meta.regressionEvents >= HACK_REGRESSION_EVENTS_MAX) return;
-    if (meta.regressing) return;
-
-    meta.regressionEvents++;
-    meta.regressing = true;
-    state.terminals[terminalId] = Math.max(0, state.terminals[terminalId] - HACK_KICK_REGRESSION);
-
-    io.to(roomName).emit('terminalUpdate', { id: terminalId, progress: state.terminals[terminalId] });
-    io.to(roomName).emit('terminalRegressing', { terminalId, isRegressing: true, regressionEvents: meta.regressionEvents });
+    processReinforceTerminal(state, socket.id, terminalId, makeEmit(roomName, socket.id));
   });
 
   socket.on('escape', () => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (!state.gatesOpen.g1 && !state.gatesOpen.g2) return;
-    p.escaped = true;
-    io.to(roomName).emit('playerEscaped', socket.id);
-    checkWinConditions(state, (e, ...a) => io.to(roomName).emit(e, ...a));
+    processEscape(state, socket.id, makeEmit(roomName, socket.id));
   });
 
   socket.on('gateOpenTick', ({ gateId }: { gateId: GateId }) => {
@@ -731,7 +405,7 @@ io.on('connection', (socket) => {
       delete state.players[socket.id];
       socketToRoom.delete(socket.id);
 
-      roomHackingMap.get(roomName)?.forEach((set) => set.delete(socket.id));
+      removeHackerSocket(roomName, socket.id);
 
       const healMap = roomHealingMap.get(roomName);
       if (healMap) {
@@ -750,7 +424,8 @@ io.on('connection', (socket) => {
       io.to(roomName).emit('playerLeft', socket.id);
 
       if (wasProf) {
-        clearRoomMeta(roomName);
+        clearHackingState(roomName);
+        roomHealingMap.delete(roomName);
         rooms[roomName] = freshGameState();
         io.to(roomName).emit('gameReset');
       } else {
@@ -762,7 +437,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // registra handlers de voz no mesmo socket
   registerVoiceSocket(socket, (id) => socketToRoom.get(id) ?? null, {
     to: (roomOrId: string) => ({ emit: (event: string, data: unknown) => io.to(roomOrId).emit(event, data) }),
   });

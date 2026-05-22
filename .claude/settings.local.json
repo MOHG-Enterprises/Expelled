@@ -38,7 +38,13 @@
       "Bash(rtk wc *)",
       "mcp__plugin_context-mode_context-mode__ctx_search",
       "Bash(awk -F: '{print $1, $2}')",
-      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(p.dependencies?.phaser||p.devDependencies?.phaser\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(p.dependencies?.phaser||p.devDependencies?.phaser\\)\")",
+      "Bash(rtk ls *)",
+      "Bash(Get-Content src\\\\scenes\\\\GameScene.ts)",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -ExpandProperty Lines)",
+      "Bash(python -c ' *)",
+      "Bash(node -e *)"
     ]
   }
 }

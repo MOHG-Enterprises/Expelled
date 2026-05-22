@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Socket } from 'socket.io-client';
 import type { MoveDirection } from './playerSkins';
 
 const FRAME_SIZE   = 16;
@@ -40,8 +41,15 @@ export class BloodPoolManager {
   static readonly TEXTURE_KEY      = 'blood-marks';
   static readonly DROP_INTERVAL_MS = 500;
 
+  private static readonly SMALL_POOL_MS = 300;
+  private static readonly BIG_POOL_MS   = 10_000;
+
   private scene: Phaser.Scene;
   private pool: Mark[] = [];
+
+  private dropTimer       = 0;
+  private stationaryTimer = 0;
+  private bigPoolSpawned  = false;
 
   static preload(scene: Phaser.Scene) {
     scene.load.spritesheet(BloodPoolManager.TEXTURE_KEY, '/blood.png', {
@@ -77,6 +85,57 @@ export class BloodPoolManager {
 
   spawnBigPool(x: number, y: number) {
     BIG_POOL_QUADS.forEach(({ frame, dx, dy }) => this.addMark(x + dx, y + dy, frame));
+  }
+
+  resetDropState() {
+    this.dropTimer       = 0;
+    this.stationaryTimer = 0;
+    this.bigPoolSpawned  = false;
+  }
+
+  tickEmit(
+    socket: Socket,
+    px: number, py: number,
+    facing: MoveDirection,
+    delta: number,
+    intendedToMove: boolean,
+    selfVisible: boolean,
+  ) {
+    const emitDrop = (x: number, y: number, frame: number) => {
+      socket.emit('bloodMark', { x, y, frame });
+      if (selfVisible) this.spawn(x, y, frame);
+    };
+    const emitBigPool = (x: number, y: number) => {
+      socket.emit('bloodBigPool', { x, y });
+      if (selfVisible) this.spawnBigPool(x, y);
+    };
+
+    if (intendedToMove) {
+      this.stationaryTimer = 0;
+      this.bigPoolSpawned  = false;
+      this.dropTimer      += delta;
+      if (this.dropTimer >= BloodPoolManager.DROP_INTERVAL_MS) {
+        this.dropTimer = 0;
+        const frame = BloodPoolManager.dropFrameFor(facing);
+        emitDrop(
+          px + Phaser.Math.Between(-3, 3),
+          py + Phaser.Math.Between(-3, 3),
+          frame,
+        );
+      }
+    } else {
+      this.dropTimer = 0;
+      const prev = this.stationaryTimer;
+      this.stationaryTimer += delta;
+      const curr = this.stationaryTimer;
+      if (prev < BloodPoolManager.SMALL_POOL_MS && curr >= BloodPoolManager.SMALL_POOL_MS) {
+        emitDrop(px, py, BloodPoolManager.smallPoolFrame());
+      }
+      if (!this.bigPoolSpawned && curr >= BloodPoolManager.BIG_POOL_MS) {
+        this.bigPoolSpawned = true;
+        emitBigPool(px, py);
+      }
+    }
   }
 
   update(delta: number) {

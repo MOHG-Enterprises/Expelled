@@ -5,6 +5,19 @@ export type GamePhase = 'lobby' | 'playing' | 'ended';
 
 export interface Vec2 { x: number; y: number; }
 
+export interface TerminalRecord {
+  progress:         number;
+  regressing:       boolean;
+  regressionEvents: number;
+  failLockUntil:    number;
+}
+
+export interface EmitContext {
+  all:    (event: string, data?: unknown) => void;
+  others: (event: string, data?: unknown) => void;
+  self:   (event: string, data?: unknown) => void;
+}
+
 export interface PlayerRecord {
   x: number;
   y: number;
@@ -26,7 +39,7 @@ export interface PlayerRecord {
 
 export interface GameStateRecord {
   players:           Record<string, PlayerRecord>;
-  terminals:         Record<TerminalId, number>;
+  terminals:         Record<TerminalId, TerminalRecord>;
   terminalPositions: Record<TerminalId, Vec2>;
   hackedCount:       number;
   gates:             Record<string, number>;
