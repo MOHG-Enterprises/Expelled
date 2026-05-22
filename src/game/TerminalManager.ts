@@ -15,9 +15,7 @@ export class TerminalManager {
   private static readonly BAR_COLOR_NORMAL     = 0x00e676;
   private static readonly BAR_COLOR_REGRESSING = 0xff6600;
   private static readonly BAR_COLOR_LOCKED     = 0xffcc00;
-
-  // marcador do portao
-  gateMarker: Phaser.GameObjects.Rectangle | null = null;
+  private static readonly AURA_RADIUS          = 22;
 
   private scene:         Phaser.Scene;
   private objects:       Partial<Record<TerminalId, TerminalObj>> = {};
@@ -26,6 +24,10 @@ export class TerminalManager {
   private completed        = new Set<TerminalId>();
   private failingTerminals = new Set<TerminalId>();
   private regressingTerminals = new Set<TerminalId>();
+
+  private auraGraphics: Phaser.GameObjects.Graphics | null = null;
+  private auraTween:    Phaser.Tweens.Tween | null = null;
+  private auraActive   = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -114,17 +116,6 @@ export class TerminalManager {
 
       this.setProgress(id, terminals[id]);
     });
-
-    if (!this.gateMarker) {
-      // cria o marcador da saida so uma vez
-      this.gateMarker = this.scene.add
-        .rectangle(740, 560, 24, 24, 0x888888)
-        .setDepth(2);
-      this.scene.add
-        .text(740, 542, 'SAÍDA', { fontSize: '10px', color: '#ccc' })
-        .setOrigin(0.5)
-        .setDepth(3);
-    }
   }
 
   setProgress(id: TerminalId | string, progress: number) {
@@ -138,6 +129,7 @@ export class TerminalManager {
       this.regressingTerminals.delete(terminalId);
       this.setTerminalFrame(terminalId, TerminalManager.FRAME_DONE);
       t.sprite.setTint(COLOR_TERMINAL_DONE);
+      if (this.auraActive) this._redrawAura();
     } else {
       this.completed.delete(terminalId);
       t.sprite.clearTint();
@@ -149,6 +141,7 @@ export class TerminalManager {
           ? TerminalManager.BAR_COLOR_REGRESSING
           : TerminalManager.BAR_COLOR_NORMAL,
       );
+      if (this.auraActive) this._redrawAura();
     }
   }
 
@@ -158,6 +151,14 @@ export class TerminalManager {
 
   getCount(): { done: number; total: number } {
     return { done: this.completed.size, total: Object.keys(this.objects).length };
+  }
+
+  getPositions(): Readonly<Partial<Record<TerminalId, Vec2>>> {
+    return this.positions;
+  }
+
+  getCompleted(): ReadonlySet<TerminalId> {
+    return this.completed;
   }
 
   nearest(x: number, y: number): TerminalId | null {
@@ -173,6 +174,43 @@ export class TerminalManager {
     return best;
   }
 
+  setAuraMode(active: boolean) {
+    this.auraActive = active;
+    if (!active) {
+      this.auraTween?.stop();
+      this.auraTween = null;
+      this.auraGraphics?.destroy();
+      this.auraGraphics = null;
+      return;
+    }
+    if (!this.auraGraphics) {
+      this.auraGraphics = this.scene.add.graphics().setDepth(1);
+    }
+    this._redrawAura();
+    this.auraGraphics.setAlpha(1);
+    this.auraTween?.stop();
+    this.auraTween = this.scene.tweens.add({
+      targets:  this.auraGraphics,
+      alpha:    0.4,
+      duration: 900,
+      yoyo:     true,
+      repeat:   -1,
+      ease:     'Sine.easeInOut',
+    });
+  }
+
+  private _redrawAura() {
+    if (!this.auraGraphics) return;
+    this.auraGraphics.clear();
+    this.auraGraphics.lineStyle(3, 0xffcc00, 1);
+    (Object.keys(this.positions) as TerminalId[]).forEach((id) => {
+      if (this.completed.has(id)) return;
+      const pos = this.positions[id];
+      if (!pos) return;
+      this.auraGraphics!.strokeCircle(pos.x, pos.y, TerminalManager.AURA_RADIUS);
+    });
+  }
+
   flashAlert(id: string, tweens: Phaser.Tweens.TweenManager) {
     const terminalId = id as TerminalId;
     const t = this.objects[terminalId];
@@ -180,7 +218,12 @@ export class TerminalManager {
     if (t) tweens.add({ targets: t.sprite, alpha: 0, yoyo: true, repeat: 3, duration: 120 });
   }
 
-  unlockGate() {
-    this.gateMarker?.setFillStyle(0x00e676);
+  blockAll() {
+    (Object.keys(this.objects) as TerminalId[]).forEach((id) => {
+      const t = this.objects[id];
+      if (!t || this.completed.has(id)) return;
+      t.bar.setFillStyle(0x333333);
+      t.sprite.setTint(0x555555);
+    });
   }
 }

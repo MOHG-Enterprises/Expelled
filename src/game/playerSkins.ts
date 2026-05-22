@@ -18,11 +18,19 @@ export interface PlayerSkin {
   walk: LpcSheet;
   run: LpcSheet;
   sit: LpcSheet;
-  icon: { key: string; path: string };
+  combat?: LpcSheet;
+  hurt?: { key: string; path: string };
+  icon?:     { key: string; path: string };
+  iconHurt?: { key: string; path: string };
   displayWidth: number;
   displayHeight: number;
   bodyOffset: { x: number; y: number };
+  frameRates?: Partial<Record<AnimationState, number>>;
 }
+
+export const DOWNED_DIRECTION_FRAMES: Record<MoveDirection, number> = {
+  down: 6, right: 7, up: 8, left: 9,
+};
 
 // Universal LPC Spritesheet Generator row order
 const DIRECTION_ROWS: Record<MoveDirection, number> = {
@@ -36,14 +44,15 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   professor: {
     id: 'professor',
     frameSize: 64,
-    idle: { key: 'professor-idle', path: '/personagens/professor/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'professor-walk', path: '/personagens/professor/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'professor-run',  path: '/personagens/professor/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'professor-sit',  path: '/personagens/professor/sit.png',  totalCols: 13, animCols: 3 },
-    icon: { key: 'professor-icon', path: '/personagens/professor/icon.png' },
+    idle:   { key: 'professor-idle',   path: '/personagens/professor/idle.png',   totalCols: 13, animCols: 2 },
+    walk:   { key: 'professor-walk',   path: '/personagens/professor/walk.png',   totalCols: 13, animCols: 9 },
+    run:    { key: 'professor-run',    path: '/personagens/professor/run.png',    totalCols: 13, animCols: 6 },
+    sit:    { key: 'professor-sit',    path: '/personagens/professor/sit.png',    totalCols: 13, animCols: 3 },
+    combat: { key: 'professor-combat', path: '/personagens/professor/combat.png', totalCols: 13, animCols: 2 },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
+    frameRates: { walk: 14 },
   },
   arthur: {
     id: 'arthur',
@@ -52,7 +61,9 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
     walk: { key: 'arthur-walk', path: '/personagens/arthur/walk.png', totalCols: 13, animCols: 9 },
     run:  { key: 'arthur-run',  path: '/personagens/arthur/run.png',  totalCols: 13, animCols: 6 },
     sit:  { key: 'arthur-sit',  path: '/personagens/arthur/sit.png',  totalCols: 13, animCols: 3 },
-    icon: { key: 'arthur-icon', path: '/personagens/arthur/icon.png' },
+    hurt: { key: 'arthur-hurt', path: '/personagens/arthur/hurt.png' },
+    icon:     { key: 'arthur-icon',      path: '/personagens/arthur/icons/Arthur_Icon.png' },
+    iconHurt: { key: 'arthur-icon-hurt', path: '/personagens/arthur/icons/Arthur_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -64,7 +75,37 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
     walk: { key: 'gustavo-walk', path: '/personagens/gustavo/walk.png', totalCols: 13, animCols: 9 },
     run:  { key: 'gustavo-run',  path: '/personagens/gustavo/run.png',  totalCols: 13, animCols: 6 },
     sit:  { key: 'gustavo-sit',  path: '/personagens/gustavo/sit.png',  totalCols: 13, animCols: 3 },
-    icon: { key: 'gustavo-icon', path: '/personagens/gustavo/icon.png' },
+    hurt: { key: 'gustavo-hurt', path: '/personagens/gustavo/hurt.png' },
+    icon:     { key: 'gustavo-icon',      path: '/personagens/gustavo/icons/Gustavo_Icon.png' },
+    iconHurt: { key: 'gustavo-icon-hurt', path: '/personagens/gustavo/icons/Gustavo_Icon_Hurt.png' },
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+  },
+  giu: {
+    id: 'giu',
+    frameSize: 64,
+    idle: { key: 'giu-idle', path: '/personagens/giu/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'giu-walk', path: '/personagens/giu/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'giu-run',  path: '/personagens/giu/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'giu-sit',  path: '/personagens/giu/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'giu-hurt', path: '/personagens/giu/hurt.png' },
+    icon:     { key: 'giu-icon',      path: '/personagens/giu/icons/Giu_Icon.png' },
+    iconHurt: { key: 'giu-icon-hurt', path: '/personagens/giu/icons/Giu_Icon_Hurt.png' },
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+  },
+  isabela: {
+    id: 'isabela',
+    frameSize: 64,
+    idle: { key: 'isabela-idle', path: '/personagens/isabela/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'isabela-walk', path: '/personagens/isabela/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'isabela-run',  path: '/personagens/isabela/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'isabela-sit',  path: '/personagens/isabela/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'isabela-hurt', path: '/personagens/isabela/hurt.png' },
+    icon:     { key: 'isabela-icon',      path: '/personagens/isabela/icons/Isabela_Icon.png' },
+    iconHurt: { key: 'isabela-icon-hurt', path: '/personagens/isabela/icons/Isabela_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -86,8 +127,23 @@ export function preloadPlayerSkins(scene: Phaser.Scene): void {
         });
       }
     }
-    if (!scene.textures.exists(skin.icon.key)) {
+    if (skin.combat && !scene.textures.exists(skin.combat.key)) {
+      scene.load.spritesheet(skin.combat.key, skin.combat.path, {
+        frameWidth: skin.frameSize,
+        frameHeight: skin.frameSize,
+      });
+    }
+    if (skin.hurt && !scene.textures.exists(skin.hurt.key)) {
+      scene.load.spritesheet(skin.hurt.key, skin.hurt.path, {
+        frameWidth: skin.frameSize,
+        frameHeight: skin.frameSize,
+      });
+    }
+    if (skin.icon && !scene.textures.exists(skin.icon.key)) {
       scene.load.image(skin.icon.key, skin.icon.path);
+    }
+    if (skin.iconHurt && !scene.textures.exists(skin.iconHurt.key)) {
+      scene.load.image(skin.iconHurt.key, skin.iconHurt.path);
     }
   });
 }
@@ -106,10 +162,10 @@ function ensureSkinAnimations(scene: Phaser.Scene, skin: PlayerSkin): void {
     const row = DIRECTION_ROWS[direction];
 
     const sheets: [AnimationState, LpcSheet, number][] = [
-      ['idle', skin.idle, 8],
-      ['walk', skin.walk, 10],
-      ['run',  skin.run,  12],
-      ['sit',  skin.sit,  6],
+      ['idle', skin.idle, skin.frameRates?.idle ?? 8],
+      ['walk', skin.walk, skin.frameRates?.walk ?? 10],
+      ['run',  skin.run,  skin.frameRates?.run  ?? 12],
+      ['sit',  skin.sit,  skin.frameRates?.sit  ?? 6],
     ];
 
     sheets.forEach(([state, sheet, frameRate]) => {
@@ -126,6 +182,21 @@ function ensureSkinAnimations(scene: Phaser.Scene, skin: PlayerSkin): void {
         });
       }
     });
+
+    if (skin.combat) {
+      const combatKey = `${skin.id}:combat:${direction}`;
+      if (!scene.anims.exists(combatKey)) {
+        scene.anims.create({
+          key: combatKey,
+          frames: scene.anims.generateFrameNumbers(skin.combat.key, {
+            start: row * skin.combat.totalCols,
+            end:   row * skin.combat.totalCols + skin.combat.animCols - 1,
+          }),
+          frameRate: 8,
+          repeat: -1,
+        });
+      }
+    }
   });
 }
 
@@ -147,4 +218,54 @@ export function playRoleAnimation(
 ): void {
   const skin = getSkinForRole(role);
   sprite.play(animationKey(skin, state, direction), true);
+}
+
+export function playCombatAnimation(
+  sprite: Phaser.GameObjects.Sprite,
+  role: Role,
+  direction: MoveDirection,
+): boolean {
+  const skin = getSkinForRole(role);
+  if (!skin.combat) return false;
+  const key = `${skin.id}:combat:${direction}`;
+  if (!sprite.scene.anims.exists(key)) return false;
+  sprite.play(key, true);
+  return true;
+}
+
+export function applyDownedFrame(
+  sprite: Phaser.GameObjects.Sprite,
+  role: Role,
+  direction: MoveDirection,
+): boolean {
+  const skin = getSkinForRole(role);
+  if (!skin.hurt || !sprite.scene.textures.exists(skin.hurt.key)) return false;
+  sprite.stop();
+  sprite.setTexture(skin.hurt.key, DOWNED_DIRECTION_FRAMES[direction]);
+  return true;
+}
+
+export function playHurtFallAnimation(
+  sprite: Phaser.GameObjects.Sprite,
+  role: Role,
+  direction: MoveDirection,
+): void {
+  const skin = getSkinForRole(role);
+  if (!skin.hurt || !sprite.scene.textures.exists(skin.hurt.key)) {
+    applyDownedFrame(sprite, role, direction);
+    return;
+  }
+  const key = `${skin.id}:hurt-fall`;
+  if (!sprite.scene.anims.exists(key)) {
+    sprite.scene.anims.create({
+      key,
+      frames: sprite.scene.anims.generateFrameNumbers(skin.hurt.key, { start: 0, end: 5 }),
+      frameRate: 12,
+      repeat: 0,
+    });
+  }
+  sprite.once(`animationcomplete-${key}`, () => {
+    if (sprite.active) applyDownedFrame(sprite, role, direction);
+  });
+  sprite.play(key);
 }

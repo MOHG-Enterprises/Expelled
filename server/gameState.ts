@@ -1,7 +1,6 @@
-import type { GameStateRecord, TerminalId, Vec2 } from './types';
+import type { GameStateRecord, GateId, TerminalId, Vec2 } from './types';
 import {
   ATTACK_COOLDOWN_MS,
-  DETENTION_SKILL_CHECKS_REQUIRED,
   HACK_FAIL_REGRESSION,
   HACK_FAIL_LOCK_MS,
   HACK_AMOUNT_MAX,
@@ -9,16 +8,25 @@ import {
   HACK_KICK_REGRESSION,
   HACK_REGRESSION_RATE_PCT_S,
   HACK_REGRESSION_EVENTS_MAX,
-  ATTACK_HITBOX_WIDTH,
-  ATTACK_HITBOX_DEPTH,
   ATTACK_STAGGER_HIT_MS,
   ATTACK_STAGGER_MISS_MS,
+  LUNGE_THRESHOLD_MS,
+  LUNGE_MAX_HOLD_MS,
+  QUICK_ATTACK_RADIUS,
+  QUICK_ATTACK_HALF_ANGLE_RAD,
+  LUNGE_ATTACK_RADIUS,
+  LUNGE_ATTACK_HALF_ANGLE_RAD,
   CHASE_START_RADIUS_PX,
   CHASE_END_RADIUS_PX,
   CHASE_LOS_TIMEOUT_MS,
   CHASE_FOV_HALF_DEG,
   BLOODLUST_TIER_TIMES_MS,
   BLOODLUST_SPEED_BONUS_PX_S,
+  BLEED_OUT_MS,
+  HEAL_FAIL_REGRESSION,
+  HEAL_FAIL_LOCK_MS,
+  HEAL_AMOUNT_MAX,
+  HEAL_SELF_CAP,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
@@ -33,8 +41,17 @@ export const TERMINAL_POSITIONS: Record<TerminalId, Vec2> = {
   t5: { x: 1510,  y: 1430  },
 };
 
+export const GATE_POSITIONS: Record<GateId, Vec2> = {
+  g1: { x: 464, y: 2222 },
+  g2: { x: 464, y: 1722 },
+};
+
+export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; rowEnd: number }> = {
+  g1: { col: 12, rowStart: 70, rowEnd: 75 },
+  g2: { col: 12, rowStart: 47, rowEnd: 52 },
+};
+
 export { ATTACK_COOLDOWN_MS };
-export { DETENTION_SKILL_CHECKS_REQUIRED };
 export { HACK_FAIL_REGRESSION };
 export { HACK_FAIL_LOCK_MS };
 export { HACK_AMOUNT_MAX };
@@ -42,16 +59,26 @@ export { HACK_EFFICIENCY_PENALTY };
 export { HACK_KICK_REGRESSION };
 export { HACK_REGRESSION_RATE_PCT_S };
 export { HACK_REGRESSION_EVENTS_MAX };
-export { ATTACK_HITBOX_WIDTH };
-export { ATTACK_HITBOX_DEPTH };
 export { ATTACK_STAGGER_HIT_MS };
 export { ATTACK_STAGGER_MISS_MS };
+export { LUNGE_THRESHOLD_MS };
+export { LUNGE_MAX_HOLD_MS };
+export { QUICK_ATTACK_RADIUS };
+export { QUICK_ATTACK_HALF_ANGLE_RAD };
+export { LUNGE_ATTACK_RADIUS };
+export { LUNGE_ATTACK_HALF_ANGLE_RAD };
 export { CHASE_START_RADIUS_PX };
 export { CHASE_END_RADIUS_PX };
 export { CHASE_LOS_TIMEOUT_MS };
 export { CHASE_FOV_HALF_DEG };
 export { BLOODLUST_TIER_TIMES_MS };
 export { BLOODLUST_SPEED_BONUS_PX_S };
+export { GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS } from '../shared/gameRules';
+export { BLEED_OUT_MS };
+export { HEAL_FAIL_REGRESSION };
+export { HEAL_FAIL_LOCK_MS };
+export { HEAL_AMOUNT_MAX };
+export { HEAL_SELF_CAP };
 
 // partida nova resetada
 export function freshGameState(): GameStateRecord {
@@ -60,7 +87,10 @@ export function freshGameState(): GameStateRecord {
     terminals:         { t1: 0, t2: 0, t3: 0, t4: 0, t5: 0 },
     terminalPositions: TERMINAL_POSITIONS,
     hackedCount:       0,
-    gateOpen:          false,
+    gates:             { g1: 0, g2: 0 },
+    gatesOpen:         { g1: false, g2: false },
+    gatesPowered:      false,
+    endgameStartedAt:  null,
     phase:             'lobby',
     chase:             { target: null, elapsed: 0, tier: 0, losLostAt: null },
   };

@@ -29,7 +29,16 @@
       "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
       "mcp__plugin_context-mode_context-mode__ctx_execute_file",
       "Bash(findstr /R \"lookAngle\" server\\\\*.ts src\\\\*.ts)",
-      "mcp__plugin_context-mode_context-mode__ctx_execute"
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "PowerShell(irm https://raw.githubusercontent.com/JuliusBrussee/caveman/main/install.ps1 | iex)",
+      "Bash(rtk git *)",
+      "Bash(rtk npm *)",
+      "Bash(rtk tsc *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk wc *)",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "Bash(awk -F: '{print $1, $2}')",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(p.dependencies?.phaser||p.devDependencies?.phaser\\)\")"
     ]
   }
 }
