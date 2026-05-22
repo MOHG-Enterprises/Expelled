@@ -1,18 +1,31 @@
+import type { GateId } from './types';
+
 // exporta regras compartilhadas com server
 export {
   ATTACK_COOLDOWN_MS,
-  DETENTION_SKILL_CHECKS_REQUIRED,
   HACK_FAIL_REGRESSION,
   HACK_FAIL_LOCK_MS,
   HACK_AMOUNT_MAX,
-  ATTACK_HITBOX_WIDTH,
-  ATTACK_HITBOX_DEPTH,
+  LUNGE_THRESHOLD_MS,
+  LUNGE_MAX_HOLD_MS,
+  QUICK_ATTACK_RADIUS,
+  QUICK_ATTACK_HALF_ANGLE_RAD,
+  LUNGE_ATTACK_RADIUS,
+  LUNGE_ATTACK_HALF_ANGLE_RAD,
   CHASE_START_RADIUS_PX,
   CHASE_END_RADIUS_PX,
   CHASE_LOS_TIMEOUT_MS,
   CHASE_FOV_HALF_DEG,
   BLOODLUST_TIER_TIMES_MS,
   BLOODLUST_SPEED_BONUS_PX_S,
+  GATE_TICK_MS,
+  GATE_TICK_AMOUNT,
+  ENDGAME_DURATION_MS,
+  BLEED_OUT_MS,
+  HEAL_FAIL_REGRESSION,
+  HEAL_FAIL_LOCK_MS,
+  HEAL_AMOUNT_MAX,
+  HEAL_SELF_CAP,
 } from '../shared/gameRules';
 
 //  mundo 
@@ -20,28 +33,33 @@ export const WORLD_WIDTH  = 1600;
 export const WORLD_HEIGHT = 1200;
 export const MAP_SCALE    = 2; // 16x16 -> 32x32 visual
 
-//  movimento 
-export const PLAYER_SPEED       = 160;
-export const PLAYER_SPRINT_SPEED = 260;
-export const PROFESSOR_SPEED    = 185;
+//  movimento
+export const PLAYER_SPEED          = 134;   // 56.5% of sprint (DBD walk ratio)
+export const PLAYER_SPRINT_SPEED   = 236;   // 100% — survivor running (4.0 m/s equivalent)
+export const PROFESSOR_SPEED       = 260;   // 110% of survivor run (DBD 4.4 m/s killer)
+export const ON_HIT_SPRINT_SPEED   = 390;   // 165% of survivor run (DBD on-hit sprint)
+export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 
-//  stamina
-export const STAMINA_MAX        = 100;
-export const STAMINA_DRAIN      = 18;  // por segundo enquanto corre
-export const STAMINA_REGEN      = 6;   // por segundo enquanto não corre
-export const STAMINA_MIN_SPRINT = 10;  // vigor mínimo para começar a correr
+export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
+export const BLOOD_SELF_VISIBLE         = true; // false = only professor sees blood pools
 
 //  interacoes 
 export const INTERACT_RADIUS    = 48;   // px
-export const SKILL_CHECK_WINDOW = 0.10; // parte do circulo q conta como acerto
+export const SKILL_CHECK_WINDOW = 0.15; // parte do circulo q conta como acerto
 export const STAGGER_MS         = 1500; // tempo que o professor fica parado depois de atacar
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //Hack
-export const HACK_PASSIVE_TICK    = 2;    // % por tick passivo
+export const HACK_PASSIVE_TICK    = 20;//2    // % por tick passivo
 export const HACK_PASSIVE_RATE_MS = 600;  // intervalo do tick passivo
 export const HACK_GREAT_BONUS     = 3;    // % extra no great
 
+//  Heal
+export const HEAL_PASSIVE_TICK     = 5;
+export const HEAL_PASSIVE_RATE_MS  = 1_000;
+export const HEAL_GREAT_BONUS      = 10;
+export const HEAL_SELF_RATE_FACTOR = 0.5;
+export const CRAWL_SPEED_FACTOR    = 0.28;
 
 //  terror radius (professor)
 export const TERROR_RADIUS = 450; // px — raio do terror do professor
@@ -70,3 +88,14 @@ export const COLOR_OTHER_SURVIVOR = 0x81c995;
 export const COLOR_OTHER_PROF     = 0xff6b6b;
 export const COLOR_TERMINAL_IDLE  = 0xaaaaaa;
 export const COLOR_TERMINAL_DONE  = 0x00e676;
+
+//  gates
+export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {
+  g1: { x: 464, y: 2222 },
+  g2: { x: 464, y: 1722 },
+};
+
+export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; rowEnd: number }> = {
+  g1: { col: 12, rowStart: 70, rowEnd: 75 },
+  g2: { col: 12, rowStart: 47, rowEnd: 52 },
+};

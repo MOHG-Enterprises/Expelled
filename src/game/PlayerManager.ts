@@ -1,18 +1,27 @@
 import Phaser from 'phaser';
 import { INTERACT_RADIUS } from '../constants';
 import type { PlayerState, Role } from '../types';
-import { applySkinToSprite, getSkinForRole, type MoveDirection, playRoleAnimation } from './playerSkins';
+import {
+  applySkinToSprite,
+  applyDownedFrame,
+  getSkinForRole,
+  type MoveDirection,
+  playRoleAnimation,
+  playCombatAnimation,
+  playHurtFallAnimation,
+} from './playerSkins';
 
 interface RemotePlayer {
   sprite: Phaser.GameObjects.Sprite;
   role: Role;
   facingDirection: MoveDirection;
   lastMoveAt: number;
+  isCharging: boolean;
+  isDowned: boolean;
 }
 
 export class PlayerManager {
   private scene:  Phaser.Scene;
-  // lista dos outros players (menos o local)
   private others: Record<string, RemotePlayer> = {};
 
   constructor(scene: Phaser.Scene) {
@@ -20,7 +29,6 @@ export class PlayerManager {
   }
 
   getOrCreate(id: string, data: Partial<PlayerState>): Phaser.GameObjects.Sprite {
-    // cria o boneco remoto se ainda n existir
     if (!this.others[id]) {
       const role: Role = data.role ?? 'survivor';
       const fallbackSkin = getSkinForRole(role);
@@ -31,6 +39,8 @@ export class PlayerManager {
         role,
         facingDirection: 'down',
         lastMoveAt: 0,
+        isCharging: false,
+        isDowned: false,
       };
       playRoleAnimation(sprite, role, 'idle', 'down');
     }
@@ -44,25 +54,118 @@ export class PlayerManager {
     return this.others[id].sprite;
   }
 
-  move(id: string, x: number, y: number) {
-    // garante q existe e move
+  move(id: string, x: number, y: number, sprinting?: boolean, dir?: MoveDirection) {
     const sprite = this.getOrCreate(id, { x, y });
     const tracked = this.others[id];
     const dx = x - sprite.x;
     const dy = y - sprite.y;
     sprite.setPosition(x, y);
 
+    if (tracked.isDowned) {
+      if (dx !== 0 || dy !== 0) {
+        if (dir) {
+          tracked.facingDirection = dir;
+        } else if (Math.abs(dx) > Math.abs(dy)) {
+          tracked.facingDirection = dx > 0 ? 'right' : 'left';
+        } else {
+          tracked.facingDirection = dy > 0 ? 'down' : 'up';
+        }
+        const skin = getSkinForRole(tracked.role);
+        const hurtFallKey = `${skin.id}:hurt-fall`;
+        const hurtFallPlaying = tracked.sprite.anims.currentAnim?.key === hurtFallKey && tracked.sprite.anims.isPlaying;
+        if (!hurtFallPlaying) {
+          applyDownedFrame(tracked.sprite, tracked.role, tracked.facingDirection);
+        }
+      }
+      return;
+    }
+
     if (dx !== 0 || dy !== 0) {
-      if (Math.abs(dx) > Math.abs(dy)) tracked.facingDirection = dx > 0 ? 'right' : 'left';
-      else tracked.facingDirection = dy > 0 ? 'down' : 'up';
+      if (dir) {
+        tracked.facingDirection = dir;
+      } else if (Math.abs(dx) > Math.abs(dy)) {
+        tracked.facingDirection = dx > 0 ? 'right' : 'left';
+      } else {
+        tracked.facingDirection = dy > 0 ? 'down' : 'up';
+      }
 
       tracked.lastMoveAt = this.scene.time.now;
-      playRoleAnimation(tracked.sprite, tracked.role, 'walk', tracked.facingDirection);
+
+      if (tracked.isCharging) {
+        playCombatAnimation(tracked.sprite, tracked.role, tracked.facingDirection);
+      } else {
+        const moveAnim = (tracked.role === 'survivor' && sprinting) ? 'run' : 'walk';
+        playRoleAnimation(tracked.sprite, tracked.role, moveAnim, tracked.facingDirection);
+      }
     }
+  }
+
+  setDowned(id: string, downed: boolean) {
+    const p = this.others[id];
+    if (!p || p.role !== 'survivor') return;
+    p.isDowned = downed;
+    if (downed) {
+      playHurtFallAnimation(p.sprite, p.role, p.facingDirection);
+    } else {
+      applySkinToSprite(p.sprite, p.role);
+      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+    }
+  }
+
+  setCharging(id: string, charging: boolean) {
+    const p = this.others[id];
+    if (!p || p.role !== 'professor') return;
+    p.isCharging = charging;
+    if (charging) {
+      playCombatAnimation(p.sprite, p.role, p.facingDirection);
+    } else {
+      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+    }
+  }
+
+  playAttack(id: string, x: number, y: number, dir: MoveDirection) {
+    const p = this.others[id];
+    if (!p) return;
+    p.sprite.setVisible(false);
+    const slash = this.scene.add.sprite(x, y, 'professor-slash')
+      .setDepth(6)
+      .setDisplaySize(128, 128);
+    slash.play(`professor-slash:${dir}`);
+    slash.once('animationcomplete', () => {
+      slash.destroy();
+      if (this.others[id]) this.others[id].sprite.setVisible(true);
+    });
+  }
+
+  playKick(id: string, x: number, y: number, dir: MoveDirection) {
+    const p = this.others[id];
+    if (!p) return;
+    p.sprite.setVisible(false);
+    const kick = this.scene.add.sprite(x, y, 'professor-slash')
+      .setDepth(6)
+      .setDisplaySize(128, 128);
+    kick.play(`professor-kick:${dir}`);
+    kick.once('animationcomplete', () => {
+      kick.destroy();
+      if (this.others[id]) this.others[id].sprite.setVisible(true);
+    });
+  }
+
+  playStagger(id: string, ms: number) {
+    const p = this.others[id];
+    if (!p || p.role !== 'professor') return;
+    if (!this.scene.textures.exists('professor-hurt')) return;
+    p.sprite.setTexture('professor-hurt', 0);
+    this.scene.time.delayedCall(ms, () => {
+      if (!this.others[id]) return;
+      applySkinToSprite(p.sprite, p.role);
+      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+    });
   }
 
   update(now: number) {
     Object.values(this.others).forEach((player) => {
+      if (player.isDowned || player.isCharging) return;
       if (now - player.lastMoveAt > 120) {
         playRoleAnimation(player.sprite, player.role, 'idle', player.facingDirection);
       }
@@ -70,7 +173,6 @@ export class PlayerManager {
   }
 
   remove(id: string) {
-    // remove quando player sai
     this.others[id]?.sprite.destroy();
     delete this.others[id];
   }
@@ -81,6 +183,12 @@ export class PlayerManager {
 
   setVisible(id: string, visible: boolean) {
     this.others[id]?.sprite.setVisible(visible);
+  }
+
+  getPosition(id: string): { x: number; y: number } | null {
+    const tracked = this.others[id];
+    if (!tracked) return null;
+    return { x: tracked.sprite.x, y: tracked.sprite.y };
   }
 
   getPositions(): Record<string, { x: number; y: number }> {
@@ -99,7 +207,6 @@ export class PlayerManager {
   }
 
   nearestSurvivor(x: number, y: number): string | null {
-    // pega o survivor mais perto dentro do range de interacao
     let best: string | null = null;
     let bestDist = Infinity;
     Object.keys(this.others).forEach((id) => {

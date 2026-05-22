@@ -1,29 +1,41 @@
 import Phaser from 'phaser';
 import { io, Socket } from 'socket.io-client';
 import {
-  PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED,
+  PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED, ON_HIT_SPRINT_SPEED, ON_HIT_SPRINT_MS,
+  SCRATCH_MARKS_SELF_VISIBLE, BLOOD_SELF_VISIBLE,
   INTERACT_RADIUS, HACK_PASSIVE_RATE_MS, HACK_PASSIVE_TICK, HACK_GREAT_BONUS,
   HACK_FAIL_LOCK_MS,
-  MOVE_EMIT_RATE_MS, STAMINA_MAX, STAMINA_DRAIN, STAMINA_REGEN, STAMINA_MIN_SPRINT,
+  HEAL_PASSIVE_TICK, HEAL_PASSIVE_RATE_MS, HEAL_GREAT_BONUS,
+  HEAL_SELF_RATE_FACTOR, CRAWL_SPEED_FACTOR,
+  HEAL_FAIL_LOCK_MS, HEAL_SELF_CAP, BLEED_OUT_MS,
+  MOVE_EMIT_RATE_MS,
   WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
-  ATTACK_HITBOX_WIDTH, ATTACK_HITBOX_DEPTH,
+  LUNGE_THRESHOLD_MS, LUNGE_MAX_HOLD_MS,
+  QUICK_ATTACK_RADIUS, QUICK_ATTACK_HALF_ANGLE_RAD,
+  LUNGE_ATTACK_RADIUS, LUNGE_ATTACK_HALF_ANGLE_RAD,
   TERROR_RADIUS,
   BLOODLUST_SPEED_BONUS_PX_S,
+  GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS,
 } from '../constants';
-import type { Role, GamePhase, GameState, TerminalId } from '../types';
+import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { SkillCheck }      from '../game/SkillCheck';
 import { FogOfWar }        from '../game/FogOfWar';
 import { HUD }             from '../game/HUD';
 import { TerminalManager } from '../game/TerminalManager';
-import { PlayerManager }   from '../game/PlayerManager';
-import { StaminaBar }      from '../game/StaminaBar';
-import { VoiceManager }   from '../game/VoiceManager';
+import { PlayerManager }      from '../game/PlayerManager';
+import { ScratchMarkManager } from '../game/ScratchMarkManager';
+import { BloodPoolManager }   from '../game/BloodPoolManager';
+import { VoiceManager }       from '../game/VoiceManager';
+import { ExitGateManager }   from '../game/ExitGateManager';
 import {
   applySkinToSprite,
+  applyDownedFrame,
   ensurePlayerSkinAnimations,
   getSkinForRole,
   type MoveDirection,
   playRoleAnimation,
+  playCombatAnimation,
+  playHurtFallAnimation,
   preloadPlayerSkins,
 } from '../game/playerSkins';
 
@@ -77,21 +89,28 @@ export class GameScene extends Phaser.Scene {
   private escaped        = false;
   private inputFrozen    = false;
   private staggerTimer   = 0;
-  private gateOpen       = false;
-  private isSwinging     = false;
-  private isLunging      = false;
-  private swingDirection: MoveDirection | null = null;
-  private lungeVec:       { x: number; y: number } | null = null;
-  private lungeSpeed      = 0;
-  private isHitStagger   = false;
+  private gates!:             ExitGateManager;
+  private openingGate:        GateId | null = null;
+  private gateOpenTimer:      number = 0;
+  private endgameReceivedAt:  number | null = null;
+  private endgameBellsRung =  new Set<number>();
+  private isSwinging       = false;
+  private swingDirection:  MoveDirection | null = null;
+  private attackHoldStart: number | null = null;
+  private lastLungeTick    = 0;
+  private padAttackJustUp  = false;
+  private mouseAttackJust    = false;
+  private mouseAttackJustUp  = false;
+  private isHitStagger     = false;
   private bloodlustTier:  0 | 1 | 2 | 3 = 0;
   private chaseActive     = false;
   private slashSprite:   Phaser.GameObjects.Sprite | null = null;
   private isKicking      = false;
   private kickSprite:    Phaser.GameObjects.Sprite | null = null;
+  private wasCharging    = false;
 
   private survivorOrder: string[] = [];
-  private survivorInfo  = new Map<string, { hp: number; downed: boolean; expelled: boolean; escaped: boolean; hacking: boolean }>();
+  private survivorInfo  = new Map<string, { hp: number; downed: boolean; expelled: boolean; escaped: boolean; hacking: boolean; downCount: 0|1|2; healPct: number; beingHealed: boolean }>();
   private hackingTerminal:    TerminalId | null = null;
   private prevHackingEmitted: TerminalId | null = null;
   private hackHoldTimer    = 0;
@@ -100,6 +119,8 @@ export class GameScene extends Phaser.Scene {
   private lookAngle      = 0;
   private targetLookAngle = 0;
   private facingDirection: MoveDirection = 'down';
+  private _slidAxis: 'x' | 'y' | null = null;
+  private _slidHysteresis = 0;
 
   private mapWorldWidth = WORLD_WIDTH;
   private mapWorldHeight = WORLD_HEIGHT;
@@ -109,20 +130,34 @@ export class GameScene extends Phaser.Scene {
   private collisionDebugEnabled = false;
   private lastCollisionLogAt: Record<string, number> = {};
 
-  // stamina pros surv
-  private stamina         = STAMINA_MAX;
-  private sprinting       = false;
+  private sprinting              = false;
+  private onHitSprintTimer       = 0;
+  private scratchMarkTimer       = 0;
+  private bloodDropTimer         = 0;
+  private bloodStationaryTimer   = 0;
+  private bloodBigPoolSpawned    = false;
 
   //  outras classes do jogo
   private skillCheck!:  SkillCheck;
   private hackNextThreshold = 0;
   private hackPassiveTimer = 0;
+  private healingTarget:       string | null = null;
+  private prevHealingEmitted:  string | null = null;
+  private healPassiveTimer     = 0;
+  private healHoldTimer        = 0;
+  private healNextThreshold    = 0;
+  private healLockUntil        = 0;
+  private beingHealed          = false;
+  private myDownCount:         0 | 1 | 2 = 0;
+  private myHealPct            = 0;
+  private myDownBleedMs        = 0;
   private fog!:         FogOfWar;
   private hud!:         HUD;
-  private terminals!:   TerminalManager;
-  private players!:     PlayerManager;
-  private staminaBar!:  StaminaBar;
-  private voiceManager: VoiceManager | null = null;
+  private terminals!:     TerminalManager;
+  private players!:       PlayerManager;
+  private scratchMarks!:  ScratchMarkManager;
+  private bloodPools!:    BloodPoolManager;
+  private voiceManager:   VoiceManager | null = null;
 
   //  inputs
   private cursors!:    Phaser.Types.Input.Keyboard.CursorKeys;
@@ -234,28 +269,31 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private showAttackHitbox(x: number, y: number, angle: number) {
-    const depth = ATTACK_HITBOX_DEPTH;
-    const half  = ATTACK_HITBOX_WIDTH / 2;
-    const cosA  = Math.cos(angle);
-    const sinA  = Math.sin(angle);
-    const pts = [
-      { x: x + half * sinA,                          y: y - half * cosA },
-      { x: x + half * sinA + depth * cosA,           y: y - half * cosA + depth * sinA },
-      { x: x - half * sinA + depth * cosA,           y: y + half * cosA + depth * sinA },
-      { x: x - half * sinA,                          y: y + half * cosA },
-    ];
+  private showAttackHitbox(x: number, y: number, angle: number, isLunge: boolean) {
+    const radius    = isLunge ? LUNGE_ATTACK_RADIUS    : QUICK_ATTACK_RADIUS;
+    const halfAngle = isLunge ? LUNGE_ATTACK_HALF_ANGLE_RAD : QUICK_ATTACK_HALF_ANGLE_RAD;
+
     const g = this.add.graphics().setDepth(30);
     g.lineStyle(2, 0xff2222, 1);
-    g.strokePoints(pts, true);
     g.fillStyle(0xff2222, 0.25);
-    g.fillPoints(pts, true);
+
+    const steps = 16;
+    const pts: { x: number; y: number }[] = [{ x, y }];
+    for (let i = 0; i <= steps; i++) {
+      const a = angle - halfAngle + (2 * halfAngle * i / steps);
+      pts.push({ x: x + Math.cos(a) * radius, y: y + Math.sin(a) * radius });
+    }
+    pts.push({ x, y });
+
+    g.strokePoints(pts, false);
+    g.fillPoints(pts, true, false);
     this.time.delayedCall(500, () => g.destroy());
   }
 
   private playProfessorKick(terminalId: TerminalId) {
     if (this.isKicking || this.isSwinging) return;
     this.isKicking = true;
+    this.socket.emit('kick', { x: this.player.x, y: this.player.y, dir: this.facingDirection });
     this.player.setVisible(false);
 
     const kick = this.add.sprite(this.player.x, this.player.y, 'professor-slash')
@@ -273,62 +311,31 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private playProfessorSlash() {
+  private _fireAttack(isLunge: boolean) {
+    this.attackHoldStart = null;
     if (this.isSwinging || this.isKicking) return;
+    this._playProfessorSlash(isLunge);
+  }
+
+  private _playProfessorSlash(isLunge: boolean) {
     this.isSwinging     = true;
     this.swingDirection = this.facingDirection;
 
-    let lvx = 0, lvy = 0;
-    if (this.cursors.left.isDown  || this.wasd['A'].isDown) lvx = -1;
-    else if (this.cursors.right.isDown || this.wasd['D'].isDown) lvx = 1;
-    if (this.cursors.up.isDown    || this.wasd['W'].isDown) lvy = -1;
-    else if (this.cursors.down.isDown  || this.wasd['S'].isDown) lvy = 1;
-    const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
-    if (pad) {
-      const sx = pad.leftStick.x, sy = pad.leftStick.y;
-      if (Math.hypot(sx, sy) > PAD_DEADZONE) { lvx = sx; lvy = sy; }
-    }
-    const body = this.player.body as Phaser.Physics.Arcade.Body;
-    const currentSpeed = Math.hypot(body.velocity.x, body.velocity.y);
-    this.lungeSpeed = Math.max(currentSpeed, PROFESSOR_SPEED) * 1.5;
-
-    const len = Math.hypot(lvx, lvy);
-    this.lungeVec = len > 0
-      ? { x: lvx / len, y: lvy / len }
-      : { x: Math.cos(this.lookAngle), y: Math.sin(this.lookAngle) };
-
     this.player.setVisible(false);
-
-    const dir = this.swingDirection;
     const slash = this.add.sprite(this.player.x, this.player.y, 'professor-slash')
       .setDepth(6)
       .setDisplaySize(128, 128);
     this.slashSprite = slash;
-    slash.play(`professor-slash:${dir}`);
+    slash.play(`professor-slash:${this.swingDirection}`);
 
-    this.time.delayedCall(250, () => {
-      if (!this.isSwinging) return;
-      if (this.spaceKey.isDown || this.padAttackHeld) {
-        this.isLunging = true;
-        this.time.delayedCall(230, () => {
-          this.isLunging = false;
-          const angle = Math.atan2(this.lungeVec!.y, this.lungeVec!.x);
-          this.showAttackHitbox(this.player.x, this.player.y, angle);
-          this.socket.emit('attack', { x: this.player.x, y: this.player.y, angle, lunge: true });
-        });
-      } else {
-        const angle = Math.atan2(this.lungeVec!.y, this.lungeVec!.x);
-        this.showAttackHitbox(this.player.x, this.player.y, angle);
-        this.socket.emit('attack', { x: this.player.x, y: this.player.y, angle, lunge: false });
-      }
-    });
+    const angle = this.lookAngle;
+    this.showAttackHitbox(this.player.x, this.player.y, angle, isLunge);
+    this.socket.emit('attack', { x: this.player.x, y: this.player.y, angle, lunge: isLunge, dir: this.facingDirection });
 
     slash.once('animationcomplete', () => {
       slash.destroy();
       this.slashSprite    = null;
-      this.isLunging      = false;
       this.swingDirection = null;
-      this.lungeVec       = null;
       this.player.setVisible(true);
       this.isSwinging     = false;
     });
@@ -352,6 +359,8 @@ export class GameScene extends Phaser.Scene {
       this.load.image(tileset.key, encodeURI(tileset.image));
     });
     preloadPlayerSkins(this);
+    ScratchMarkManager.preload(this);
+    BloodPoolManager.preload(this);
   }
 
   private buildTilemap() {
@@ -390,11 +399,14 @@ export class GameScene extends Phaser.Scene {
     return { x, y };
   }
 
-  private static readonly SURVIVOR_SKIN_SLOTS = ['arthur', 'gustavo', 'arthur', 'gustavo'] as const;
+  private static readonly SURVIVOR_SKIN_SLOTS = ['arthur', 'gustavo', 'giu', 'isabela'] as const;
 
   private refreshSurvivorHUD() {
     const statuses = this.survivorOrder.map((id, i) => {
-      const info = this.survivorInfo.get(id) ?? { hp: 2, downed: false, expelled: false, escaped: false, hacking: false };
+      const info = this.survivorInfo.get(id) ?? {
+        hp: 2, downed: false, expelled: false, escaped: false,
+        hacking: false, downCount: 0 as const, healPct: 0, beingHealed: false,
+      };
       return { label: `A${i + 1}`, skinId: GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur', ...info };
     });
     this.hud.setSurvivorStatuses(statuses, this.myRole === 'survivor');
@@ -405,10 +417,16 @@ export class GameScene extends Phaser.Scene {
     this.hud.setTerminalCount(done, total);
   }
 
-  private trackSurvivor(id: string, info: { hp: number; downed: boolean; expelled: boolean; escaped: boolean }) {
+  private trackSurvivor(id: string, info: { hp: number; downed: boolean; expelled: boolean; escaped: boolean; downCount?: 0|1|2; healPct?: number; beingHealed?: boolean }) {
     if (!this.survivorOrder.includes(id)) this.survivorOrder.push(id);
     const existing = this.survivorInfo.get(id);
-    this.survivorInfo.set(id, { hacking: existing?.hacking ?? false, ...info });
+    this.survivorInfo.set(id, {
+      hacking:     existing?.hacking     ?? false,
+      downCount:   existing?.downCount   ?? 0,
+      healPct:     existing?.healPct     ?? 0,
+      beingHealed: existing?.beingHealed ?? false,
+      ...info,
+    });
   }
 
   //so pra limpar os role que permanece quando volta pro lobby ou daf5
@@ -421,23 +439,43 @@ export class GameScene extends Phaser.Scene {
     this.escaped = false;
     this.inputFrozen = false;
     this.staggerTimer = 0;
-    this.gateOpen = false;
-    this.isSwinging = false;
-    this.isLunging = false;
-    this.swingDirection = null;
-    this.lungeVec = null;
-    this.isHitStagger = false;
+    this.openingGate       = null;
+    this.gateOpenTimer     = 0;
+    this.endgameReceivedAt = null;
+    this.endgameBellsRung.clear();
+    this.isSwinging      = false;
+    this.swingDirection  = null;
+    this.attackHoldStart = null;
+    this.mouseAttackJust    = false;
+    this.mouseAttackJustUp  = false;
+    this.isHitStagger    = false;
     this.isKicking = false;
-    this.hackingTerminal = null;
-    this.hackTimerTerminal = null;
-    this.hackHoldTimer = 0;
+    this.hackingTerminal       = null;
+    this.hackTimerTerminal     = null;
+    this.hackHoldTimer         = 0;
+    this.healingTarget         = null;
+    this.prevHealingEmitted    = null;
+    this.healPassiveTimer      = 0;
+    this.healHoldTimer         = 0;
+    this.healNextThreshold     = 0;
+    this.healLockUntil         = 0;
+    this.beingHealed           = false;
+    this.myDownCount           = 0;
+    this.myHealPct             = 0;
+    this.myDownBleedMs         = 0;
     this.lastMoveEmit = 0;
     this.lookAngle = 0;
     this.targetLookAngle = 0;
     this.facingDirection = 'down';
+    this._slidAxis = null;
+    this._slidHysteresis = 0;
 
-    this.stamina = STAMINA_MAX;
     this.sprinting = false;
+    this.onHitSprintTimer = 0;
+    this.scratchMarkTimer = 0;
+    this.bloodDropTimer = 0;
+    this.bloodStationaryTimer = 0;
+    this.bloodBigPoolSpawned = false;
     this.survivorOrder = [];
     this.survivorInfo.clear();
   }
@@ -466,6 +504,7 @@ export class GameScene extends Phaser.Scene {
 
     playRoleAnimation(this.player, 'survivor', 'idle', this.facingDirection);
     this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
+    this.healNextThreshold = Phaser.Math.Between(2500, 5000);
 
     map.layers.forEach((layerData) => {
       const layer = map.getLayer(layerData.name)?.tilemapLayer;
@@ -486,8 +525,10 @@ export class GameScene extends Phaser.Scene {
 
     this.hud         = new HUD(this);
     this.terminals   = new TerminalManager(this);
-    this.players     = new PlayerManager(this);
-    this.staminaBar  = new StaminaBar(this);
+    this.gates       = new ExitGateManager(this);
+    this.players      = new PlayerManager(this);
+    this.scratchMarks = new ScratchMarkManager(this);
+    this.bloodPools   = new BloodPoolManager(this);
 
     //setta as bind
     this.cursors  = this.input.keyboard!.createCursorKeys();
@@ -498,7 +539,6 @@ export class GameScene extends Phaser.Scene {
     this.cKey     = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
     this.hud.build();
-    this.staminaBar.build();
     this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). C = debug', 0xffcc00, 2600);
 
     const gpPlugin = this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin;
@@ -508,6 +548,18 @@ export class GameScene extends Phaser.Scene {
     });
     gpPlugin?.on('disconnected', () => {
       this.hud.setGamepadConnected(false);
+    });
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.button === 0 && this.myRole === 'professor') {
+        this.mouseAttackJust = true;
+      }
+    });
+
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.button === 0 && this.myRole === 'professor') {
+        this.mouseAttackJustUp = true;
+      }
     });
 
     // limpa os listener (tava duplicando nao sei se tem outro jieto melhor)
@@ -541,7 +593,10 @@ export class GameScene extends Phaser.Scene {
       (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
       this.fog.setup(role, this.mapRef!);
       this.hud.update(role, this.myHp, false);
-      this.staminaBar.setVisible(role === 'survivor');
+      if (role === 'professor') {
+        this.terminals.setAuraMode(true);
+        this.gates.setAuraMode(true);
+      }
       if (role === 'survivor') {
         this.trackSurvivor(s.id!, { hp: this.myHp, downed: false, expelled: false, escaped: false });
         this.refreshSurvivorHUD();
@@ -552,11 +607,43 @@ export class GameScene extends Phaser.Scene {
     s.on('gameState', (state: GameState) => {
       this.terminals.sync(state.terminals, state.terminalPositions);
       Object.entries(state.players).forEach(([id, p]) => {
-        if (id !== s.id) this.players.getOrCreate(id, p);
-        if (p.role === 'survivor') this.trackSurvivor(id, { hp: p.hp, downed: p.downed, expelled: p.expelled, escaped: p.escaped });
+        if (id !== s.id) {
+          this.players.getOrCreate(id, p);
+          if (p.role === 'survivor' && p.downed) this.players.setDowned(id, true);
+        }
+        if (p.role === 'survivor') this.trackSurvivor(id, {
+          hp: p.hp, downed: p.downed, expelled: p.expelled, escaped: p.escaped,
+          downCount: p.downCount ?? 0, healPct: p.healPct ?? 0, beingHealed: p.beingHealed ?? false,
+        });
       });
+      const myState = s.id ? state.players[s.id] : null;
+      if (myState && myState.role === 'survivor') {
+        this.myHp        = myState.hp;
+        this.downed      = myState.downed;
+        this.myDownCount = myState.downCount ?? 0;
+        this.myHealPct   = myState.healPct ?? 0;
+        this.beingHealed = myState.beingHealed ?? false;
+      }
+      if (myState?.role === 'professor') {
+        this.terminals.setAuraMode(true);
+        this.gates.setAuraMode(true);
+      }
       this.hud.setTerminalCount(state.hackedCount, Object.keys(state.terminals).length);
-      this.hud.setGateOpen(state.gateOpen);
+      if (state.gatesPowered) {
+        this.gates.setPowered('g1');
+        this.gates.setPowered('g2');
+      }
+      for (const id of ['g1', 'g2'] as GateId[]) {
+        if (state.gates[id] > 0) this.gates.setProgress(id, state.gates[id]);
+        if (state.gatesOpen[id] && this.mapRef) this.gates.setOpen(id, this.mapRef);
+      }
+      if (state.endgameStartedAt !== null) {
+        const elapsed = Date.now() - state.endgameStartedAt;
+        this.endgameReceivedAt = this.time.now - elapsed;
+        this.endgameBellsRung.clear();
+        this.terminals.blockAll();
+        this.hud.setEndgameTimer(Math.max(0, ENDGAME_DURATION_MS - elapsed));
+      }
       this.refreshSurvivorHUD();
     });
 
@@ -566,8 +653,36 @@ export class GameScene extends Phaser.Scene {
     });
 
     // outros players se movendo
-    s.on('playerMoved', (data: { id: string; x: number; y: number }) => {
-      this.players.move(data.id, data.x, data.y);
+    s.on('playerMoved', (data: { id: string; x: number; y: number; sprinting?: boolean; dir?: MoveDirection }) => {
+      this.players.move(data.id, data.x, data.y, data.sprinting, data.dir);
+    });
+
+    s.on('scratchMark', ({ x, y, direction }: { x: number; y: number; direction: MoveDirection }) => {
+      this.scratchMarks.spawn(x, y, direction);
+    });
+
+    s.on('bloodMark', ({ x, y, frame }: { x: number; y: number; frame: number }) => {
+      this.bloodPools.spawn(x, y, frame);
+    });
+
+    s.on('bloodBigPool', ({ x, y }: { x: number; y: number }) => {
+      this.bloodPools.spawnBigPool(x, y);
+    });
+
+    s.on('professorAttacked', (data: { id: string; x: number; y: number; dir: string }) => {
+      this.players.playAttack(data.id, data.x, data.y, data.dir as import('../game/playerSkins').MoveDirection);
+    });
+
+    s.on('professorKicked', (data: { id: string; x: number; y: number; dir: string }) => {
+      this.players.playKick(data.id, data.x, data.y, data.dir as import('../game/playerSkins').MoveDirection);
+    });
+
+    s.on('professorCharge', (data: { id: string; charging: boolean }) => {
+      this.players.setCharging(data.id, data.charging);
+    });
+
+    s.on('professorStaggered', (data: { id: string; ms: number }) => {
+      this.players.playStagger(data.id, data.ms);
     });
 
     // player kita
@@ -605,7 +720,8 @@ export class GameScene extends Phaser.Scene {
       this.terminals.setFailed(terminalId, HACK_FAIL_LOCK_MS);
       this.terminals.setLocked(terminalId, HACK_FAIL_LOCK_MS);
       if (this.myRole === 'professor') {
-        this.hud.flash(`Firewall: ${terminalId}`, 0xffcc00);
+        const cam = this.cameras.main;
+        this.hud.showLoudNoiseAlert(terminalId, cam.scrollX, cam.scrollY, cam.width, cam.height);
         this.terminals.flashAlert(terminalId, this.tweens);
       }
     });
@@ -617,39 +733,60 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // portao desbloqueado
-    s.on('gateUnlocked', () => {
-      this.gateOpen = true;
-      this.terminals.unlockGate();
-      this.hud.setGateOpen(true);
-      this.hud.flash('Portão aberto, fuja!', 0x00e676);
+    s.on('gatesPowered', () => {
+      this.gates.setPowered('g1');
+      this.gates.setPowered('g2');
+      this.hud.flash('Portões de saída disponíveis!', 0x00e676);
+    });
+
+    s.on('gateProgress', ({ gateId, progress }: { gateId: GateId; progress: number }) => {
+      this.gates.setProgress(gateId, progress);
+    });
+
+    s.on('gateOpened', ({ gateId }: { gateId: GateId }) => {
+      if (this.mapRef) this.gates.setOpen(gateId, this.mapRef);
+      this.hud.flash('Portão aberto! Fuja agora!', 0x00e676, 4000);
+    });
+
+    s.on('endgameStarted', () => {
+      this.endgameReceivedAt = this.time.now;
+      this.endgameBellsRung.clear();
+      this.terminals.blockAll();
+      this.hud.flash('COLAPSO FINAL!', 0xff2222, 3000);
     });
 
     // player atacado
     s.on('playerHit', ({ targetId, hp }: { targetId: string; hp: number }) => {
       if (targetId === s.id) {
         this.myHp = hp;
-        this.hud.update(this.myRole, this.myHp, this.downed);
+        this.hud.update(this.myRole, this.myHp, this.downed, this.myDownCount);
         this.hud.flash('Você foi atingido!', 0xff4444);
+        if (!this.downed) this.onHitSprintTimer = ON_HIT_SPRINT_MS;
       }
       const info = this.survivorInfo.get(targetId);
       if (info) { this.survivorInfo.set(targetId, { ...info, hp }); this.refreshSurvivorHUD(); }
     });
 
-    // player detido
-    // TODO: queria q as skill check aqui fossem mais dificeis, nao era pra ta colocando aqui mas lembrei agora
-    s.on('playerDowned', (targetId: string) => {
-      if (targetId === s.id) {
-        this.downed = true;
-        this.myHp   = 0;
-        this.hud.update(this.myRole, this.myHp, true);
-        this.hud.flash('Em DETENÇÃO! Passe no exame!', 0xff4444);
-        this.startDetention();
+    s.on('playerDowned', ({ id, downCount }: { id: string; downCount: 0|1|2 }) => {
+      if (id === s.id) {
+        this.downed             = true;
+        this.myHp               = 0;
+        this.myDownCount        = downCount;
+        this.myHealPct          = 0;
+        this.myDownBleedMs      = 0;
+        this.beingHealed        = false;
+        this.healingTarget      = null;
+        this.prevHealingEmitted = null;
+        this.socket.emit('setHealing', { targetId: null });
+        this.hud.update(this.myRole, this.myHp, true, this.myDownCount);
+        this.hud.flash('Você foi derrubado!', 0xff4444);
+        playHurtFallAnimation(this.player, 'survivor', this.facingDirection);
       } else if (this.myRole === 'professor') {
-        this.hud.flash('Aluno detido!', 0xffcc00);
+        this.hud.flash('Aluno derrubado!', 0xffcc00);
       }
-      const info = this.survivorInfo.get(targetId);
-      if (info) { this.survivorInfo.set(targetId, { ...info, hp: 0, downed: true }); this.refreshSurvivorHUD(); }
+      this.trackSurvivor(id, { hp: 0, downed: true, expelled: false, escaped: false, downCount, healPct: 0 });
+      this.refreshSurvivorHUD();
+      if (id !== s.id) this.players.setDowned(id, true);
     });
 
     // stun q o killer toma por hittar
@@ -662,23 +799,6 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // reviveu
-    s.on('detentionEscaped', () => {
-      this.downed = false;
-      this.myHp   = 1;
-      this.inputFrozen = false;
-      this.hud.update(this.myRole, this.myHp, false);
-      this.hud.flash('Você escapou da detenção!', 0x4fc3f7);
-      const info = this.survivorInfo.get(s.id!);
-      if (info) { this.survivorInfo.set(s.id!, { ...info, hp: 1, downed: false }); this.refreshSurvivorHUD(); }
-    });
-
-    //progresso do revive
-    s.on('detentionProgress', ({ current, required }: { current: number; required: number }) => {
-      if (!this.downed) return;
-      this.hud.flash(`Detenção: ${current}/${required}`, 0xffcc00, 1200);
-    });
-
     //morto
     s.on('expelled', () => {
       this.expelled    = true;
@@ -687,19 +807,88 @@ export class GameScene extends Phaser.Scene {
       this.hud.flash('EXPULSO!', 0xff4444, 4000);
     });
 
-    // alerta pra qnd revive aluno
-    s.on('playerRevived', (id: string) => {
-      if (this.myRole === 'professor' && id !== s.id)
-        this.hud.flash('Aluno escapou da detenção!', 0x4fc3f7);
+    s.on('playerRevived', ({ id, hp }: { id: string; hp: number }) => {
+      if (id === s.id) {
+        this.downed      = false;
+        this.myHp        = hp;
+        this.myHealPct   = 0;
+        this.beingHealed = false;
+        this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
+        this.hud.flash('Revivido! Cuide-se.', 0x4fc3f7);
+      } else if (this.myRole === 'professor') {
+        this.hud.flash('Aluno se levantou!', 0x4fc3f7);
+      }
+      this.trackSurvivor(id, { hp, downed: false, expelled: false, escaped: false, healPct: 0 });
+      this.refreshSurvivorHUD();
+      this.players.setDowned(id, false);
+    });
+
+    s.on('playerHealed', ({ id, hp }: { id: string; hp: number }) => {
+      if (id === s.id) {
+        this.myHp        = hp;
+        this.myHealPct   = 0;
+        this.beingHealed = false;
+        this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
+        this.hud.flash('Totalmente curado!', 0x4caf50);
+      }
+      this.trackSurvivor(id, { hp, downed: false, expelled: false, escaped: false, healPct: 0 });
+      this.refreshSurvivorHUD();
+    });
+
+    s.on('healUpdate', ({ targetId, healPct }: { targetId: string; healPct: number }) => {
+      if (targetId === s.id) {
+        this.myHealPct = healPct;
+        this.hud.setRecoveryProgress(healPct);
+      }
+      const info = this.survivorInfo.get(targetId);
+      if (info) { this.survivorInfo.set(targetId, { ...info, healPct }); this.refreshSurvivorHUD(); }
+    });
+
+    s.on('setBeingHealed', ({ targetId, isBeingHealed }: { targetId: string; isBeingHealed: boolean }) => {
+      if (targetId === s.id) {
+        this.beingHealed = isBeingHealed;
+        if (isBeingHealed) {
+          this.healPassiveTimer = 0;
+          this.healHoldTimer    = 0;
+        }
+      }
+      const info = this.survivorInfo.get(targetId);
+      if (info) { this.survivorInfo.set(targetId, { ...info, beingHealed: isBeingHealed }); this.refreshSurvivorHUD(); }
+    });
+
+    s.on('downCountUpdated', ({ id, downCount }: { id: string; downCount: 0|1|2 }) => {
+      if (id === s.id) {
+        this.myDownCount   = downCount;
+        this.myDownBleedMs = 0;
+        this.myHealPct     = 0;
+        this.hud.setDownCount(downCount);
+        this.hud.flash('Situação piorou!', 0xff8800, 2000);
+      }
       const info = this.survivorInfo.get(id);
-      if (info) { this.survivorInfo.set(id, { ...info, hp: 1, downed: false }); this.refreshSurvivorHUD(); }
+      if (info) { this.survivorInfo.set(id, { ...info, downCount }); this.refreshSurvivorHUD(); }
+    });
+
+    s.on('healAlert', ({ targetId }: { targetId: string; healerId: string }) => {
+      if (this.myRole !== 'professor') return;
+      const pos = this.players.getPosition(targetId);
+      if (!pos) return;
+      const cam = this.cameras.main;
+      this.hud.showHealAlert(targetId, pos.x, pos.y, cam.scrollX, cam.scrollY, cam.width, cam.height);
     });
 
     //alerta pra qnd aluno morre
     s.on('playerExpelled', (id: string) => {
-      this.players.setAlpha(id, 0.25);
-      if (this.myRole === 'professor' && id !== s.id)
-        this.hud.flash('Aluno expulso!', 0x00e676);
+      if (id === s.id) {
+        this.expelled    = true;
+        this.downed      = false;
+        this.inputFrozen = true;
+        this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
+        this.hud.flash('Você foi expulso!', 0xff1744, 4000);
+      } else {
+        this.players.setAlpha(id, 0.25);
+        if (this.myRole === 'professor')
+          this.hud.flash('Aluno expulso!', 0x00e676);
+      }
       const info = this.survivorInfo.get(id);
       if (info) { this.survivorInfo.set(id, { ...info, expelled: true }); this.refreshSurvivorHUD(); }
     });
@@ -731,30 +920,13 @@ export class GameScene extends Phaser.Scene {
     });
 
     s.on('gameReset', () => {
+      this.scratchMarks?.clear();
+      this.bloodPools?.clear();
       this.voiceManager?.destroy();
       this.voiceManager = null;
       this.hud.setMicState('off');
       this.scene.restart();
     });
-  }
-
-  //detencao
-  private startDetention() {
-    this.inputFrozen = true;
-    this.skillCheck.show(
-      (isGreat) => {
-        this.socket.emit('detentionAnswer', { correct: true, isGreat });
-        if (this.downed) this.time.delayedCall(Phaser.Math.Between(2000, 4000), () => {
-          if (this.downed) this.startDetention();
-        });
-      },
-      () => {
-        this.socket.emit('detentionAnswer', { correct: false, isGreat: false });
-        if (this.downed) this.time.delayedCall(Phaser.Math.Between(2000, 4000), () => {
-          if (this.downed) this.startDetention();
-        });
-      },
-    );
   }
 
   private runHackSkillCheck(terminalId: TerminalId) {
@@ -771,23 +943,159 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  //  interacao com o portao (survivor tem q ta perto e clicar no e pra escapar)
-  // TODO: devia mostrar as teclas perto do que vc pode apertar, tipo portao e terminal[] 
-  private isNearGate(): boolean {
-    const gm = this.terminals.gateMarker;
-    if (!gm) return false;
-    return Phaser.Math.Distance.Between(this.player.x, this.player.y, gm.x, gm.y) < INTERACT_RADIUS;
+  private runHealSkillCheck(targetId: string, isSelf: boolean) {
+    this.inputFrozen = true;
+    this.skillCheck.show(
+      (isGreat) => {
+        this.inputFrozen = false;
+        if (isGreat) {
+          const bonus = isSelf
+            ? HEAL_GREAT_BONUS * HEAL_SELF_RATE_FACTOR
+            : HEAL_GREAT_BONUS;
+          this.socket.emit('healProgress', { targetId, amount: bonus });
+        }
+      },
+      () => {
+        this.inputFrozen = false;
+        this.socket.emit('healSkillCheckFailed', { targetId });
+        this.healLockUntil = this.time.now + HEAL_FAIL_LOCK_MS;
+      },
+    );
+  }
+
+  private nearestHealablePlayer(): string | null {
+    let bestId:       string | null = null;
+    let bestDist      = INTERACT_RADIUS + 1;
+    let bestPriority  = 999;
+
+    for (const [id, info] of this.survivorInfo) {
+      if (id === this.socket.id) continue;
+      if (info.expelled || info.escaped) continue;
+      if (info.hp >= 2 && !info.downed) continue;
+
+      const pos = this.players.getPosition(id);
+      if (!pos) continue;
+      const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, pos.x, pos.y);
+      if (dist > INTERACT_RADIUS) continue;
+
+      const priority = info.downed ? 1 : 2;
+      if (priority < bestPriority || (priority === bestPriority && dist < bestDist)) {
+        bestId       = id;
+        bestDist     = dist;
+        bestPriority = priority;
+      }
+    }
+    return bestId;
+  }
+
+  private _updateBloodMarks(delta: number, intendedToMove: boolean) {
+    const SMALL_POOL_THRESHOLD_MS = 300;
+    const BIG_POOL_THRESHOLD_MS = 10000;
+
+    const emitDrop = (x: number, y: number, frame: number) => {
+      this.socket.emit('bloodMark', { x, y, frame });
+      if (BLOOD_SELF_VISIBLE) this.bloodPools.spawn(x, y, frame);
+    };
+
+    const emitBigPool = (x: number, y: number) => {
+      this.socket.emit('bloodBigPool', { x, y });
+      if (BLOOD_SELF_VISIBLE) this.bloodPools.spawnBigPool(x, y);
+    };
+
+    if (intendedToMove) {
+      this.bloodStationaryTimer  = 0;
+      this.bloodBigPoolSpawned   = false;
+      this.bloodDropTimer       += delta;
+      if (this.bloodDropTimer >= BloodPoolManager.DROP_INTERVAL_MS) {
+        this.bloodDropTimer = 0;
+        const frame = BloodPoolManager.dropFrameFor(this.facingDirection);
+        const jx = Phaser.Math.Between(-3, 3);
+        const jy = Phaser.Math.Between(-3, 3);
+        emitDrop(this.player.x + jx, this.player.y + jy, frame);
+      }
+    } else {
+      this.bloodDropTimer = 0;
+      const prev = this.bloodStationaryTimer;
+      this.bloodStationaryTimer += delta;
+      const curr = this.bloodStationaryTimer;
+
+      // Spawn small pool once when first stopping
+      if (prev < SMALL_POOL_THRESHOLD_MS && curr >= SMALL_POOL_THRESHOLD_MS) {
+        emitDrop(this.player.x, this.player.y, BloodPoolManager.smallPoolFrame());
+      }
+
+      // Spawn big pool once after threshold
+      if (!this.bloodBigPoolSpawned && curr >= BIG_POOL_THRESHOLD_MS) {
+        this.bloodBigPoolSpawned = true;
+        emitBigPool(this.player.x, this.player.y);
+      }
+    }
   }
 
   private _updateSurvivorInteractions(delta: number) {
+    const eHeld    = this.eKey.isDown || this.padActionHeld;
+
+    // ── Heal path ────────────────────────────────────────────────────────────
+    const healTarget = eHeld && !this.downed ? this.nearestHealablePlayer() : null;
+
+    if (healTarget) {
+      if (healTarget !== this.healingTarget) {
+        if (this.prevHealingEmitted !== null) {
+          this.socket.emit('setHealing', { targetId: null });
+        }
+        this.healingTarget      = healTarget;
+        this.prevHealingEmitted = healTarget;
+        this.healPassiveTimer   = 0;
+        this.healHoldTimer      = 0;
+        this.socket.emit('setHealing', { targetId: healTarget });
+
+        if (this.hackingTerminal !== null) {
+          this.hackingTerminal    = null;
+          this.prevHackingEmitted = null;
+          this.hackPassiveTimer   = 0;
+          this.terminals.setWorking(null);
+          this.hud.setHackProgress(null);
+          this.socket.emit('setHacking', { terminalId: null });
+        }
+      }
+
+      if (this.time.now >= this.healLockUntil) {
+        this.healPassiveTimer += delta;
+        if (this.healPassiveTimer >= HEAL_PASSIVE_RATE_MS) {
+          this.healPassiveTimer = 0;
+          this.socket.emit('healProgress', { targetId: healTarget, amount: HEAL_PASSIVE_TICK });
+        }
+
+        this.healHoldTimer += delta;
+        if (this.healHoldTimer >= this.healNextThreshold) {
+          this.healHoldTimer     = 0;
+          this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+          this.runHealSkillCheck(healTarget, false);
+        }
+      }
+
+      this.hud.setHealProgress(this.survivorInfo.get(healTarget)?.healPct ?? 0);
+      return;
+    }
+
+    if (this.prevHealingEmitted !== null) {
+      this.prevHealingEmitted = null;
+      this.healingTarget      = null;
+      this.healPassiveTimer   = 0;
+      this.healHoldTimer      = 0;
+      this.socket.emit('setHealing', { targetId: null });
+      this.hud.setHealProgress(null);
+    }
+
+    // ── Hack path ─────────────────────────────────────────────────────────────
     const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
 
     if (nearTerminal !== this.hackTimerTerminal) {
       this.hackTimerTerminal = nearTerminal;
-      this.hackHoldTimer = 0;
+      this.hackHoldTimer     = 0;
     }
 
-    if ((this.eKey.isDown || this.padActionHeld) && nearTerminal && !this.downed) {
+    if (eHeld && nearTerminal && !this.downed && !this.beingHealed) {
       this.hackingTerminal = nearTerminal;
       if (this.prevHackingEmitted !== nearTerminal) {
         this.prevHackingEmitted = nearTerminal;
@@ -820,7 +1128,37 @@ export class GameScene extends Phaser.Scene {
     this.terminals.setWorking(null);
     this.hud.setHackProgress(null);
 
-    if ((Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) && this.gateOpen && this.isNearGate()) {
+    // ── Gate ─────────────────────────────────────────────────────────────────
+    let nearAnyGate = false;
+    for (const id of ['g1', 'g2'] as GateId[]) {
+      if (!this.gates.isPowered(id) || this.gates.isOpen(id)) continue;
+      if (!this.gates.isNearSwitch(id, this.player.x, this.player.y)) continue;
+      nearAnyGate = true;
+
+      if (this.openingGate !== id) {
+        this.openingGate   = id;
+        this.gateOpenTimer = 0;
+      }
+
+      if (eHeld) {
+        this.gateOpenTimer += delta;
+        while (this.gateOpenTimer >= GATE_TICK_MS) {
+          this.gateOpenTimer -= GATE_TICK_MS;
+          this.socket.emit('gateOpenTick', { gateId: id });
+        }
+      } else {
+        this.gateOpenTimer = 0;
+      }
+      break;
+    }
+
+    if (!nearAnyGate && this.openingGate !== null) {
+      this.openingGate   = null;
+      this.gateOpenTimer = 0;
+    }
+
+    const exitGate = this.gates.getOpenGateForExit(this.player.x, this.player.y);
+    if (exitGate !== null && !this.escaped) {
       this.socket.emit('escape');
     }
   }
@@ -845,13 +1183,43 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _updateProfessorInteractions() {
-    if (Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust) {
-      this.playProfessorSlash();
+    const now = this.time.now;
+
+    if ((Phaser.Input.Keyboard.JustDown(this.spaceKey) || this.padAttackJust || this.mouseAttackJust) && !this.isSwinging && !this.isKicking) {
+      this.attackHoldStart = now;
     }
+
+    if (this.attackHoldStart !== null && !this.isSwinging && (now - this.attackHoldStart) >= LUNGE_MAX_HOLD_MS) {
+      this._fireAttack(true);
+    }
+
+    if (this.attackHoldStart !== null && !this.isSwinging) {
+      const heldMs = now - this.attackHoldStart;
+      if (heldMs >= LUNGE_THRESHOLD_MS && (now - this.lastLungeTick) > 50) {
+        this.lastLungeTick = now;
+        this.socket.emit('lungeTick', { x: this.player.x, y: this.player.y, angle: this.lookAngle });
+      }
+    }
+
+    const spaceJustUp = Phaser.Input.Keyboard.JustUp(this.spaceKey);
+    if ((spaceJustUp || this.padAttackJustUp || this.mouseAttackJustUp) && this.attackHoldStart !== null && !this.isSwinging) {
+      const heldMs = now - this.attackHoldStart;
+      this._fireAttack(heldMs >= LUNGE_THRESHOLD_MS);
+    }
+
     if (Phaser.Input.Keyboard.JustDown(this.eKey) || this.padActionJust) {
       const t = this.terminals.nearest(this.player.x, this.player.y);
       if (t) this.playProfessorKick(t);
     }
+
+    const nowCharging = this.attackHoldStart !== null && !this.isSwinging;
+    if (nowCharging !== this.wasCharging) {
+      this.wasCharging = nowCharging;
+      this.socket.emit('professorCharge', { charging: nowCharging });
+    }
+
+    this.mouseAttackJust    = false;
+    this.mouseAttackJustUp  = false;
   }
 
   //  normaliza um angulo pra ficar entre -PI e PI, pra facilitar os calculo 
@@ -877,6 +1245,8 @@ export class GameScene extends Phaser.Scene {
     this.terminals.update(delta);
     this._updateTerrorRadius();
 
+    if (this.onHitSprintTimer > 0) this.onHitSprintTimer = Math.max(0, this.onHitSprintTimer - delta);
+
     // gamepad — lê estado do pad1 e detecta "just pressed" para este frame
     const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
     this.hud.setGamepadConnected(pad !== null);
@@ -885,11 +1255,12 @@ export class GameScene extends Phaser.Scene {
     const padAttackNow = pad?.buttons[2].pressed ?? false; // X — ataque/skill check (SPACE)
     this.padActionHeld = padActionNow;
     this.padAttackHeld = padAttackNow;
-    this.padSprintHeld = pad?.buttons[5].pressed ?? false; // R1 — sprint
+    this.padSprintHeld = pad?.buttons[5].pressed ?? false;
     this.padActionJust = padActionNow && !this.padPrevAction;
-    this.padAttackJust = padAttackNow && !this.padPrevAttack;
-    this.padPrevAction = padActionNow;
-    this.padPrevAttack = padAttackNow;
+    this.padAttackJust   = padAttackNow && !this.padPrevAttack;
+    this.padAttackJustUp = !padAttackNow && this.padPrevAttack;
+    this.padPrevAction   = padActionNow;
+    this.padPrevAttack   = padAttackNow;
 
     if (Phaser.Input.Keyboard.JustDown(this.cKey)) {
       this.toggleCollisionDebug();
@@ -908,12 +1279,11 @@ export class GameScene extends Phaser.Scene {
         if (this.staggerTimer <= 0) {
           this.staggerTimer = 0;
           if (!this.expelled && !this.escaped) {
-            this.inputFrozen = false;
-            this.isHitStagger = false;
-            this.isSwinging = false;
-            this.isLunging  = false;
-            this.swingDirection = null;
-            this.lungeVec = null;
+            this.inputFrozen     = false;
+            this.isHitStagger    = false;
+            this.isSwinging      = false;
+            this.swingDirection  = null;
+            this.attackHoldStart = null;
             if (this.slashSprite) { this.slashSprite.destroy(); this.slashSprite = null; }
             this.isKicking = false;
             if (this.kickSprite) { this.kickSprite.destroy(); this.kickSprite = null; }
@@ -925,31 +1295,52 @@ export class GameScene extends Phaser.Scene {
       this.fog.update(this.player, this.lookAngle);
       (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
       if (this.myRole && !this.isHitStagger) {
-        const frozenAnim = (this.downed && this.myRole === 'survivor') ? 'sit' : 'idle';
-        playRoleAnimation(this.player, this.myRole, frozenAnim, this.facingDirection);
+        if (this.downed && this.myRole === 'survivor') {
+          const skin = getSkinForRole('survivor');
+          const hurtFallKey = `${skin.id}:hurt-fall`;
+          const hurtFallPlaying = this.player.anims.currentAnim?.key === hurtFallKey && this.player.anims.isPlaying;
+          if (!hurtFallPlaying) {
+            applyDownedFrame(this.player, 'survivor', this.facingDirection);
+          }
+        } else {
+          playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+        }
       }
+      if (this.myRole === 'professor') {
+        const cam = this.cameras.main;
+        this.hud.updateTerminalArrows(
+          this.terminals.getPositions(),
+          this.terminals.getCompleted(),
+          cam.scrollX,
+          cam.scrollY,
+          cam.width,
+          cam.height,
+        );
+      }
+      this.mouseAttackJust    = false;
+      this.mouseAttackJustUp  = false;
       this.players.update(this.time.now);
       return;
     }
 
-    // stamina e corrida (só pros alunos)
+
     if (this.myRole === 'survivor') {
-      this.sprinting = (this.shiftKey.isDown || this.padSprintHeld) && this.stamina > STAMINA_MIN_SPRINT;
-      if (this.sprinting) {
-        this.stamina = Math.max(0, this.stamina - STAMINA_DRAIN * (delta / 1000));
-        if (this.stamina === 0) this.sprinting = false;
-      } else {
-        this.stamina = Math.min(STAMINA_MAX, this.stamina + STAMINA_REGEN * (delta / 1000));
-      }
-      this.staminaBar.update(this.stamina);
+      this.sprinting = this.shiftKey.isDown || this.padSprintHeld;
     }
 
     //  Movimento
     let speed: number;
     if (this.myRole === 'professor') {
       speed = PROFESSOR_SPEED + BLOODLUST_SPEED_BONUS_PX_S[this.bloodlustTier];
+      if (this.attackHoldStart !== null && !this.isSwinging) speed *= 1.5;
     } else {
-      speed = this.sprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
+      if (this.downed) {
+        speed = PLAYER_SPEED * CRAWL_SPEED_FACTOR;
+      } else if (this.onHitSprintTimer > 0) {
+        speed = ON_HIT_SPRINT_SPEED;
+      } else {
+        speed = this.sprinting ? PLAYER_SPRINT_SPEED : PLAYER_SPEED;
+      }
     }
 
     let vx = 0, vy = 0;
@@ -973,14 +1364,43 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    const intendedToMove = vx !== 0 || vy !== 0;
+
+    const slideBody = this.player.body as Phaser.Physics.Arcade.Body;
+    const slidX = (slideBody.blocked.left && vx < 0) || (slideBody.blocked.right && vx > 0);
+    const slidY = (slideBody.blocked.up   && vy < 0) || (slideBody.blocked.down  && vy > 0);
+    if (slidX) vx = 0;
+    if (slidY) vy = 0;
+    if      (slidX && !slidY) { this._slidAxis = 'x'; this._slidHysteresis = 4; }
+    else if (slidY && !slidX) { this._slidAxis = 'y'; this._slidHysteresis = 4; }
+    else if (!slidX && !slidY) {
+      if (this._slidHysteresis > 0) this._slidHysteresis--;
+      else this._slidAxis = null;
+    }
+
     // normaliza a velocidade pra n ficar mais rapido na diagonal; escala pela magnitude do analogico
     if (vx !== 0 || vy !== 0) {
       const len = Math.hypot(vx, vy);
       vx = (vx / len) * speed * analogScale;
       vy = (vy / len) * speed * analogScale;
       this.targetLookAngle = Math.atan2(vy, vx);
-      if (Math.abs(vx) > Math.abs(vy)) this.facingDirection = vx > 0 ? 'right' : 'left';
-      else this.facingDirection = vy > 0 ? 'down' : 'up';
+      if      (this._slidAxis === 'y' && vx !== 0) this.facingDirection = vx > 0 ? 'right' : 'left';
+      else if (this._slidAxis === 'x' && vy !== 0) this.facingDirection = vy > 0 ? 'down' : 'up';
+      else if (Math.abs(vx) > Math.abs(vy))        this.facingDirection = vx > 0 ? 'right' : 'left';
+      else                                          this.facingDirection = vy > 0 ? 'down' : 'up';
+    }
+
+    // mouse look — professor sem gamepad
+    if (this.myRole === 'professor' && pad === null) {
+      const pointer = this.input.activePointer;
+      this.targetLookAngle = Math.atan2(
+        pointer.worldY - this.player.y,
+        pointer.worldX - this.player.x,
+      );
+      const dx = pointer.worldX - this.player.x;
+      const dy = pointer.worldY - this.player.y;
+      if (Math.abs(dx) >= Math.abs(dy)) this.facingDirection = dx > 0 ? 'right' : 'left';
+      else this.facingDirection = dy > 0 ? 'down' : 'up';
     }
 
     // gamepad stick direito define angulo de visao do professor
@@ -994,12 +1414,7 @@ export class GameScene extends Phaser.Scene {
     (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(vx, vy);
 
     if (this.isSwinging) {
-      const swingBody = this.player.body as Phaser.Physics.Arcade.Body;
-      if (this.isLunging && this.lungeVec) {
-        swingBody.setVelocity(this.lungeVec.x * this.lungeSpeed, this.lungeVec.y * this.lungeSpeed);
-      } else {
-        swingBody.setVelocity(0, 0);
-      }
+      (this.player.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
       this.slashSprite?.setPosition(this.player.x, this.player.y);
     }
 
@@ -1009,11 +1424,25 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.myRole) {
-      if (vx !== 0 || vy !== 0) {
-        const moveAnim = (this.myRole === 'survivor' && this.sprinting) ? 'run' : 'walk';
-        playRoleAnimation(this.player, this.myRole, moveAnim, this.facingDirection);
+      if (this.downed && this.myRole === 'survivor') {
+        const skin = getSkinForRole('survivor');
+        const hurtFallKey = `${skin.id}:hurt-fall`;
+        const hurtFallPlaying = this.player.anims.currentAnim?.key === hurtFallKey && this.player.anims.isPlaying;
+        if (!hurtFallPlaying) {
+          applyDownedFrame(this.player, 'survivor', this.facingDirection);
+        }
       } else {
-        playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+        const inCombatStance = this.myRole === 'professor' && this.attackHoldStart !== null && !this.isSwinging;
+        if (inCombatStance) {
+          if (!playCombatAnimation(this.player, this.myRole, this.facingDirection)) {
+            playRoleAnimation(this.player, this.myRole, intendedToMove ? 'walk' : 'idle', this.facingDirection);
+          }
+        } else if (intendedToMove) {
+          const moveAnim = (this.myRole === 'survivor' && (this.sprinting || this.onHitSprintTimer > 0)) ? 'run' : 'walk';
+          playRoleAnimation(this.player, this.myRole, moveAnim, this.facingDirection);
+        } else {
+          playRoleAnimation(this.player, this.myRole, 'idle', this.facingDirection);
+        }
       }
     }
 
@@ -1021,8 +1450,31 @@ export class GameScene extends Phaser.Scene {
     this.lastMoveEmit += delta;
     if ((vx !== 0 || vy !== 0) && this.lastMoveEmit > MOVE_EMIT_RATE_MS) {
       this.lastMoveEmit = 0;
-      this.socket.emit('move', { x: this.player.x, y: this.player.y, angle: this.lookAngle });
+      this.socket.emit('move', { x: this.player.x, y: this.player.y, angle: this.lookAngle, sprinting: this.sprinting, dir: this.facingDirection });
     }
+
+    // scratch marks
+    if (this.myRole === 'survivor' && this.sprinting && intendedToMove) {
+      this.scratchMarkTimer += delta;
+      if (this.scratchMarkTimer >= ScratchMarkManager.SPAWN_INTERVAL_MS) {
+        this.scratchMarkTimer = 0;
+        this.socket.emit('scratchMark', { x: this.player.x, y: this.player.y, direction: this.facingDirection });
+        if (SCRATCH_MARKS_SELF_VISIBLE) this.scratchMarks.spawn(this.player.x, this.player.y, this.facingDirection);
+      }
+    } else if (this.myRole === 'survivor') {
+      this.scratchMarkTimer = 0;
+    }
+    this.scratchMarks.update(delta);
+
+    // blood pools — only when injured (hp === 1) and not downed
+    if (this.myRole === 'survivor' && this.myHp === 1 && !this.downed) {
+      this._updateBloodMarks(delta, intendedToMove);
+    } else if (this.myRole === 'survivor') {
+      this.bloodDropTimer = 0;
+      this.bloodStationaryTimer = 0;
+      this.bloodBigPoolSpawned = false;
+    }
+    this.bloodPools.update(delta);
 
     this.smoothLookAngle(delta);
     this.fog.update(this.player, this.lookAngle);
@@ -1037,10 +1489,51 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
+    if (this.myRole === 'survivor' && this.downed && !this.beingHealed) {
+      const moving = vx !== 0 || vy !== 0;
+      if (moving) {
+        this.healPassiveTimer = 0;
+        this.healHoldTimer    = 0;
+      } else if (this.myHealPct < HEAL_SELF_CAP && this.time.now >= this.healLockUntil) {
+        this.healPassiveTimer += delta;
+        if (this.healPassiveTimer >= HEAL_PASSIVE_RATE_MS) {
+          this.healPassiveTimer = 0;
+          this.socket.emit('healProgress', {
+            targetId: this.socket.id,
+            amount:   HEAL_PASSIVE_TICK * HEAL_SELF_RATE_FACTOR,
+          });
+        }
+        this.healHoldTimer += delta;
+        if (this.healHoldTimer >= this.healNextThreshold) {
+          this.healHoldTimer     = 0;
+          this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+          this.runHealSkillCheck(this.socket.id!, true);
+        }
+      }
+    }
+
+    if (this.myRole === 'survivor' && this.downed) {
+      this.myDownBleedMs = Math.min(this.myDownBleedMs + delta, BLEED_OUT_MS);
+      this.hud.setBleedOutProgress((this.myDownBleedMs / BLEED_OUT_MS) * 100);
+    }
+
     if (this.myRole === 'survivor')  this._updateSurvivorInteractions(delta);
     else if (this.myRole === 'professor') {
       this._updateProfessorInteractions();
       this.hud.setAttackCooldown(this.staggerTimer);
+    }
+
+    if (this.endgameReceivedAt !== null) {
+      const elapsed    = this.time.now - this.endgameReceivedAt;
+      const remaining  = Math.max(0, ENDGAME_DURATION_MS - elapsed);
+      this.hud.setEndgameTimer(remaining);
+
+      for (const threshold of [90_000, 60_000, 30_000]) {
+        if (remaining <= threshold && !this.endgameBellsRung.has(threshold)) {
+          this.endgameBellsRung.add(threshold);
+          this.hud.flash(`${threshold / 1000}s restantes!`, 0xff6600, 2000);
+        }
+      }
     }
 
     if (this.collisionDebugEnabled && this.playerBodyDebugGraphics) {
@@ -1048,6 +1541,18 @@ export class GameScene extends Phaser.Scene {
       this.playerBodyDebugGraphics.clear();
       this.playerBodyDebugGraphics.lineStyle(2, 0x00ff00, 1);
       this.playerBodyDebugGraphics.strokeRect(body.left, body.top, body.width, body.height);
+    }
+
+    if (this.myRole === 'professor') {
+      const cam = this.cameras.main;
+      this.hud.updateTerminalArrows(
+        this.terminals.getPositions(),
+        this.terminals.getCompleted(),
+        cam.scrollX,
+        cam.scrollY,
+        cam.width,
+        cam.height,
+      );
     }
   }
 }
