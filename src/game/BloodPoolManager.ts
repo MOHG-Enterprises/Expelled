@@ -52,7 +52,7 @@ export class BloodPoolManager {
   private bigPoolSpawned  = false;
 
   static preload(scene: Phaser.Scene) {
-    scene.load.spritesheet(BloodPoolManager.TEXTURE_KEY, '/blood.png', {
+    scene.load.spritesheet(BloodPoolManager.TEXTURE_KEY, './blood.png', {
       frameWidth:  FRAME_SIZE,
       frameHeight: FRAME_SIZE,
     });

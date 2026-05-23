@@ -10,18 +10,18 @@ export type TilesetConfig = {
 };
 
 export const MAP_TILESETS: TilesetConfig[] = [
-  { name: '2',                             key: 'tileset-2',             image: '/mapa/Expelled/abc/Dungeon_Tiles.png',                                                    tileWidth: 16, tileHeight: 16 },
-  { name: '1',                             key: 'tileset-1',             image: '/mapa/Expelled/abc/Interiors_free_32x32.png',                                             tileWidth: 16, tileHeight: 16 },
-  { name: '3',                             key: 'tileset-3',             image: '/mapa/Expelled/abc/mainlevbuild.png',                                                     tileWidth: 16, tileHeight: 16 },
-  { name: 'pingpong',                      key: 'tileset-pingpong',      image: '/mesaDeTenis.png',                                                                        tileWidth: 16, tileHeight: 16 },
-  { name: 'armario',                       key: 'tileset-armario',       image: '/mapa/Expelled/abc/House Interiors – Cozy Farmhouse Bedroom/obj/spr_book_case.png',       tileWidth: 16, tileHeight: 16 },
-  { name: 'Computer Room Spritesheet 1 (1)', key: 'tileset-computer-room', image: '/Computer Room Spritesheet 1 (1).png',                                                  tileWidth: 16, tileHeight: 16 },
-  { name: 'AnimatedAutum',                 key: 'tileset-animated-autum', image: '/mapa/Expelled/abc/AnimatedAutum.png',                                                   tileWidth: 16, tileHeight: 16 },
-  { name: 'mesaArvor',                     key: 'tileset-mesaarvor',     image: '/mapa/Expelled/abc/mesaArvor.png',                                                        tileWidth: 16, tileHeight: 16 },
-  { name: 'mapaClosev5',                   key: 'tileset-mapa-close',    image: '/mapa/Expelled/abc/mapaClosev5.png',                                                      tileWidth: 16, tileHeight: 16 },
-  { name: 'PrincipalV2 (1)',               key: 'tileset-principal-v2',  image: '/mapa/Expelled/abc/PrincipalV2 (1).png',                                                  tileWidth: 16, tileHeight: 16 },
-  { name: 'mesas',                         key: 'tileset-mesas',         image: '/mapa/Expelled/abc/mesas.png',                                                            tileWidth: 16, tileHeight: 16 },
-  { name: 'conundrum',                     key: 'tileset-conundrum',     image: '/mapa/Expelled/abc/titleGame.png',                                                        tileWidth: 16, tileHeight: 16 },
+  { name: '2',                             key: 'tileset-2',             image: './mapa/Expelled/abc/Dungeon_Tiles.png',                                                    tileWidth: 16, tileHeight: 16 },
+  { name: '1',                             key: 'tileset-1',             image: './mapa/Expelled/abc/Interiors_free_32x32.png',                                             tileWidth: 16, tileHeight: 16 },
+  { name: '3',                             key: 'tileset-3',             image: './mapa/Expelled/abc/mainlevbuild.png',                                                     tileWidth: 16, tileHeight: 16 },
+  { name: 'pingpong',                      key: 'tileset-pingpong',      image: './mesaDeTenis.png',                                                                        tileWidth: 16, tileHeight: 16 },
+  { name: 'armario',                       key: 'tileset-armario',       image: './mapa/Expelled/abc/House Interiors – Cozy Farmhouse Bedroom/obj/spr_book_case.png',       tileWidth: 16, tileHeight: 16 },
+  { name: 'Computer Room Spritesheet 1 (1)', key: 'tileset-computer-room', image: './Computer Room Spritesheet 1 (1).png',                                                  tileWidth: 16, tileHeight: 16 },
+  { name: 'AnimatedAutum',                 key: 'tileset-animated-autum', image: './mapa/Expelled/abc/AnimatedAutum.png',                                                   tileWidth: 16, tileHeight: 16 },
+  { name: 'mesaArvor',                     key: 'tileset-mesaarvor',     image: './mapa/Expelled/abc/mesaArvor.png',                                                        tileWidth: 16, tileHeight: 16 },
+  { name: 'mapaClosev5',                   key: 'tileset-mapa-close',    image: './mapa/Expelled/abc/mapaClosev5.png',                                                      tileWidth: 16, tileHeight: 16 },
+  { name: 'PrincipalV2 (1)',               key: 'tileset-principal-v2',  image: './mapa/Expelled/abc/PrincipalV2 (1).png',                                                  tileWidth: 16, tileHeight: 16 },
+  { name: 'mesas',                         key: 'tileset-mesas',         image: './mapa/Expelled/abc/mesas.png',                                                            tileWidth: 16, tileHeight: 16 },
+  { name: 'conundrum',                     key: 'tileset-conundrum',     image: './mapa/Expelled/abc/titleGame.png',                                                        tileWidth: 16, tileHeight: 16 },
 ];
 
 export const COLLISION_LAYERS = new Set([

@@ -202,14 +202,14 @@ export class GameScene extends Phaser.Scene {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   preload() {
-    this.load.tilemapTiledJSON('school-map', '/maps/mapa.phaser.json');
-    this.load.spritesheet('computer-terminal-sheet', '/Computer Room Spritesheet 1 (1).png', {
+    this.load.tilemapTiledJSON('school-map', './maps/mapa.phaser.json');
+    this.load.spritesheet('computer-terminal-sheet', './Computer Room Spritesheet 1 (1).png', {
       frameWidth: 32, frameHeight: 32,
     });
-    this.load.spritesheet('professor-slash', '/personagens/professor/slash_128.png', {
+    this.load.spritesheet('professor-slash', './personagens/professor/slash_128.png', {
       frameWidth: 128, frameHeight: 128,
     });
-    this.load.spritesheet('professor-hurt', '/personagens/professor/hurt.png', {
+    this.load.spritesheet('professor-hurt', './personagens/professor/hurt.png', {
       frameWidth: 64, frameHeight: 64,
     });
     preloadMapAssets(this);
