@@ -27,12 +27,15 @@ import { VoiceManager }       from '../game/VoiceManager';
 import { ExitGateManager }    from '../game/ExitGateManager';
 import {
   applySkinToSprite,
-  applyDownedFrame,
+  applySkinByIdToSprite,
+  applyDownedFrameById,
   ensurePlayerSkinAnimations,
+  getSkinById,
   getSkinForRole,
   type MoveDirection,
   playRoleAnimation,
-  playHurtFallAnimation,
+  playSkinAnimation,
+  playHurtFallById,
   preloadPlayerSkins,
 } from '../game/playerSkins';
 
@@ -41,6 +44,8 @@ export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
 
   private myRole:       Role | null = null;
+  private mySkinId     = '';
+  private survivorMeta = new Map<string, { name: string; skinId: string }>();
   private myHp         = 2;
   private downed       = false;
   private expelled     = false;
@@ -149,7 +154,10 @@ export class GameScene extends Phaser.Scene {
         hp: 2, downed: false, expelled: false, escaped: false,
         hacking: false, downCount: 0 as const, healPct: 0, beingHealed: false,
       };
-      return { label: `A${i + 1}`, skinId: GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur', ...info };
+      const meta   = this.survivorMeta.get(id);
+      const label  = meta?.name   || `A${i + 1}`;
+      const skinId = meta?.skinId || (GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur');
+      return { label, skinId, ...info };
     });
     this.hud.setSurvivorStatuses(statuses, this.myRole === 'survivor');
   }
@@ -197,6 +205,7 @@ export class GameScene extends Phaser.Scene {
     this.endgameBellsRung.clear();
     this.survivorOrder = [];
     this.survivorInfo.clear();
+    this.survivorMeta.clear();
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -218,8 +227,9 @@ export class GameScene extends Phaser.Scene {
     BloodPoolManager.preload(this);
   }
 
-  create(data?: { socket?: Socket }) {
-    this.socket = data?.socket ?? io({ path: '/expelled/socket.io' });
+  create(data?: { socket?: Socket; skinId?: string; roomName?: string }) {
+    this.socket   = data?.socket ?? io({ path: '/expelled/socket.io' });
+    this.mySkinId = (data?.skinId && data.skinId !== 'professor') ? data.skinId : '';
     this.resetLocalState();
 
     const map = buildTilemap(this);
@@ -323,13 +333,19 @@ export class GameScene extends Phaser.Scene {
   private _bindGameLifecycle(s: Socket) {
     s.on('roleAssigned', (role: Role) => {
       this.myRole = role;
-      applySkinToSprite(this.player, role);
-      playRoleAnimation(this.player, role, 'idle', this.movement.facingDirection);
+      if (role === 'survivor' && this.mySkinId) {
+        applySkinByIdToSprite(this.player, this.mySkinId);
+        playSkinAnimation(this.player, this.mySkinId, 'idle', this.movement.facingDirection);
+      } else {
+        applySkinToSprite(this.player, role);
+        playRoleAnimation(this.player, role, 'idle', this.movement.facingDirection);
+      }
       const spawn = this.getSpawnPoint(role);
       this.player.setPosition(spawn.x, spawn.y);
       (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
       this.fog.setup(role, this.mapRef!);
-      this.hud.update(role, this.myHp, false);
+      this.hud.build();
+      this.hud.update(role, this.myHp, this.downed);
       if (role === 'professor') {
         this.terminals.setAuraMode(true);
         this.gates.setAuraMode(true);
@@ -347,10 +363,13 @@ export class GameScene extends Phaser.Scene {
           this.players.getOrCreate(id, p);
           if (p.role === 'survivor' && p.downed) this.players.setDowned(id, true);
         }
-        if (p.role === 'survivor') this.trackSurvivor(id, {
-          hp: p.hp, downed: p.downed, expelled: p.expelled, escaped: p.escaped,
-          downCount: p.downCount ?? 0, healPct: p.healPct ?? 0, beingHealed: p.beingHealed ?? false,
-        });
+        if (p.role === 'survivor') {
+          this.trackSurvivor(id, {
+            hp: p.hp, downed: p.downed, expelled: p.expelled, escaped: p.escaped,
+            downCount: p.downCount ?? 0, healPct: p.healPct ?? 0, beingHealed: p.beingHealed ?? false,
+          });
+          this.survivorMeta.set(id, { name: p.name || '', skinId: p.skinId || '' });
+        }
       });
       const myState = s.id ? state.players[s.id] : null;
       if (myState && myState.role === 'survivor') {
@@ -479,6 +498,9 @@ export class GameScene extends Phaser.Scene {
     s.on('firewallAlert', ({ terminalId }: { terminalId: string }) => {
       this.terminals.setFailed(terminalId, HACK_FAIL_LOCK_MS);
       this.terminals.setLocked(terminalId, HACK_FAIL_LOCK_MS);
+      if (this.hacking.activeHackingTerminal === terminalId) {
+        this.hacking.onHackLockApplied();
+      }
       if (this.myRole === 'professor') {
         const cam = this.cameras.main;
         this.hud.showLoudNoiseAlert(terminalId, cam.scrollX, cam.scrollY, cam.width, cam.height);
@@ -533,7 +555,7 @@ export class GameScene extends Phaser.Scene {
         this.socket.emit('setHealing', { targetId: null });
         this.hud.update(this.myRole, this.myHp, true, this.myDownCount);
         this.hud.flash('Você foi derrubado!', 0xff4444);
-        playHurtFallAnimation(this.player, 'survivor', this.movement.facingDirection);
+        playHurtFallById(this.player, this.mySkinId || 'arthur', this.movement.facingDirection);
       } else if (this.myRole === 'professor') {
         this.hud.flash('Aluno derrubado!', 0xffcc00);
       }
@@ -714,10 +736,13 @@ export class GameScene extends Phaser.Scene {
 
       if (this.myRole && !this.isHitStagger) {
         if (this.downed && this.myRole === 'survivor') {
-          const skin = getSkinForRole('survivor');
+          const effectiveSkinId = this.mySkinId || 'arthur';
+          const skin = getSkinById(effectiveSkinId);
           const hurtFallKey = `${skin.id}:hurt-fall`;
           const hurtFallPlaying = this.player.anims.currentAnim?.key === hurtFallKey && this.player.anims.isPlaying;
-          if (!hurtFallPlaying) applyDownedFrame(this.player, 'survivor', this.movement.facingDirection);
+          if (!hurtFallPlaying) applyDownedFrameById(this.player, effectiveSkinId, this.movement.facingDirection);
+        } else if (this.myRole === 'survivor' && this.mySkinId) {
+          playSkinAnimation(this.player, this.mySkinId, 'idle', this.movement.facingDirection);
         } else {
           playRoleAnimation(this.player, this.myRole, 'idle', this.movement.facingDirection);
         }
@@ -727,6 +752,13 @@ export class GameScene extends Phaser.Scene {
         const cam = this.cameras.main;
         this.hud.updateTerminalArrows(
           this.terminals.getPositions(), this.terminals.getCompleted(),
+          cam.scrollX, cam.scrollY, cam.width, cam.height,
+        );
+      }
+      if (this.myRole === 'survivor') {
+        const cam = this.cameras.main;
+        this.hud.updateDownedArrows(
+          this._getDownedArrowPositions(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
         );
       }
@@ -746,6 +778,7 @@ export class GameScene extends Phaser.Scene {
       bloodlustTier:    this.bloodlustTier,
       attackHoldActive: this.combat.attackHoldActive,
       isSwinging:       this.combat.isSwinging,
+      skinId:           this.mySkinId,
     };
 
     const { vx, vy, intendedToMove } = this.movement.update(input, movCtx, pad, delta);
@@ -835,6 +868,14 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
+    if (this.myRole === 'survivor') {
+      const cam = this.cameras.main;
+      this.hud.updateDownedArrows(
+        this._getDownedArrowPositions(),
+        cam.scrollX, cam.scrollY, cam.width, cam.height,
+      );
+    }
+
     if (this.endgameReceivedAt !== null) {
       const elapsed   = this.time.now - this.endgameReceivedAt;
       const remaining = Math.max(0, ENDGAME_DURATION_MS - elapsed);
@@ -853,5 +894,17 @@ export class GameScene extends Phaser.Scene {
       this.playerBodyDebugGraphics.lineStyle(2, 0x00ff00, 1);
       this.playerBodyDebugGraphics.strokeRect(body.left, body.top, body.width, body.height);
     }
+  }
+
+  private _getDownedArrowPositions(): Record<string, { x: number; y: number }> {
+    const result: Record<string, { x: number; y: number }> = {};
+    for (const [id, info] of this.survivorInfo) {
+      if (id === this.socket.id) continue;
+      if (info.expelled || info.escaped) continue;
+      if (!this.downed && !info.downed) continue;
+      const pos = this.players.getPosition(id);
+      if (pos) result[id] = pos;
+    }
+    return result;
   }
 }
