@@ -219,7 +219,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data?: { socket?: Socket }) {
-    this.socket = data?.socket ?? io({ path: '/expelled/socketio' });
+    this.socket = data?.socket ?? io({ path: '/expelled/socket.io' });
     this.resetLocalState();
 
     const map = buildTilemap(this);
