@@ -43,7 +43,7 @@ export class ScratchMarkManager {
   private spawnTimer = 0;
 
   static preload(scene: Phaser.Scene) {
-    scene.load.spritesheet(ScratchMarkManager.TEXTURE_KEY, '/scratchMarks.png', {
+    scene.load.spritesheet(ScratchMarkManager.TEXTURE_KEY, './scratchMarks.png', {
       frameWidth:  FRAME_SIZE,
       frameHeight: FRAME_SIZE,
     });
