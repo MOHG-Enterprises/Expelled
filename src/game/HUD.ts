@@ -15,6 +15,7 @@ export interface SurvivorStatus {
   downCount:   0 | 1 | 2;
   healPct:     number;
   beingHealed: boolean;
+  bleedMs:     number;
 }
 
 const CARD_GAP = 6;
@@ -48,6 +49,10 @@ export class HUD {
   private currentTerrorLevel = -1;
   private chaseIndicatorBg!:   Phaser.GameObjects.Graphics;
   private chaseIndicatorText!: Phaser.GameObjects.Text;
+
+  private damageVignette!: Phaser.GameObjects.Graphics;
+  private vignetteTween:   Phaser.Tweens.Tween | null = null;
+  private vignetteAlpha    = 0;
 
   private arrowGraphics!:     Phaser.GameObjects.Graphics;
   private loudNoiseArrows:    Map<string, number> = new Map();
@@ -130,6 +135,13 @@ export class HUD {
       .setOrigin(1, 0).setScrollFactor(0).setDepth(31).setAlpha(0);
 
     this.arrowGraphics = this.scene.add.graphics().setScrollFactor(0).setDepth(32);
+
+    this.damageVignette = this.scene.add.graphics().setScrollFactor(0).setDepth(45).setAlpha(0);
+    this.damageVignette.fillStyle(0xff0000, 1);
+    this.damageVignette.fillTriangle(0, 0, 200, 0, 0, 200);
+    this.damageVignette.fillTriangle(800, 0, 600, 0, 800, 200);
+    this.damageVignette.fillTriangle(0, 600, 200, 600, 0, 400);
+    this.damageVignette.fillTriangle(800, 600, 600, 600, 800, 400);
 
     this._buildSurvivorCards();
   }
@@ -231,11 +243,15 @@ export class HUD {
     this.endgameTimerText.setText(`${m}:${s.toString().padStart(2, '0')}`);
   }
 
-  setSurvivorStatuses(statuses: SurvivorStatus[], showActivity = false) {
+  setSurvivorStatuses(statuses: SurvivorStatus[], showActivity = false, showHealPct = false) {
     this.survivorCards.forEach((card, i) => {
       const s = statuses[i];
       if (!s) { card.hide(); return; }
-      card.show(s.label, s.skinId, s.hp, s.downed, s.expelled, s.escaped, s.hacking, showActivity);
+      card.show(
+        s.label, s.skinId, s.hp, s.downed, s.expelled, s.escaped,
+        s.hacking, showActivity,
+        s.healPct, s.bleedMs, showHealPct,
+      );
     });
   }
 
@@ -346,6 +362,28 @@ export class HUD {
     this.scene.time.delayedCall(duration, () => t.destroy());
   }
 
+  setDamageVignette(hp: number, downed: boolean): void {
+    this.vignetteTween?.stop();
+    this.vignetteTween = null;
+    if (downed)    this.vignetteAlpha = 0.55;
+    else if (hp <= 1) this.vignetteAlpha = 0.38;
+    else           this.vignetteAlpha = 0;
+    this.damageVignette.setAlpha(this.vignetteAlpha);
+  }
+
+  flashDamageVignette(): void {
+    this.vignetteTween?.stop();
+    const peak = Math.min(1, this.vignetteAlpha + 0.45);
+    this.damageVignette.setAlpha(peak);
+    this.vignetteTween = this.scene.tweens.add({
+      targets:  this.damageVignette,
+      alpha:    this.vignetteAlpha,
+      duration: 430,
+      ease:     'Quad.easeOut',
+      onComplete: () => { this.vignetteTween = null; },
+    });
+  }
+
   setChaseState(active: boolean, tier: 0 | 1 | 2 | 3): void {
     if (this.currentRole !== 'professor') return;
 
@@ -444,6 +482,39 @@ export class HUD {
       const ey    = cy + dy * t;
       const flash = Math.floor(now / 200) % 2 === 0;
       this._drawHealAlertArrow(ex, ey, angle, flash ? 1.0 : 0.3);
+    });
+  }
+
+  updateDownedArrows(
+    positions: Record<string, { x: number; y: number }>,
+    camX: number,
+    camY: number,
+    screenW: number,
+    screenH: number,
+  ): void {
+    this.arrowGraphics.clear();
+    const cx     = screenW / 2;
+    const cy     = screenH / 2;
+    const margin = 18;
+
+    (Object.keys(positions) as string[]).forEach((id) => {
+      const pos = positions[id];
+      if (!pos) return;
+      const sx = pos.x - camX;
+      const sy = pos.y - camY;
+      if (sx >= 0 && sx <= screenW && sy >= 0 && sy <= screenH) return;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      if (dx === 0 && dy === 0) return;
+      const angle = Math.atan2(dy, dx);
+      const maxX  = screenW - margin;
+      const maxY  = screenH - margin;
+      const tX    = dx !== 0 ? (dx > 0 ? maxX - cx : margin - cx) / dx : Infinity;
+      const tY    = dy !== 0 ? (dy > 0 ? maxY - cy : margin - cy) / dy : Infinity;
+      const t     = Math.min(Math.abs(tX), Math.abs(tY));
+      const ex    = cx + dx * t;
+      const ey    = cy + dy * t;
+      this._drawArrowTriangle(ex, ey, angle, 0xff6600, 0.85);
     });
   }
 

@@ -1,0 +1,48 @@
+<h2>Qual o estilo da tela inicial?</h2>
+<p class="subtitle">A tela aparece antes do lobby. O clique desbloqueia o áudio do browser.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a2e;padding:32px 16px;text-align:center;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:6px;">
+        <div style="color:#e0e0ff;font-size:2rem;font-weight:bold;letter-spacing:4px;font-family:monospace;">EXPELLED</div>
+        <div style="color:#aaa;font-size:0.75rem;letter-spacing:2px;">CLICK TO PLAY</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Minimalista</h3>
+      <p>Só o título e "clique para jogar". Escuro, limpo, direto ao ponto. Igual ao estilo atual do jogo.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="themed" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0d0d1a;padding:32px 16px;text-align:center;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:6px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 28px,rgba(255,255,255,0.03) 28px,rgba(255,255,255,0.03) 30px),repeating-linear-gradient(90deg,transparent,transparent 28px,rgba(255,255,255,0.03) 28px,rgba(255,255,255,0.03) 30px);"></div>
+        <div style="color:#ff4444;font-size:2rem;font-weight:bold;letter-spacing:4px;font-family:monospace;text-shadow:0 0 20px #ff4444aa;">EXPELLED</div>
+        <div style="color:#ff8888;font-size:0.7rem;letter-spacing:2px;">⚠ DETECTED — CLICK TO INFILTRATE</div>
+        <div style="color:#444;font-size:0.6rem;margin-top:4px;">SISTEMA DE SEGURANÇA ATIVO</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Temático (hacker/escola)</h3>
+      <p>Visual de terminal, grade, efeito de alerta. Combina com a mecânica de hacking do jogo.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="splash" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#1a1a2e;padding:32px 16px;text-align:center;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;border-radius:6px;">
+        <div style="color:#e0e0ff;font-size:1.8rem;font-weight:bold;letter-spacing:4px;font-family:monospace;">EXPELLED</div>
+        <div style="color:#888;font-size:0.7rem;max-width:180px;line-height:1.4;">Sobreviva. Hackeia. Não seja expulso.</div>
+        <div style="background:#3355ff;color:white;padding:8px 24px;border-radius:4px;font-size:0.75rem;letter-spacing:1px;">▶ JOGAR</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Splash com botão</h3>
+      <p>Título + tagline curta + botão visual de "jogar". Mais polido, parece um jogo publicado.</p>
+    </div>
+  </div>
+
+</div>

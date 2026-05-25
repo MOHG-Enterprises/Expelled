@@ -25,6 +25,7 @@ import { ScratchMarkManager } from '../game/ScratchMarkManager';
 import { BloodPoolManager }   from '../game/BloodPoolManager';
 import { VoiceManager }       from '../game/VoiceManager';
 import { ExitGateManager }    from '../game/ExitGateManager';
+import { InteractionPromptManager } from '../game/InteractionPromptManager';
 import {
   applySkinToSprite,
   applySkinByIdToSprite,
@@ -68,6 +69,7 @@ export class GameScene extends Phaser.Scene {
     hp: number; downed: boolean; expelled: boolean; escaped: boolean;
     hacking: boolean; downCount: 0|1|2; healPct: number; beingHealed: boolean;
   }>();
+  private survivorBleedMs = new Map<string, number>();
 
   private lastMoveEmit   = 0;
   private lastEmittedDir: MoveDirection = 'down';
@@ -93,10 +95,11 @@ export class GameScene extends Phaser.Scene {
   private bloodPools!:   BloodPoolManager;
   private voiceManager:  VoiceManager | null = null;
 
-  private inputManager!: InputManager;
-  private movement!:     MovementSystem;
-  private combat!:       CombatSystem;
-  private hacking!:      HackingSystem;
+  private inputManager!:   InputManager;
+  private movement!:       MovementSystem;
+  private combat!:         CombatSystem;
+  private hacking!:        HackingSystem;
+  private promptManager!:  InteractionPromptManager;
 
   constructor() { super('GameScene'); }
 
@@ -154,12 +157,14 @@ export class GameScene extends Phaser.Scene {
         hp: 2, downed: false, expelled: false, escaped: false,
         hacking: false, downCount: 0 as const, healPct: 0, beingHealed: false,
       };
-      const meta   = this.survivorMeta.get(id);
-      const label  = meta?.name   || `A${i + 1}`;
-      const skinId = meta?.skinId || (GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur');
-      return { label, skinId, ...info };
+      const meta    = this.survivorMeta.get(id);
+      const label   = meta?.name   || `A${i + 1}`;
+      const skinId  = meta?.skinId || (GameScene.SURVIVOR_SKIN_SLOTS[i] ?? 'arthur');
+      const bleedMs = this.survivorBleedMs.get(id) ?? 0;
+      return { label, skinId, bleedMs, ...info };
     });
-    this.hud.setSurvivorStatuses(statuses, this.myRole === 'survivor');
+    const showHealPct = this.myRole === 'survivor';
+    this.hud.setSurvivorStatuses(statuses, showHealPct, showHealPct);
   }
 
   private refreshTerminalHUD() {
@@ -206,6 +211,7 @@ export class GameScene extends Phaser.Scene {
     this.survivorOrder = [];
     this.survivorInfo.clear();
     this.survivorMeta.clear();
+    this.survivorBleedMs.clear();
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -269,14 +275,16 @@ export class GameScene extends Phaser.Scene {
     this.scratchMarks = new ScratchMarkManager(this);
     this.bloodPools   = new BloodPoolManager(this);
 
-    this.inputManager = new InputManager(this);
-    this.movement     = new MovementSystem(this.player);
-    this.combat       = new CombatSystem(this, this.player, this.socket);
-    this.hacking      = new HackingSystem(
+    this.promptManager = new InteractionPromptManager(this);
+    this.inputManager  = new InputManager(this);
+    this.movement      = new MovementSystem(this.player);
+    this.combat        = new CombatSystem(this, this.player, this.socket);
+    this.hacking       = new HackingSystem(
       this, this.player, this.socket,
       this.terminals, this.gates, this.players,
       this.hud, this.skillCheck,
       (frozen) => { this.inputFrozen = frozen; },
+      this.promptManager,
     );
 
     this.combat.createSlashAnimations();
@@ -369,6 +377,11 @@ export class GameScene extends Phaser.Scene {
             downCount: p.downCount ?? 0, healPct: p.healPct ?? 0, beingHealed: p.beingHealed ?? false,
           });
           this.survivorMeta.set(id, { name: p.name || '', skinId: p.skinId || '' });
+        }
+      });
+      Object.entries(state.players).forEach(([id, p]) => {
+        if (p.role === 'survivor' && p.downed && !this.survivorBleedMs.has(id)) {
+          this.survivorBleedMs.set(id, 0);
         }
       });
       const myState = s.id ? state.players[s.id] : null;
@@ -537,6 +550,8 @@ export class GameScene extends Phaser.Scene {
         this.myHp = hp;
         this.hud.update(this.myRole, this.myHp, this.downed, this.myDownCount);
         this.hud.flash('Você foi atingido!', 0xff4444);
+        this.hud.setDamageVignette(hp, false);
+        this.hud.flashDamageVignette();
         if (!this.downed) this.onHitSprintTimer = ON_HIT_SPRINT_MS;
       }
       const info = this.survivorInfo.get(targetId);
@@ -552,14 +567,18 @@ export class GameScene extends Phaser.Scene {
         this.myDownBleedMs   = 0;
         this.beingHealed     = false;
         this.hacking.clearHealingState();
+        this.promptManager.hide();
         this.socket.emit('setHealing', { targetId: null });
         this.hud.update(this.myRole, this.myHp, true, this.myDownCount);
         this.hud.flash('Você foi derrubado!', 0xff4444);
+        this.hud.setDamageVignette(0, true);
+        this.hud.flashDamageVignette();
         playHurtFallById(this.player, this.mySkinId || 'arthur', this.movement.facingDirection);
       } else if (this.myRole === 'professor') {
         this.hud.flash('Aluno derrubado!', 0xffcc00);
       }
       this.trackSurvivor(id, { hp: 0, downed: true, expelled: false, escaped: false, downCount, healPct: 0 });
+      this.survivorBleedMs.set(id, 0);
       this.refreshSurvivorHUD();
       if (id !== s.id) this.players.setDowned(id, true);
     });
@@ -589,10 +608,12 @@ export class GameScene extends Phaser.Scene {
         this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
         this.hud.setHealProgress(null);
         this.hud.flash('Revivido! Cuide-se.', 0x4fc3f7);
+        this.hud.setDamageVignette(hp, false);
       } else if (this.myRole === 'professor') {
         this.hud.flash('Aluno se levantou!', 0x4fc3f7);
       }
       this.trackSurvivor(id, { hp, downed: false, expelled: false, escaped: false, healPct: 0 });
+      this.survivorBleedMs.delete(id);
       this.refreshSurvivorHUD();
       this.players.setDowned(id, false);
     });
@@ -605,6 +626,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
         this.hud.setHealProgress(null);
         this.hud.flash('Totalmente curado!', 0x4caf50);
+        this.hud.setDamageVignette(hp, false);
       }
       this.trackSurvivor(id, { hp, downed: false, expelled: false, escaped: false, healPct: 0 });
       this.refreshSurvivorHUD();
@@ -638,6 +660,7 @@ export class GameScene extends Phaser.Scene {
       }
       const info = this.survivorInfo.get(id);
       if (info) { this.survivorInfo.set(id, { ...info, downCount }); this.refreshSurvivorHUD(); }
+      this.survivorBleedMs.set(id, 0);
     });
 
     s.on('healAlert', ({ targetId }: { targetId: string; healerId: string }) => {
@@ -661,6 +684,7 @@ export class GameScene extends Phaser.Scene {
       }
       const info = this.survivorInfo.get(id);
       if (info) { this.survivorInfo.set(id, { ...info, expelled: true }); this.refreshSurvivorHUD(); }
+      this.survivorBleedMs.delete(id);
     });
 
     s.on('playerEscaped', (id: string) => {
@@ -679,6 +703,7 @@ export class GameScene extends Phaser.Scene {
       this.players.remove(id);
       this.survivorInfo.delete(id);
       this.survivorOrder = this.survivorOrder.filter((sid) => sid !== id);
+      this.survivorBleedMs.delete(id);
       this.refreshSurvivorHUD();
     });
   }
@@ -713,6 +738,7 @@ export class GameScene extends Phaser.Scene {
     if (input.cJustDown) this.toggleCollisionDebug();
 
     if (this.inputFrozen) {
+      this.promptManager.hide();
       if (this.skillCheck.active && input.attackJust) {
         this.skillCheck.tryHit();
       }
@@ -844,11 +870,18 @@ export class GameScene extends Phaser.Scene {
         this.hacking.updateDownedSelf(delta, this.beingHealed, intendedToMove, this.myHealPct);
         this.myDownBleedMs = Math.min(this.myDownBleedMs + delta, BLEED_OUT_MS);
         this.hud.setBleedOutProgress((this.myDownBleedMs / BLEED_OUT_MS) * 100);
+        this.survivorBleedMs.set(this.socket.id!, this.myDownBleedMs);
       } else {
         this.hacking.updateSelf(
           delta, input, this.downed, this.beingHealed,
           this.myHealPct, this.escaped, this.survivorInfo,
         );
+      }
+      for (const [id, info] of this.survivorInfo) {
+        if (id === this.socket.id) continue;
+        if (!info.downed) { this.survivorBleedMs.delete(id); continue; }
+        const current = this.survivorBleedMs.get(id) ?? 0;
+        this.survivorBleedMs.set(id, Math.min(current + delta, BLEED_OUT_MS));
       }
     }
 

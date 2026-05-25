@@ -34,10 +34,10 @@ export const WORLD_HEIGHT = 1200;
 export const MAP_SCALE    = 2; // 16x16 -> 32x32 visual
 
 //  movimento
-export const PLAYER_SPEED          = 134;   // 56.5% of sprint (DBD walk ratio)
-export const PLAYER_SPRINT_SPEED   = 236;   // 100% — survivor running (4.0 m/s equivalent)
-export const PROFESSOR_SPEED       = 260;   // 110% of survivor run (DBD 4.4 m/s killer)
-export const ON_HIT_SPRINT_SPEED   = 390;   // 165% of survivor run (DBD on-hit sprint)
+export const PLAYER_SPEED          = 107;   // 56.5% of sprint (DBD walk ratio)
+export const PLAYER_SPRINT_SPEED   = 189;   // 100% — survivor running (4.0 m/s equivalent)
+export const PROFESSOR_SPEED       = 208;   // 110% of survivor run (DBD 4.4 m/s killer)
+export const ON_HIT_SPRINT_SPEED   = 312;   // 165% of survivor run (DBD on-hit sprint)
 export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 
 export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
@@ -50,9 +50,9 @@ export const STAGGER_MS         = 1500; // tempo que o professor fica parado dep
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //Hack
-export const HACK_PASSIVE_TICK    = 20;//2    // % por tick passivo
-export const HACK_PASSIVE_RATE_MS = 600;  // intervalo do tick passivo
-export const HACK_GREAT_BONUS     = 3;    // % extra no great
+export const HACK_PASSIVE_TICK    = 0.667; // % por tick passivo (DBD: 1 c/s ÷ 90 × 100 × 0.6s)
+export const HACK_PASSIVE_RATE_MS = 600;   // intervalo do tick passivo
+export const HACK_GREAT_BONUS     = 1;     // % extra no great (DBD: +1%)
 
 //  Heal
 export const HEAL_PASSIVE_TICK     = 5;

@@ -19,6 +19,8 @@ export interface PlayerState {
   downCount:   0 | 1 | 2;
   healPct:     number;
   beingHealed: boolean;
+  name:   string;
+  skinId: string;
 }
 
 export interface GameState {

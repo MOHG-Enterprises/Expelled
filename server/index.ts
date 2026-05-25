@@ -14,6 +14,7 @@ import {
   HEAL_FAIL_LOCK_MS,
   HEAL_FAIL_REGRESSION,
   HEAL_SELF_CAP,
+  HEAL_EFFICIENCY_PENALTY,
   checkWinConditions,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
@@ -33,7 +34,7 @@ import { processEscape, tickBleedOut } from './systems/detention';
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server);
+const io     = new Server(server, { path: '/expelled/socket.io' });
 
 app.use(express.static(path.join(__dirname, '../')));
 
@@ -44,6 +45,8 @@ const socketToRoom = new Map<string, string>();
 
 // room → healerId → targetId
 const roomHealingMap = new Map<string, Map<string, string>>();
+
+const VALID_SURVIVOR_SKINS = new Set(['arthur', 'gustavo', 'giu', 'isabela', 'davi', 'caio']);
 
 function getRoomForSocket(socketId: string): { roomName: string; state: GameStateRecord } | null {
   const roomName = socketToRoom.get(socketId);
@@ -128,6 +131,8 @@ io.on('connection', (socket) => {
       downBleedMs:        0,
       beingHealed:        false,
       healFailLockUntil:  0,
+      name:               '',
+      skinId:             '',
     };
 
     socket.emit('roleAssigned', state.players[socket.id].role);
@@ -143,6 +148,21 @@ io.on('connection', (socket) => {
     if (!p || p.role !== 'survivor' || state.phase !== 'lobby') return;
     if (typeof ready !== 'boolean') return;
     p.ready = ready;
+    io.to(roomName).emit('gameState', state);
+  });
+
+  socket.on('setCharacter', ({ name, skinId }: { name: string; skinId: string }) => {
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (!p || p.role !== 'survivor') return;
+    if (typeof name !== 'string' || typeof skinId !== 'string') return;
+    const trimmed = name.trim().slice(0, 12);
+    if (!trimmed) return;
+    if (!VALID_SURVIVOR_SKINS.has(skinId)) return;
+    p.name   = trimmed;
+    p.skinId = skinId;
     io.to(roomName).emit('gameState', state);
   });
 
@@ -225,6 +245,17 @@ io.on('connection', (socket) => {
     const room = getRoomForSocket(socket.id);
     if (!room) return;
     const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (terminalId && p?.beingHealed) {
+      p.beingHealed = false;
+      io.to(roomName).emit('setBeingHealed', { targetId: socket.id, isBeingHealed: false });
+      const healMap = roomHealingMap.get(roomName);
+      if (healMap) {
+        for (const [healerId, tid] of healMap) {
+          if (tid === socket.id) { healMap.delete(healerId); break; }
+        }
+      }
+    }
     processSetHacking(state, roomName, socket.id, terminalId, makeEmit(roomName, socket.id));
   });
 
@@ -234,6 +265,7 @@ io.on('connection', (socket) => {
     const { roomName, state } = room;
     const healer = state.players[socket.id];
     if (!healer || healer.role !== 'survivor' || healer.expelled || healer.escaped) return;
+    if (healer.beingHealed) return;
 
     const roomHealMap = roomHealingMap.get(roomName) ?? new Map<string, string>();
     if (!roomHealingMap.has(roomName)) roomHealingMap.set(roomName, roomHealMap);
@@ -273,13 +305,19 @@ io.on('connection', (socket) => {
     if (Date.now() < target.healFailLockUntil) return;
 
     const isSelf = targetId === socket.id;
+    const healMap = roomHealingMap.get(roomName);
+    if (!isSelf && healer.beingHealed) return;
+    if (!isSelf && healMap?.get(socket.id) !== targetId) return;
     if (isSelf && !target.downed) return;
     if (isSelf && target.healPct >= HEAL_SELF_CAP) return;
     if (isSelf && target.beingHealed) return;
     if (!isSelf && target.hp >= 2) return;
 
     const cap = isSelf ? HEAL_SELF_CAP : 100;
-    target.healPct = Math.min(cap, target.healPct + amount);
+    const healerCount = isSelf ? 1 : [...(healMap?.values() ?? [])].filter(t => t === targetId).length;
+    const penaltyFactor = Math.max(0, healerCount - 1) * (HEAL_EFFICIENCY_PENALTY / 100);
+    const effective = amount * Math.max(0.1, 1 - penaltyFactor);
+    target.healPct = Math.min(cap, target.healPct + effective);
     io.to(roomName).emit('healUpdate', { targetId, healPct: target.healPct });
 
     if (!isSelf && target.healPct >= 100) {
@@ -303,6 +341,7 @@ io.on('connection', (socket) => {
     const { roomName, state } = room;
     const p = state.players[socket.id];
     if (!p || p.role !== 'survivor') return;
+    if (p.beingHealed && targetId !== socket.id) return;
     const target = state.players[targetId];
     if (!target || target.role !== 'survivor') return;
     target.healFailLockUntil = Date.now() + HEAL_FAIL_LOCK_MS;

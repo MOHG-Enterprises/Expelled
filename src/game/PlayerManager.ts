@@ -2,25 +2,26 @@ import Phaser from 'phaser';
 import { INTERACT_RADIUS } from '../constants';
 import type { PlayerState, Role } from '../types';
 import {
-  applySkinToSprite,
-  applyDownedFrame,
-  getSkinForRole,
-  type MoveDirection,
-  playRoleAnimation,
+  applySkinByIdToSprite,
+  applyDownedFrameById,
+  getSkinById,
+  playSkinAnimation,
   playCombatAnimation,
-  playHurtFallAnimation,
+  playHurtFallById,
+  type MoveDirection,
 } from './playerSkins';
 
 interface RemotePlayer {
-  sprite: Phaser.GameObjects.Sprite;
-  role: Role;
+  sprite:          Phaser.GameObjects.Sprite;
+  role:            Role;
+  skinId:          string;
   facingDirection: MoveDirection;
-  lastMoveAt: number;
-  isCharging: boolean;
-  isDowned: boolean;
-  pendingStagger: boolean;
-  staggerMs: number;
-  isPlayingHurt: boolean;
+  lastMoveAt:      number;
+  isCharging:      boolean;
+  isDowned:        boolean;
+  pendingStagger:  boolean;
+  staggerMs:       number;
+  isPlayingHurt:   boolean;
 }
 
 export class PlayerManager {
@@ -33,13 +34,15 @@ export class PlayerManager {
 
   getOrCreate(id: string, data: Partial<PlayerState>): Phaser.GameObjects.Sprite {
     if (!this.others[id]) {
-      const role: Role = data.role ?? 'survivor';
-      const fallbackSkin = getSkinForRole(role);
-      const sprite = this.scene.add.sprite(data.x ?? 100, data.y ?? 100, fallbackSkin.idle.key).setDepth(5);
-      applySkinToSprite(sprite, role);
+      const role: Role  = data.role ?? 'survivor';
+      const skinId      = role === 'professor' ? 'professor' : (data.skinId || 'arthur');
+      const skin        = getSkinById(skinId);
+      const sprite      = this.scene.add.sprite(data.x ?? 100, data.y ?? 100, skin.idle.key).setDepth(5);
+      applySkinByIdToSprite(sprite, skinId);
       this.others[id] = {
         sprite,
         role,
+        skinId,
         facingDirection: 'down',
         lastMoveAt: 0,
         isCharging: false,
@@ -48,16 +51,23 @@ export class PlayerManager {
         staggerMs: 0,
         isPlayingHurt: false,
       };
-      playRoleAnimation(sprite, role, 'idle', 'down');
+      playSkinAnimation(sprite, skinId, 'idle', 'down');
     }
 
-    if (data.role && this.others[id].role !== data.role) {
-      this.others[id].role = data.role;
-      applySkinToSprite(this.others[id].sprite, data.role);
-      playRoleAnimation(this.others[id].sprite, data.role, 'idle', this.others[id].facingDirection);
+    const tracked = this.others[id];
+
+    if (data.role && tracked.role !== data.role) {
+      tracked.role   = data.role;
+      tracked.skinId = data.role === 'professor' ? 'professor' : (data.skinId || 'arthur');
+      applySkinByIdToSprite(tracked.sprite, tracked.skinId);
+      playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
+    } else if (data.skinId && data.skinId !== tracked.skinId && tracked.role !== 'professor') {
+      tracked.skinId = data.skinId;
+      applySkinByIdToSprite(tracked.sprite, tracked.skinId);
+      playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
     }
 
-    return this.others[id].sprite;
+    return tracked.sprite;
   }
 
   move(id: string, x: number, y: number, sprinting?: boolean, dir?: MoveDirection) {
@@ -76,11 +86,11 @@ export class PlayerManager {
         } else {
           tracked.facingDirection = dy > 0 ? 'down' : 'up';
         }
-        const skin = getSkinForRole(tracked.role);
+        const skin = getSkinById(tracked.skinId);
         const hurtFallKey = `${skin.id}:hurt-fall`;
         const hurtFallPlaying = tracked.sprite.anims.currentAnim?.key === hurtFallKey && tracked.sprite.anims.isPlaying;
         if (!hurtFallPlaying) {
-          applyDownedFrame(tracked.sprite, tracked.role, tracked.facingDirection);
+          applyDownedFrameById(tracked.sprite, tracked.skinId, tracked.facingDirection);
         }
       }
       return;
@@ -101,7 +111,7 @@ export class PlayerManager {
         playCombatAnimation(tracked.sprite, tracked.role, tracked.facingDirection);
       } else {
         const moveAnim = (tracked.role === 'survivor' && sprinting) ? 'run' : 'walk';
-        playRoleAnimation(tracked.sprite, tracked.role, moveAnim, tracked.facingDirection);
+        playSkinAnimation(tracked.sprite, tracked.skinId, moveAnim, tracked.facingDirection);
       }
     }
   }
@@ -111,10 +121,10 @@ export class PlayerManager {
     if (!p || p.role !== 'survivor') return;
     p.isDowned = downed;
     if (downed) {
-      playHurtFallAnimation(p.sprite, p.role, p.facingDirection);
+      playHurtFallById(p.sprite, p.skinId, p.facingDirection);
     } else {
-      applySkinToSprite(p.sprite, p.role);
-      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+      applySkinByIdToSprite(p.sprite, p.skinId);
+      playSkinAnimation(p.sprite, p.skinId, 'idle', p.facingDirection);
     }
   }
 
@@ -125,7 +135,7 @@ export class PlayerManager {
     if (charging) {
       playCombatAnimation(p.sprite, p.role, p.facingDirection);
     } else {
-      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+      playSkinAnimation(p.sprite, p.skinId, 'idle', p.facingDirection);
     }
   }
 
@@ -146,8 +156,8 @@ export class PlayerManager {
         tracked.pendingStagger = false;
         this._playHurtNow(id, tracked.staggerMs);
       } else {
-        applySkinToSprite(tracked.sprite, tracked.role);
-        playRoleAnimation(tracked.sprite, tracked.role, 'idle', tracked.facingDirection);
+        applySkinByIdToSprite(tracked.sprite, tracked.skinId);
+        playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
       }
     });
   }
@@ -169,8 +179,8 @@ export class PlayerManager {
         tracked.pendingStagger = false;
         this._playHurtNow(id, tracked.staggerMs);
       } else {
-        applySkinToSprite(tracked.sprite, tracked.role);
-        playRoleAnimation(tracked.sprite, tracked.role, 'idle', tracked.facingDirection);
+        applySkinByIdToSprite(tracked.sprite, tracked.skinId);
+        playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
       }
     });
   }
@@ -211,8 +221,8 @@ export class PlayerManager {
     p.sprite.once('animationcomplete', () => {
       if (!this.others[id]) return;
       p.isPlayingHurt = false;
-      applySkinToSprite(p.sprite, p.role);
-      playRoleAnimation(p.sprite, p.role, 'idle', p.facingDirection);
+      applySkinByIdToSprite(p.sprite, p.skinId);
+      playSkinAnimation(p.sprite, p.skinId, 'idle', p.facingDirection);
     });
   }
 
@@ -225,7 +235,7 @@ export class PlayerManager {
     if (p.isCharging) {
       playCombatAnimation(p.sprite, p.role, dir);
     } else {
-      playRoleAnimation(p.sprite, p.role, 'idle', dir);
+      playSkinAnimation(p.sprite, p.skinId, 'idle', dir);
     }
   }
 
@@ -233,7 +243,7 @@ export class PlayerManager {
     Object.values(this.others).forEach((player) => {
       if (player.isDowned || player.isCharging || player.isPlayingHurt) return;
       if (now - player.lastMoveAt > 120) {
-        playRoleAnimation(player.sprite, player.role, 'idle', player.facingDirection);
+        playSkinAnimation(player.sprite, player.skinId, 'idle', player.facingDirection);
       }
     });
   }

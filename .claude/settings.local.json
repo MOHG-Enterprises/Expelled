@@ -44,7 +44,13 @@
       "Bash(Measure-Object -Line)",
       "Bash(Select-Object -ExpandProperty Lines)",
       "Bash(python -c ' *)",
-      "Bash(node -e *)"
+      "Bash(node -e *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "PowerShell(git add src/scenes/GameScene.ts)",
+      "PowerShell(git commit -m \"feat: wire downed player arrows for survivors in GameScene\")",
+      "PowerShell(npm run typecheck 2>&1)",
+      "PowerShell(head -30)"
     ]
   }
 }

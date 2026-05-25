@@ -27,6 +27,7 @@ import {
   HEAL_FAIL_LOCK_MS,
   HEAL_AMOUNT_MAX,
   HEAL_SELF_CAP,
+  HEAL_EFFICIENCY_PENALTY,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
@@ -79,6 +80,7 @@ export { HEAL_FAIL_REGRESSION };
 export { HEAL_FAIL_LOCK_MS };
 export { HEAL_AMOUNT_MAX };
 export { HEAL_SELF_CAP };
+export { HEAL_EFFICIENCY_PENALTY };
 
 // partida nova resetada
 export function freshGameState(): GameStateRecord {

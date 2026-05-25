@@ -7,7 +7,8 @@ import {
 import type { Role } from '../types';
 import type { InputState } from './InputManager';
 import {
-  applyDownedFrame, playCombatAnimation, playRoleAnimation, getSkinForRole,
+  applyDownedFrameById, playCombatAnimation, playRoleAnimation, getSkinById,
+  playSkinAnimation,
   type MoveDirection,
 } from './playerSkins';
 
@@ -19,6 +20,7 @@ export interface MovementContext {
   bloodlustTier:     0 | 1 | 2 | 3;
   attackHoldActive:  boolean;
   isSwinging:        boolean;
+  skinId:            string;
 }
 
 export class MovementSystem {
@@ -120,27 +122,38 @@ export class MovementSystem {
   }
 
   applyAnimation(ctx: MovementContext, intendedToMove: boolean) {
-    const { role, downed } = ctx;
+    const { role, downed, skinId } = ctx;
     if (!role) return;
 
     if (downed && role === 'survivor') {
-      const skin = getSkinForRole('survivor');
+      const effectiveSkinId = skinId || 'arthur';
+      const skin = getSkinById(effectiveSkinId);
       const hurtFallKey = `${skin.id}:hurt-fall`;
       const hurtFallPlaying = this.player.anims.currentAnim?.key === hurtFallKey && this.player.anims.isPlaying;
-      if (!hurtFallPlaying) applyDownedFrame(this.player, 'survivor', this.facingDirection);
+      if (!hurtFallPlaying) applyDownedFrameById(this.player, effectiveSkinId, this.facingDirection);
       return;
     }
 
-    const inCombatStance = role === 'professor' && ctx.attackHoldActive && !ctx.isSwinging;
-    if (inCombatStance) {
-      if (!playCombatAnimation(this.player, role, this.facingDirection)) {
-        playRoleAnimation(this.player, role, intendedToMove ? 'walk' : 'idle', this.facingDirection);
+    if (role === 'professor') {
+      const inCombatStance = ctx.attackHoldActive && !ctx.isSwinging;
+      if (inCombatStance) {
+        if (!playCombatAnimation(this.player, role, this.facingDirection)) {
+          playRoleAnimation(this.player, role, intendedToMove ? 'walk' : 'idle', this.facingDirection);
+        }
+      } else if (intendedToMove) {
+        playRoleAnimation(this.player, role, 'walk', this.facingDirection);
+      } else {
+        playRoleAnimation(this.player, role, 'idle', this.facingDirection);
       }
-    } else if (intendedToMove) {
-      const moveAnim = (role === 'survivor' && (ctx.sprinting || ctx.onHitSprintTimer > 0)) ? 'run' : 'walk';
-      playRoleAnimation(this.player, role, moveAnim, this.facingDirection);
+      return;
+    }
+
+    const effectiveSkinId = skinId || 'arthur';
+    if (intendedToMove) {
+      const moveAnim = (ctx.sprinting || ctx.onHitSprintTimer > 0) ? 'run' : 'walk';
+      playSkinAnimation(this.player, effectiveSkinId, moveAnim, this.facingDirection);
     } else {
-      playRoleAnimation(this.player, role, 'idle', this.facingDirection);
+      playSkinAnimation(this.player, effectiveSkinId, 'idle', this.facingDirection);
     }
   }
 

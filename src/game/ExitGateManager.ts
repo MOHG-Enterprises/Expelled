@@ -120,6 +120,17 @@ export class ExitGateManager {
     return Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < INTERACT_RADIUS;
   }
 
+  getNearestActiveSwitch(x: number, y: number): { x: number; y: number } | null {
+    for (const id of GATE_IDS) {
+      const g = this.gates[id];
+      if (!g.powered || g.open) continue;
+      if (Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < INTERACT_RADIUS) {
+        return { x: g.switchX, y: g.switchY };
+      }
+    }
+    return null;
+  }
+
   getOpenGateForExit(x: number, y: number): GateId | null {
     for (const id of GATE_IDS) {
       const g = this.gates[id];

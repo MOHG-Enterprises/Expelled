@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
     https: {},
     proxy: {
-      './socket.io': {
+      '/expelled/socket.io': {
         target: 'http://127.0.0.1:3000',
         ws: true,
         changeOrigin: true,

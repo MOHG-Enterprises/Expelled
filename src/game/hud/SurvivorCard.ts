@@ -25,6 +25,7 @@ export class SurvivorCard {
   private hpDots:   Phaser.GameObjects.Graphics;
   private hackIcon: Phaser.GameObjects.Text;
   private portImg:  Phaser.GameObjects.Image | null = null;
+  private statusBars: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene, cardY: number, baseColor: number) {
     this.scene     = scene;
@@ -47,17 +48,22 @@ export class SurvivorCard {
         stroke: '#000', strokeThickness: 2,
       })
       .setOrigin(0, 0).setScrollFactor(0).setDepth(32).setAlpha(0);
+
+    this.statusBars = scene.add.graphics().setScrollFactor(0).setDepth(33).setAlpha(0);
   }
 
   show(
-    label:       string,
-    skinId:      string,
-    hp:          number,
-    downed:      boolean,
-    expelled:    boolean,
-    escaped:     boolean,
-    hacking:     boolean,
+    label:        string,
+    skinId:       string,
+    hp:           number,
+    downed:       boolean,
+    expelled:     boolean,
+    escaped:      boolean,
+    hacking:      boolean,
     showActivity: boolean,
+    healPct:      number,
+    bleedMs:      number,
+    showHealPct:  boolean,
   ) {
     const stateKey = escaped ? 'escaped'
       : expelled            ? 'expelled'
@@ -68,11 +74,13 @@ export class SurvivorCard {
     this._drawBackground(stateKey);
     this._updatePortrait(skinId, hp, downed);
     this._drawHpDots(hp, downed);
+    this._drawStatusBars(downed, healPct, bleedMs, showHealPct);
 
     this.nameText.setText(label).setAlpha(1);
     this.bg.setAlpha(1);
     this.overlay.setAlpha(1);
     this.hpDots.setAlpha(1);
+    this.statusBars.setAlpha(1);
     this.hackIcon.setAlpha(showActivity && hacking && !downed && !expelled && !escaped ? 1 : 0);
   }
 
@@ -84,6 +92,7 @@ export class SurvivorCard {
     this.hpDots.setAlpha(0);
     this.portImg?.setAlpha(0);
     this.hackIcon.setAlpha(0);
+    this.statusBars.setAlpha(0);
   }
 
   private _drawBackground(state: string) {
@@ -162,6 +171,37 @@ export class SurvivorCard {
       hpDots.fillCircle(x + i * (dotR * 2 + gap), y, dotR);
       hpDots.lineStyle(1, filled ? 0xff6659 : 0x444444, 0.9);
       hpDots.strokeCircle(x + i * (dotR * 2 + gap), y, dotR);
+    }
+  }
+
+  private _drawStatusBars(downed: boolean, healPct: number, bleedMs: number, showHealPct: boolean) {
+    this.statusBars.clear();
+    if (!downed) return;
+
+    const BLEED_OUT_MS = 70_000;
+    const bx  = CARD_X + 4;
+    const bw  = CARD_W - 8;
+    const bh  = 4;
+
+    const bleedY = this.cardY + 63;
+    const healY  = this.cardY + 69;
+
+    this.statusBars.fillStyle(0x1a1a1a, 0.9);
+    this.statusBars.fillRoundedRect(bx, bleedY, bw, bh, 2);
+    const bleedFill = Math.min(1, bleedMs / BLEED_OUT_MS) * bw;
+    if (bleedFill > 0) {
+      this.statusBars.fillStyle(0xff6600, 0.9);
+      this.statusBars.fillRoundedRect(bx, bleedY, bleedFill, bh, 2);
+    }
+
+    if (!showHealPct || healPct <= 0) return;
+
+    this.statusBars.fillStyle(0x1a1a1a, 0.9);
+    this.statusBars.fillRoundedRect(bx, healY, bw, bh, 2);
+    const healFill = Math.min(1, healPct / 100) * bw;
+    if (healFill > 0) {
+      this.statusBars.fillStyle(0x81c995, 0.9);
+      this.statusBars.fillRoundedRect(bx, healY, healFill, bh, 2);
     }
   }
 }

@@ -1,16 +1,16 @@
 export const ATTACK_COOLDOWN_MS = 1500;
 export const HACK_FAIL_REGRESSION = 10;
 export const HACK_FAIL_LOCK_MS = 3000;
-export const HACK_AMOUNT_MAX = 25;
+export const HACK_AMOUNT_MAX = 2;
 export const HACK_EFFICIENCY_PENALTY = 15;
 export const HACK_KICK_REGRESSION = 5;
-export const HACK_REGRESSION_RATE_PCT_S = 4;
+export const HACK_REGRESSION_RATE_PCT_S = 0.278;
 export const HACK_REGRESSION_EVENTS_MAX = 8;
 
 export const ATTACK_STAGGER_HIT_MS = 2700;
 export const ATTACK_STAGGER_MISS_MS = 1500;
 
-export const LUNGE_THRESHOLD_MS         = 300;
+export const LUNGE_THRESHOLD_MS         = 200;
 export const LUNGE_MAX_HOLD_MS          = 300;
 export const QUICK_ATTACK_RADIUS        = 80;
 export const QUICK_ATTACK_HALF_ANGLE_RAD = Math.PI * 40 / 180;
@@ -29,7 +29,8 @@ export const GATE_TICK_AMOUNT    = 2.5;
 export const ENDGAME_DURATION_MS = 120_000;
 
 export const BLEED_OUT_MS         = 70_000;
-export const HEAL_FAIL_REGRESSION = 10;
-export const HEAL_FAIL_LOCK_MS    = 3_000;
-export const HEAL_AMOUNT_MAX      = 20;
-export const HEAL_SELF_CAP        = 95;
+export const HEAL_FAIL_REGRESSION  = 10;
+export const HEAL_FAIL_LOCK_MS     = 3_000;
+export const HEAL_AMOUNT_MAX       = 20;
+export const HEAL_SELF_CAP         = 95;
+export const HEAL_EFFICIENCY_PENALTY = 15;

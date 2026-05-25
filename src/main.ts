@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { StartScene } from './scenes/StartScene';
 import { LobbyScene } from './scenes/LobbyScene';
 import { GameScene }  from './scenes/GameScene';
 
@@ -9,7 +10,7 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#1a1a2e',
   physics: { default: 'arcade', arcade: { debug: false } },
   input: { gamepad: true },
-  scene: [LobbyScene, GameScene], // Lobby primeiro, dps poartida
+  scene: [StartScene, LobbyScene, GameScene],
 };
 
 new Phaser.Game(config);

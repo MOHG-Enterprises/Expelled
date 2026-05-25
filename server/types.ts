@@ -35,6 +35,8 @@ export interface PlayerRecord {
   downBleedMs:       number;
   beingHealed:       boolean;
   healFailLockUntil: number;
+  name:   string;
+  skinId: string;
 }
 
 export interface GameStateRecord {

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Socket } from 'socket.io-client';
 import {
   INTERACT_RADIUS,
-  HACK_PASSIVE_RATE_MS, HACK_PASSIVE_TICK, HACK_GREAT_BONUS,
+  HACK_PASSIVE_RATE_MS, HACK_PASSIVE_TICK, HACK_GREAT_BONUS, HACK_FAIL_LOCK_MS,
   HEAL_PASSIVE_TICK, HEAL_PASSIVE_RATE_MS, HEAL_GREAT_BONUS,
   HEAL_SELF_RATE_FACTOR, HEAL_SELF_CAP, HEAL_FAIL_LOCK_MS,
   GATE_TICK_MS,
@@ -14,6 +14,7 @@ import type { ExitGateManager } from './ExitGateManager';
 import type { PlayerManager } from './PlayerManager';
 import type { HUD } from './HUD';
 import type { SkillCheck } from './SkillCheck';
+import type { InteractionPromptManager } from './InteractionPromptManager';
 
 export interface SurvivorInfo {
   hp: number;
@@ -33,6 +34,7 @@ export class HackingSystem {
   private hud:            HUD;
   private skillCheck:     SkillCheck;
   private setInputFrozen: (frozen: boolean) => void;
+  private promptManager: InteractionPromptManager;
 
   private hackingTerminal:    TerminalId | null = null;
   private prevHackingEmitted: TerminalId | null = null;
@@ -40,6 +42,7 @@ export class HackingSystem {
   private hackHoldTimer       = 0;
   private hackNextThreshold   = 0;
   private hackTimerTerminal:  TerminalId | null = null;
+  private hackLockUntil       = 0;
 
   private healingTarget:      string | null = null;
   private prevHealingEmitted: string | null = null;
@@ -61,6 +64,7 @@ export class HackingSystem {
     hud:            HUD,
     skillCheck:     SkillCheck,
     setInputFrozen: (frozen: boolean) => void,
+    promptManager:  InteractionPromptManager,
   ) {
     this.scene          = scene;
     this.player         = player;
@@ -71,7 +75,8 @@ export class HackingSystem {
     this.hud            = hud;
     this.skillCheck     = skillCheck;
     this.setInputFrozen = setInputFrozen;
-    this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
+    this.promptManager  = promptManager;
+    this.hackNextThreshold = Phaser.Math.Between(20000, 35000);
     this.healNextThreshold = Phaser.Math.Between(2500, 5000);
   }
 
@@ -84,7 +89,8 @@ export class HackingSystem {
     this.hackPassiveTimer      = 0;
     this.hackHoldTimer         = 0;
     this.hackTimerTerminal     = null;
-    this.hackNextThreshold     = Phaser.Math.Between(2500, 5000);
+    this.hackNextThreshold     = Phaser.Math.Between(20000, 35000);
+    this.hackLockUntil         = 0;
     this.healingTarget         = null;
     this.prevHealingEmitted    = null;
     this.healPassiveTimer      = 0;
@@ -93,6 +99,11 @@ export class HackingSystem {
     this.healLockUntil         = 0;
     this.openingGate           = null;
     this.gateOpenTimer         = 0;
+    this.promptManager.hide();
+  }
+
+  onHackLockApplied() {
+    this.hackLockUntil = this.scene.time.now + HACK_FAIL_LOCK_MS;
   }
 
   onHealLockApplied() {
@@ -122,8 +133,27 @@ export class HackingSystem {
   ) {
     const eHeld = input.actionHeld;
 
+    // ── Interaction prompt ────────────────────────────────────────────────────
+    const healableNearby = !downed && !beingHealed
+      ? this._nearestHealablePlayer(survivorInfo)
+      : null;
+    const nearT = !downed ? this.terminals.nearest(this.player.x, this.player.y) : null;
+    const nearS = !downed ? this.gates.getNearestActiveSwitch(this.player.x, this.player.y) : null;
+
+    if (healableNearby) {
+      const pos = this.players.getPosition(healableNearby)!;
+      this.promptManager.show(pos.x, pos.y, 24, 32, 'Curar', input.usingGamepad);
+    } else if (nearT) {
+      const pos = this.terminals.getPositions()[nearT]!;
+      this.promptManager.show(pos.x, pos.y, 32, 32, 'Hackear', input.usingGamepad);
+    } else if (nearS) {
+      this.promptManager.show(nearS.x, nearS.y, 16, 16, 'Abrir Portão', input.usingGamepad);
+    } else {
+      this.promptManager.hide();
+    }
+
     // ── Heal path ────────────────────────────────────────────────────────────
-    const healTarget = eHeld && !downed ? this._nearestHealablePlayer(survivorInfo) : null;
+    const healTarget = eHeld ? healableNearby : null;
 
     if (healTarget) {
       if (healTarget !== this.healingTarget) {
@@ -175,14 +205,14 @@ export class HackingSystem {
     }
 
     // ── Hack path ─────────────────────────────────────────────────────────────
-    const nearTerminal = this.terminals.nearest(this.player.x, this.player.y);
+    const nearTerminal = nearT;
 
     if (nearTerminal !== this.hackTimerTerminal) {
       this.hackTimerTerminal = nearTerminal;
       this.hackHoldTimer     = 0;
     }
 
-    if (eHeld && nearTerminal && !downed && !beingHealed) {
+    if (eHeld && nearTerminal && !downed) {
       this.hackingTerminal = nearTerminal;
       if (this.prevHackingEmitted !== nearTerminal) {
         this.prevHackingEmitted = nearTerminal;
@@ -197,11 +227,13 @@ export class HackingSystem {
         this.socket.emit('hackProgress', { terminalId: nearTerminal, amount: HACK_PASSIVE_TICK });
       }
 
-      this.hackHoldTimer += delta;
-      if (this.hackHoldTimer >= this.hackNextThreshold) {
-        this.hackHoldTimer     = 0;
-        this.hackNextThreshold = Phaser.Math.Between(2500, 5000);
-        this._runHackSkillCheck(nearTerminal);
+      if (this.scene.time.now >= this.hackLockUntil) {
+        this.hackHoldTimer += delta;
+        if (this.hackHoldTimer >= this.hackNextThreshold) {
+          this.hackHoldTimer     = 0;
+          this.hackNextThreshold = Phaser.Math.Between(20000, 35000);
+          this._runHackSkillCheck(nearTerminal);
+        }
       }
       return;
     }

@@ -110,6 +110,34 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
   },
+  davi: {
+    id: 'davi',
+    frameSize: 64,
+    idle: { key: 'davi-idle', path: './personagens/davi/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'davi-walk', path: './personagens/davi/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'davi-run',  path: './personagens/davi/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'davi-sit',  path: './personagens/davi/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'davi-hurt', path: './personagens/davi/hurt.png' },
+    icon:     { key: 'davi-icon',      path: './personagens/davi/icons/Dave_Icon.png' },
+    iconHurt: { key: 'davi-icon-hurt', path: './personagens/davi/icons/Dave_Icon_Hurt.png' },
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+  },
+  caio: {
+    id: 'caio',
+    frameSize: 64,
+    idle: { key: 'caio-idle', path: './personagens/caio/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'caio-walk', path: './personagens/caio/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'caio-run',  path: './personagens/caio/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'caio-sit',  path: './personagens/caio/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'caio-hurt', path: './personagens/caio/hurt.png' },
+    icon:     { key: 'caio-icon',      path: './personagens/caio/icons/Caio_Icon.png' },
+    iconHurt: { key: 'caio-icon-hurt', path: './personagens/caio/icons/Caio_Icon_Hurt.png' },
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+  },
 };
 
 export const ROLE_DEFAULT_SKINS: Record<Role, string> = {
@@ -150,6 +178,10 @@ export function preloadPlayerSkins(scene: Phaser.Scene): void {
 
 export function getSkinForRole(role: Role): PlayerSkin {
   const skinId = ROLE_DEFAULT_SKINS[role];
+  return PLAYER_SKINS[skinId] ?? PLAYER_SKINS.arthur;
+}
+
+export function getSkinById(skinId: string): PlayerSkin {
   return PLAYER_SKINS[skinId] ?? PLAYER_SKINS.arthur;
 }
 
@@ -210,6 +242,12 @@ export function applySkinToSprite(sprite: Phaser.GameObjects.Sprite, role: Role)
   sprite.setDisplaySize(skin.displayWidth, skin.displayHeight);
 }
 
+export function applySkinByIdToSprite(sprite: Phaser.GameObjects.Sprite, skinId: string): void {
+  const skin = getSkinById(skinId);
+  sprite.setTexture(skin.idle.key);
+  sprite.setDisplaySize(skin.displayWidth, skin.displayHeight);
+}
+
 export function playRoleAnimation(
   sprite: Phaser.GameObjects.Sprite,
   role: Role,
@@ -217,6 +255,16 @@ export function playRoleAnimation(
   direction: MoveDirection,
 ): void {
   const skin = getSkinForRole(role);
+  sprite.play(animationKey(skin, state, direction), true);
+}
+
+export function playSkinAnimation(
+  sprite:    Phaser.GameObjects.Sprite,
+  skinId:    string,
+  state:     AnimationState,
+  direction: MoveDirection,
+): void {
+  const skin = getSkinById(skinId);
   sprite.play(animationKey(skin, state, direction), true);
 }
 
@@ -245,6 +293,18 @@ export function applyDownedFrame(
   return true;
 }
 
+export function applyDownedFrameById(
+  sprite:    Phaser.GameObjects.Sprite,
+  skinId:    string,
+  direction: MoveDirection,
+): boolean {
+  const skin = getSkinById(skinId);
+  if (!skin.hurt || !sprite.scene.textures.exists(skin.hurt.key)) return false;
+  sprite.stop();
+  sprite.setTexture(skin.hurt.key, DOWNED_DIRECTION_FRAMES[direction]);
+  return true;
+}
+
 export function playHurtFallAnimation(
   sprite: Phaser.GameObjects.Sprite,
   role: Role,
@@ -266,6 +326,31 @@ export function playHurtFallAnimation(
   }
   sprite.once(`animationcomplete-${key}`, () => {
     if (sprite.active) applyDownedFrame(sprite, role, direction);
+  });
+  sprite.play(key);
+}
+
+export function playHurtFallById(
+  sprite:    Phaser.GameObjects.Sprite,
+  skinId:    string,
+  direction: MoveDirection,
+): void {
+  const skin = getSkinById(skinId);
+  if (!skin.hurt || !sprite.scene.textures.exists(skin.hurt.key)) {
+    applyDownedFrameById(sprite, skinId, direction);
+    return;
+  }
+  const key = `${skin.id}:hurt-fall`;
+  if (!sprite.scene.anims.exists(key)) {
+    sprite.scene.anims.create({
+      key,
+      frames: sprite.scene.anims.generateFrameNumbers(skin.hurt.key, { start: 0, end: 5 }),
+      frameRate: 12,
+      repeat: 0,
+    });
+  }
+  sprite.once(`animationcomplete-${key}`, () => {
+    if (sprite.active) applyDownedFrameById(sprite, skinId, direction);
   });
   sprite.play(key);
 }
