@@ -52,11 +52,11 @@
       "name": "Basic Shoes (brass)"
     },
     "hair": {
-      "itemId": "hair_xlong_wavy",
+      "itemId": "hair_curly_long",
       "subId": null,
       "variant": "",
       "recolor": "dark_brown",
-      "name": "XLong Wavy (dark_brown)"
+      "name": "Curly long (dark_brown)"
     }
   },
   "selectedAnimation": "hurt",
@@ -90,41 +90,8 @@
     "1h_backslash": false,
     "1h_halfslash": false
   },
-  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=male&body=Body_Color_light&head=Human_Male_light&expression=Neutral_light&clothes=TShirt_black&legs=Fur_Pants_charcoal&sleeves=Longsleeves_2_Overlay_black&shoes=Basic_Shoes_brass&hair=XLong_Wavy_dark_brown",
+  "url": "https://liberatedpixelcup.github.io/Universal-LPC-Spritesheet-Character-Generator/#sex=male&body=Body_Color_light&head=Human_Male_light&expression=Neutral_light&clothes=TShirt_black&legs=Fur_Pants_charcoal&sleeves=Longsleeves_2_Overlay_black&shoes=Basic_Shoes_brass&hair=Curly_long_dark_brown",
   "layers": [
-    {
-      "itemId": "hair_xlong_wavy",
-      "name": "XLong Wavy (dark_brown)",
-      "variant": "",
-      "recolors": {
-        "hair": "dark_brown"
-      },
-      "zPos": 9,
-      "layerNum": 2,
-      "yPos": 0,
-      "needsRecolor": false,
-      "source": {
-        "kind": "catalog",
-        "spritePath": "hair/xlong_wavy/adult/bg/spellcast.png"
-      },
-      "supportedAnimations": [
-        "spellcast",
-        "thrust",
-        "walk",
-        "slash",
-        "shoot",
-        "hurt",
-        "climb",
-        "idle",
-        "jump",
-        "sit",
-        "emote",
-        "run",
-        "combat_idle",
-        "backslash",
-        "halfslash"
-      ]
-    },
     {
       "itemId": "body",
       "name": "Body Color (light)",
@@ -353,8 +320,8 @@
       ]
     },
     {
-      "itemId": "hair_xlong_wavy",
-      "name": "XLong Wavy (dark_brown)",
+      "itemId": "hair_curly_long",
+      "name": "Curly long (dark_brown)",
       "variant": "",
       "recolors": {
         "hair": "dark_brown"
@@ -365,7 +332,7 @@
       "needsRecolor": false,
       "source": {
         "kind": "catalog",
-        "spritePath": "hair/xlong_wavy/adult/fg/spellcast.png"
+        "spritePath": "hair/curly_long/adult/spellcast.png"
       },
       "supportedAnimations": [
         "spellcast",
@@ -540,18 +507,17 @@
       ]
     },
     {
-      "fileName": "hair/xlong_wavy/adult/fg/hurt.png",
-      "file": "hair/xlong_wavy",
-      "notes": "Custom by JaidynReiman; inspiration for spellcast frames from Nila122's XLong",
+      "fileName": "hair/curly_long/adult/hurt.png",
+      "file": "hair/curly_long",
+      "notes": "",
       "authors": [
-        "JaidynReiman",
-        "Nila122"
+        "ElizaWy"
       ],
       "licenses": [
         "OGA-BY 3.0"
       ],
       "urls": [
-        "https://opengameart.org/content/lpc-expanded-xlong-hair"
+        "https://opengameart.org/content/lpc-hair"
       ]
     }
   ]
