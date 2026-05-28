@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Socket } from 'socket.io-client';
+import type { Socket } from '../socketClient';
 import {
   LUNGE_THRESHOLD_MS, LUNGE_MAX_HOLD_MS,
   QUICK_ATTACK_RADIUS, QUICK_ATTACK_HALF_ANGLE_RAD,
@@ -8,6 +8,7 @@ import {
 import type { TerminalId } from '../types';
 import type { InputState } from './InputManager';
 import type { MoveDirection } from './playerSkins';
+import type { InteractionPromptManager } from './InteractionPromptManager';
 
 export class CombatSystem {
   private scene:  Phaser.Scene;
@@ -22,15 +23,18 @@ export class CombatSystem {
   private _wasCharging     = false;
   private _slashSprite: Phaser.GameObjects.Sprite | null = null;
   private _kickSprite:  Phaser.GameObjects.Sprite | null = null;
+  private promptManager: InteractionPromptManager;
 
   constructor(
-    scene:  Phaser.Scene,
-    player: Phaser.Physics.Arcade.Sprite,
-    socket: Socket,
+    scene:         Phaser.Scene,
+    player:        Phaser.Physics.Arcade.Sprite,
+    socket:        Socket,
+    promptManager: InteractionPromptManager,
   ) {
-    this.scene  = scene;
-    this.player = player;
-    this.socket = socket;
+    this.scene         = scene;
+    this.player        = player;
+    this.socket        = socket;
+    this.promptManager = promptManager;
   }
 
   get isSwinging():       boolean { return this._isSwinging; }
@@ -88,6 +92,7 @@ export class CombatSystem {
     this._isKicking = false;
     if (this._kickSprite) { this._kickSprite.destroy(); this._kickSprite = null; }
     this.player.setVisible(true);
+    this.promptManager.hide();
   }
 
   reset() {
@@ -100,8 +105,14 @@ export class CombatSystem {
     input:           InputState,
     facingDirection: MoveDirection,
     lookAngle:       number,
-    nearestTerminal: TerminalId | null,
+    nearestTerminal: { id: TerminalId; pos: { x: number; y: number } } | null,
   ) {
+    if (nearestTerminal && !this._isKicking && !this._isSwinging) {
+      this.promptManager.show(nearestTerminal.pos.x, nearestTerminal.pos.y, 64, 64, 'Chutar', input.usingGamepad, 0xff6600);
+    } else {
+      this.promptManager.hide();
+    }
+
     const now = this.scene.time.now;
 
     if (input.attackJust && !this._isSwinging && !this._isKicking) {
@@ -126,7 +137,7 @@ export class CombatSystem {
     }
 
     if (input.actionJust && nearestTerminal) {
-      this._playKick(nearestTerminal, facingDirection);
+      this._playKick(nearestTerminal.id, facingDirection);
     }
 
     const nowCharging = this._attackHoldStart !== null && !this._isSwinging;

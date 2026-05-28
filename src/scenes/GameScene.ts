@@ -288,7 +288,7 @@ export class GameScene extends Phaser.Scene {
     this.promptManager = new InteractionPromptManager(this);
     this.inputManager  = new InputManager(this);
     this.movement      = new MovementSystem(this.player);
-    this.combat        = new CombatSystem(this, this.player, this.socket);
+    this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager);
     this.hacking       = new HackingSystem(
       this, this.player, this.socket,
       this.terminals, this.gates, this.players,
@@ -878,11 +878,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.myRole === 'professor') {
+      const nearTermId = this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null;
+      const nearTermInfo = nearTermId
+        ? { id: nearTermId, pos: this.terminals.getPositions()[nearTermId]! }
+        : null;
       this.combat.update(
         input,
         this.movement.facingDirection,
         this.movement.lookAngle,
-        this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null,
+        nearTermInfo,
       );
       this.hud.setAttackCooldown(this.staggerTimer);
 
