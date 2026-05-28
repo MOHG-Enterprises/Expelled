@@ -22,14 +22,14 @@ export class InteractionPromptManager {
       .setVisible(false);
   }
 
-  show(x: number, y: number, w: number, h: number, label: string, usingGamepad: boolean) {
+  show(x: number, y: number, w: number, h: number, label: string, usingGamepad: boolean, color = 0xffffff) {
     const key = usingGamepad ? 'Ⓐ' : '[E]';
     this.prompt.setText(`${key} ${label}`);
     this.prompt.setPosition(x, y - h / 2 - 4);
     this.prompt.setVisible(true);
 
     this.outline.clear();
-    this.outline.lineStyle(2, 0xffffff, 1);
+    this.outline.lineStyle(2, color, 1);
     this.outline.strokeRect(x - w / 2, y - h / 2, w, h);
     this.outline.setVisible(true);
 
