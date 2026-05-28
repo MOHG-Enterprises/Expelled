@@ -37,6 +37,11 @@ export interface PlayerRecord {
   healFailLockUntil: number;
   name:   string;
   skinId: string;
+  hackContributed: number;
+  healsGiven:      number;
+  hitsLanded:      number;
+  downedCount:     number;
+  expelledCount:   number;
 }
 
 export interface GameStateRecord {
