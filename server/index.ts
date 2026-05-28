@@ -308,6 +308,7 @@ io.on('connection', (socket) => {
     if (!isSelf && target.healPct >= 100) {
       target.healPct     = 0;
       target.beingHealed = false;
+      healer.healsGiven++;
       io.to(roomName).emit('setBeingHealed', { targetId, isBeingHealed: false });
       if (target.hp === 0) {
         target.hp     = 1;
