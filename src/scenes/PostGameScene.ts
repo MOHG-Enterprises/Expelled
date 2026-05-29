@@ -16,7 +16,6 @@ interface PostGameData {
   winner: string;
   stats:  Record<string, PlayerStatSnapshot>;
   myId:   string;
-  myRole: 'survivor' | 'professor';
   socket: Socket;
 }
 
