@@ -77,6 +77,8 @@ export class GameScene extends Phaser.Scene {
   private myHealPct      = 0;
   private myDownBleedMs  = 0;
 
+  private terminalsNeeded = 5;
+
   private survivorOrder: string[] = [];
   private survivorInfo = new Map<string, {
     hp: number; downed: boolean; expelled: boolean; escaped: boolean;
@@ -180,8 +182,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshTerminalHUD() {
-    const { done, total } = this.terminals.getCount();
-    this.hud.setTerminalCount(done, total);
+    const { done } = this.terminals.getCount();
+    this.hud.setTerminalCount(done, this.terminalsNeeded);
   }
 
   private trackSurvivor(id: string, info: {
@@ -411,7 +413,9 @@ export class GameScene extends Phaser.Scene {
         this.terminals.setAuraMode(true);
         this.gates.setAuraMode(true);
       }
-      this.hud.setTerminalCount(state.hackedCount, Object.keys(state.terminals).length);
+      const survivorCount = Object.values(state.players).filter(p => p.role === 'survivor').length;
+      this.terminalsNeeded = survivorCount + 1;
+      this.hud.setTerminalCount(state.hackedCount, this.terminalsNeeded);
       if (state.gatesPowered) {
         this.gates.setPowered('g1');
         this.gates.setPowered('g2');
@@ -505,6 +509,7 @@ export class GameScene extends Phaser.Scene {
 
   private _bindWorldState(s: Socket) {
     s.on('terminalUpdate', ({ id, progress }: { id: string; progress: number }) => {
+      console.log(`[hack] terminalUpdate id=${id} progress=${progress.toFixed(2)} @ ${performance.now().toFixed(0)}ms`);
       this.terminals.setProgress(id, progress);
       this.refreshTerminalHUD();
       if (this.hacking.activeHackingTerminal === id) {
@@ -734,6 +739,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
+    if (delta > 200) console.warn(`[spike] frame=${Math.round(delta)}ms @ t=${Math.round(_time)}ms`);
+    const _dbgT0 = performance.now();
     this.skillCheck.update(delta);
     this.terminals.update(delta);
     this._updateTerrorRadius();
@@ -849,8 +856,13 @@ export class GameScene extends Phaser.Scene {
     }
     this.scratchMarks.update(delta);
 
+    const _dbgPreFog = performance.now() - _dbgT0;
     this.fog.update(this.player, this.movement.lookAngle);
+    const _dbgFog = performance.now() - _dbgT0 - _dbgPreFog;
     this.players.update(this.time.now);
+    const _dbgPlayers = performance.now() - _dbgT0 - _dbgPreFog - _dbgFog;
+    if (_dbgPreFog > 8 || _dbgFog > 8 || _dbgPlayers > 4)
+      console.warn(`[slow] preFog=${_dbgPreFog.toFixed(1)} fog=${_dbgFog.toFixed(1)} players=${_dbgPlayers.toFixed(1)}`);
 
     if (this.voiceManager && this.myRole) {
       this.voiceManager.updateSpatialAudio(
@@ -868,10 +880,13 @@ export class GameScene extends Phaser.Scene {
         this.hud.setBleedOutProgress((this.myDownBleedMs / BLEED_OUT_MS) * 100);
         this.survivorBleedMs.set(this.socket.id!, this.myDownBleedMs);
       } else {
+        const _dbgHackT = performance.now();
         this.hacking.updateSelf(
           delta, input, this.downed, this.beingHealed,
           this.myHealPct, this.escaped, this.survivorInfo,
         );
+        const _dbgHackDt = performance.now() - _dbgHackT;
+        if (_dbgHackDt > 4) console.warn(`[slow:hack] ${_dbgHackDt.toFixed(1)}ms`);
       }
       for (const [id, info] of this.survivorInfo) {
         if (id === this.socket.id) continue;
@@ -883,7 +898,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.myRole === 'professor') {
       const nearTermId = this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null;
-      const nearTermInfo = nearTermId
+      const nearTermInfo = nearTermId && this.terminals.getProgress(nearTermId) > 0
         ? { id: nearTermId, pos: this.terminals.getPositions()[nearTermId]! }
         : null;
       this.combat.update(

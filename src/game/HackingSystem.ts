@@ -303,11 +303,13 @@ export class HackingSystem {
           amount:   HEAL_PASSIVE_TICK * HEAL_SELF_RATE_FACTOR,
         });
       }
-      this.healHoldTimer += delta;
-      if (this.healHoldTimer >= this.healNextThreshold) {
-        this.healHoldTimer     = 0;
-        this.healNextThreshold = Phaser.Math.Between(2500, 5000);
-        this._runHealSkillCheck(this.socket.id!, true);
+      if (!beingHealed) {
+        this.healHoldTimer += delta;
+        if (this.healHoldTimer >= this.healNextThreshold) {
+          this.healHoldTimer     = 0;
+          this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+          this._runHealSkillCheck(this.socket.id!, true);
+        }
       }
     }
   }

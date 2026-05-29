@@ -84,11 +84,11 @@ export class HUD {
     this.recoveryBar = this.scene.add.graphics().setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.hudTerminals = this.scene.add
-      .text(8, 52, '', { fontSize: '11px', color: '#ccc' })
+      .text(8, 60, '', { fontSize: '11px', color: '#ccc' })
       .setScrollFactor(0).setDepth(30);
 
     this.hudGate = this.scene.add
-      .text(8, 68, '', { fontSize: '12px', color: '#00e676', stroke: '#000', strokeThickness: 3 })
+      .text(8, 74, '', { fontSize: '12px', color: '#00e676', stroke: '#000', strokeThickness: 3 })
       .setScrollFactor(0).setDepth(30);
 
     this.endgameTimerBg   = this.scene.add.graphics().setScrollFactor(0).setDepth(35).setAlpha(0);
