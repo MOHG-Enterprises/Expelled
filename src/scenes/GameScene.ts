@@ -248,11 +248,6 @@ export class GameScene extends Phaser.Scene {
     this.socket   = data?.socket ?? io({ path: '/expelled/socket.io' });
     this.mySkinId = (data?.skinId && data.skinId !== 'professor') ? data.skinId : '';
     this.resetLocalState();
-  }
-
-  shutdown() {
-    this.voiceManager?.destroy();
-    this.voiceManager = null;
 
     const map = buildTilemap(this);
     this.mapRef = map;
@@ -328,6 +323,11 @@ export class GameScene extends Phaser.Scene {
         this.hud.flash('Microfone nao detectado — sem voz', 0xff8800, 3000);
         this.hud.setMicState('error');
       });
+  }
+
+  shutdown() {
+    this.voiceManager?.destroy();
+    this.voiceManager = null;
   }
 
   private getSpawnPoint(role: Role): { x: number; y: number } {
