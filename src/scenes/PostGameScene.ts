@@ -51,6 +51,11 @@ export class PostGameScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a1a2e');
 
+    if (!my) {
+      this._renderButton(width, height, data.socket);
+      return;
+    }
+
     const { label, color } = this._getResult(data, my);
 
     this.add.text(width / 2, height * 0.22, label, {
