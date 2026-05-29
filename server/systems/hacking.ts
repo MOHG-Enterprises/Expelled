@@ -73,6 +73,7 @@ export function processHackProgress(
   const repairerCount = getRepairerCount(roomName, terminalId);
   const penaltyFactor = Math.max(0, repairerCount - 1) * (HACK_EFFICIENCY_PENALTY / 100);
   const effective = amount * Math.max(0.1, 1 - penaltyFactor);
+  p.hackContributed += effective;
 
   t.progress = Math.min(100, t.progress + effective);
 

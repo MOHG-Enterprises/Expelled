@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { io, Socket } from 'socket.io-client';
+import { io } from '../socketClient';
+import type { Socket } from '../socketClient';
 import {
   ON_HIT_SPRINT_MS,
-  SCRATCH_MARKS_SELF_VISIBLE, BLOOD_SELF_VISIBLE,
+  SCRATCH_MARKS_SELF_VISIBLE,
   HACK_FAIL_LOCK_MS,
   BLEED_OUT_MS,
   MOVE_EMIT_RATE_MS,
@@ -22,7 +23,6 @@ import { HUD }             from '../game/HUD';
 import { TerminalManager } from '../game/TerminalManager';
 import { PlayerManager }   from '../game/PlayerManager';
 import { ScratchMarkManager } from '../game/ScratchMarkManager';
-import { BloodPoolManager }   from '../game/BloodPoolManager';
 import { VoiceManager }       from '../game/VoiceManager';
 import { ExitGateManager }    from '../game/ExitGateManager';
 import { InteractionPromptManager } from '../game/InteractionPromptManager';
@@ -39,6 +39,19 @@ import {
   playHurtFallById,
   preloadPlayerSkins,
 } from '../game/playerSkins';
+
+interface PostGameStats {
+  [socketId: string]: {
+    role: 'survivor' | 'professor';
+    outcome?: 'escaped' | 'expelled' | 'downed';
+    hackContributed?: number;
+    timesDown?: number;
+    healsGiven?: number;
+    hitsLanded?: number;
+    downedCount?: number;
+    expelledCount?: number;
+  };
+}
 
 export class GameScene extends Phaser.Scene {
   private socket!: Socket;
@@ -92,7 +105,6 @@ export class GameScene extends Phaser.Scene {
   private players!:     PlayerManager;
   private gates!:       ExitGateManager;
   private scratchMarks!: ScratchMarkManager;
-  private bloodPools!:   BloodPoolManager;
   private voiceManager:  VoiceManager | null = null;
 
   private inputManager!:   InputManager;
@@ -230,7 +242,6 @@ export class GameScene extends Phaser.Scene {
     preloadMapAssets(this);
     preloadPlayerSkins(this);
     ScratchMarkManager.preload(this);
-    BloodPoolManager.preload(this);
   }
 
   create(data?: { socket?: Socket; skinId?: string; roomName?: string }) {
@@ -273,12 +284,11 @@ export class GameScene extends Phaser.Scene {
     this.gates       = new ExitGateManager(this);
     this.players     = new PlayerManager(this);
     this.scratchMarks = new ScratchMarkManager(this);
-    this.bloodPools   = new BloodPoolManager(this);
 
     this.promptManager = new InteractionPromptManager(this);
     this.inputManager  = new InputManager(this);
     this.movement      = new MovementSystem(this.player);
-    this.combat        = new CombatSystem(this, this.player, this.socket);
+    this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager);
     this.hacking       = new HackingSystem(
       this, this.player, this.socket,
       this.terminals, this.gates, this.players,
@@ -313,6 +323,11 @@ export class GameScene extends Phaser.Scene {
         this.hud.flash('Microfone nao detectado — sem voz', 0xff8800, 3000);
         this.hud.setMicState('error');
       });
+  }
+
+  shutdown() {
+    this.voiceManager?.destroy();
+    this.voiceManager = null;
   }
 
   private getSpawnPoint(role: Role): { x: number; y: number } {
@@ -431,16 +446,19 @@ export class GameScene extends Phaser.Scene {
       this.hud.flash('COLAPSO FINAL!', 0xff2222, 3000);
     });
 
-    s.on('gameOver', ({ winner }: { winner: string }) => {
+    s.on('gameOver', (payload: { winner: string; stats: PostGameStats }) => {
       this.inputFrozen = true;
-      const msg = winner === 'survivors' ? 'ALUNOS VENCERAM!' : 'PROFESSOR VENCEU!';
-      const col = winner === 'survivors' ? 0x4fc3f7 : 0xe94560;
-      this.hud.flash(msg, col, 8000);
+      this.registry.set('postGameData', {
+        winner: payload.winner,
+        stats:  payload.stats,
+        myId:   s.id!,
+        socket: s,
+      });
+      this.time.delayedCall(600, () => this.scene.start('PostGameScene'));
     });
 
     s.on('gameReset', () => {
       this.scratchMarks?.clear();
-      this.bloodPools?.clear();
       this.voiceManager?.destroy();
       this.voiceManager = null;
       this.hud.setMicState('off');
@@ -455,14 +473,6 @@ export class GameScene extends Phaser.Scene {
 
     s.on('scratchMark', ({ x, y, direction }: { x: number; y: number; direction: MoveDirection }) => {
       this.scratchMarks.spawn(x, y, direction);
-    });
-
-    s.on('bloodMark', ({ x, y, frame }: { x: number; y: number; frame: number }) => {
-      this.bloodPools.spawn(x, y, frame);
-    });
-
-    s.on('bloodBigPool', ({ x, y }: { x: number; y: number }) => {
-      this.bloodPools.spawnBigPool(x, y);
     });
 
     s.on('professorAttacked', (data: { id: string; x: number; y: number; dir: string }) => {
@@ -839,20 +849,6 @@ export class GameScene extends Phaser.Scene {
     }
     this.scratchMarks.update(delta);
 
-    if (this.myRole === 'survivor' && (this.myHp === 1 || this.downed)) {
-      this.bloodPools.tickEmit(
-        this.socket,
-        this.player.x, this.player.y,
-        this.movement.facingDirection,
-        delta,
-        intendedToMove,
-        BLOOD_SELF_VISIBLE,
-      );
-    } else if (this.myRole === 'survivor') {
-      this.bloodPools.resetDropState();
-    }
-    this.bloodPools.update(delta);
-
     this.fog.update(this.player, this.movement.lookAngle);
     this.players.update(this.time.now);
 
@@ -886,11 +882,15 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.myRole === 'professor') {
+      const nearTermId = this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null;
+      const nearTermInfo = nearTermId
+        ? { id: nearTermId, pos: this.terminals.getPositions()[nearTermId]! }
+        : null;
       this.combat.update(
         input,
         this.movement.facingDirection,
         this.movement.lookAngle,
-        this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null,
+        nearTermInfo,
       );
       this.hud.setAttackCooldown(this.staggerTimer);
 

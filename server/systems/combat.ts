@@ -17,6 +17,9 @@ function applyDamage(
   target: PlayerRecord,
   emit: EmitContext,
 ): void {
+  const prof = Object.values(state.players).find((p) => p.role === 'professor');
+  if (prof) prof.hitsLanded++;
+
   target.hp--;
   if (target.hp > 0) {
     emit.all('playerHit', { targetId: id, hp: target.hp });
@@ -25,6 +28,7 @@ function applyDamage(
   target.hp = 0;
   if (target.downCount >= 2) {
     target.expelled = true;
+    if (prof) prof.expelledCount++;
     if (target.beingHealed) {
       target.beingHealed = false;
       emit.all('setBeingHealed', { targetId: id, isBeingHealed: false });
@@ -35,6 +39,7 @@ function applyDamage(
   }
   target.downCount = (target.downCount + 1) as 0 | 1 | 2;
   target.downed      = true;
+  if (prof) prof.downedCount++;
   target.healPct     = 0;
   target.downBleedMs = 0;
   if (target.beingHealed) {
