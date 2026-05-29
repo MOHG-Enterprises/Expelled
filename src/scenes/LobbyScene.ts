@@ -21,7 +21,7 @@ const SURVIVOR_SKINS = [
   { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: '/personagens/gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
   { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: '/personagens/giu/icons/Giu_Icon.png',         label: 'Giu'     },
   { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: '/personagens/isabela/icons/Isabela_Icon.png', label: 'Isabela' },
-  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: '/personagens/davi/icons/Dave_Icon.png',       label: 'Davi'    },
+  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: '/personagens/davi/icons/Davi_Icon.png',       label: 'Davi'    },
   { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: '/personagens/caio/icons/Caio_Icon.png',       label: 'Caio'    },
 ] as const;
 
