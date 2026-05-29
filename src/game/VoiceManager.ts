@@ -1,6 +1,6 @@
 import { Device } from 'mediasoup-client';
 import type { types as MSTypes } from 'mediasoup-client';
-import type { Socket } from 'socket.io-client';
+import type { Socket } from '../socketClient';
 import type { Role } from '../types';
 import { FOV_PROFESSOR, FOV_PROFESSOR_CONE_DEG, VOICE_SURVIVOR_HEAR_RADIUS } from '../constants';
 

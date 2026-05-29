@@ -133,6 +133,11 @@ io.on('connection', (socket) => {
       healFailLockUntil:  0,
       name:               '',
       skinId:             '',
+      hackContributed:    0,
+      healsGiven:         0,
+      hitsLanded:         0,
+      downedCount:        0,
+      expelledCount:      0,
     };
 
     socket.emit('roleAssigned', state.players[socket.id].role);
@@ -212,26 +217,6 @@ io.on('connection', (socket) => {
     if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
     if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
     socket.to(roomName).emit('scratchMark', { x: data.x, y: data.y, direction: data.direction });
-  });
-
-  socket.on('bloodMark', (data: { x: number; y: number; frame: number }) => {
-    const room = getRoomForSocket(socket.id);
-    if (!room) return;
-    const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (typeof data.x !== 'number' || typeof data.y !== 'number' || typeof data.frame !== 'number') return;
-    socket.to(roomName).emit('bloodMark', { x: data.x, y: data.y, frame: data.frame });
-  });
-
-  socket.on('bloodBigPool', (data: { x: number; y: number }) => {
-    const room = getRoomForSocket(socket.id);
-    if (!room) return;
-    const { roomName, state } = room;
-    const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
-    if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
-    socket.to(roomName).emit('bloodBigPool', { x: data.x, y: data.y });
   });
 
   socket.on('hackProgress', ({ terminalId, amount }: { terminalId: TerminalId; amount: number }) => {
@@ -323,6 +308,7 @@ io.on('connection', (socket) => {
     if (!isSelf && target.healPct >= 100) {
       target.healPct     = 0;
       target.beingHealed = false;
+      healer.healsGiven++;
       io.to(roomName).emit('setBeingHealed', { targetId, isBeingHealed: false });
       if (target.hp === 0) {
         target.hp     = 1;

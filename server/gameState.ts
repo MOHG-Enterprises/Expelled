@@ -52,6 +52,42 @@ export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; r
   g2: { col: 12, rowStart: 47, rowEnd: 52 },
 };
 
+export interface PlayerStatSnapshot {
+  role: 'survivor' | 'professor';
+  outcome?: 'escaped' | 'expelled' | 'downed';
+  hackContributed?: number;
+  timesDown?: number;
+  healsGiven?: number;
+  hitsLanded?: number;
+  downedCount?: number;
+  expelledCount?: number;
+}
+
+export function buildStats(state: GameStateRecord): Record<string, PlayerStatSnapshot> {
+  const result: Record<string, PlayerStatSnapshot> = {};
+  for (const [id, p] of Object.entries(state.players)) {
+    if (p.role === 'survivor') {
+      const outcome: 'escaped' | 'expelled' | 'downed' =
+        p.escaped ? 'escaped' : p.expelled ? 'expelled' : 'downed';
+      result[id] = {
+        role: 'survivor',
+        outcome,
+        hackContributed: Math.round(p.hackContributed),
+        timesDown: p.downCount,
+        healsGiven: p.healsGiven,
+      };
+    } else {
+      result[id] = {
+        role: 'professor',
+        hitsLanded: p.hitsLanded,
+        downedCount: p.downedCount,
+        expelledCount: p.expelledCount,
+      };
+    }
+  }
+  return result;
+}
+
 export { ATTACK_COOLDOWN_MS };
 export { HACK_FAIL_REGRESSION };
 export { HACK_FAIL_LOCK_MS };
@@ -136,13 +172,13 @@ export function checkWinConditions(state: GameStateRecord, emit: EmitFn): boolea
 
   if (active.length > 0 && escaped.length === active.length) {
     state.phase = 'ended';
-    emit('gameOver', { winner: 'survivors' });
+    emit('gameOver', { winner: 'survivors', stats: buildStats(state) });
     return true;
   }
 
   if (allSurvivors.length > 0 && allSurvivors.every((p) => p.expelled)) {
     state.phase = 'ended';
-    emit('gameOver', { winner: 'professor' });
+    emit('gameOver', { winner: 'professor', stats: buildStats(state) });
     return true;
   }
 

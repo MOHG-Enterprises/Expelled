@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Socket } from 'socket.io-client';
+import type { Socket } from '../socketClient';
 import {
   INTERACT_RADIUS,
   HACK_PASSIVE_RATE_MS, HACK_PASSIVE_TICK, HACK_GREAT_BONUS, HACK_FAIL_LOCK_MS,
@@ -142,10 +142,10 @@ export class HackingSystem {
 
     if (healableNearby) {
       const pos = this.players.getPosition(healableNearby)!;
-      this.promptManager.show(pos.x, pos.y, 24, 32, 'Curar', input.usingGamepad);
+      this.promptManager.show(pos.x, pos.y + 2, 32, 48, 'Curar', input.usingGamepad);
     } else if (nearT) {
       const pos = this.terminals.getPositions()[nearT]!;
-      this.promptManager.show(pos.x, pos.y, 32, 32, 'Hackear', input.usingGamepad);
+      this.promptManager.show(pos.x, pos.y, 64, 64, 'Hackear', input.usingGamepad);
     } else if (nearS) {
       this.promptManager.show(nearS.x, nearS.y, 16, 16, 'Abrir Portão', input.usingGamepad);
     } else {

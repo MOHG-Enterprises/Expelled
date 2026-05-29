@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { INTERACT_RADIUS, GATE_POSITIONS, GATE_TILE_RANGES } from '../constants';
+import { INTERACT_RADIUS, GATE_POSITIONS, GATE_TILE_RANGES, TILE_WORLD_SIZE } from '../constants';
 import type { GateId } from '../types';
 
 interface GateObj {
@@ -58,7 +58,11 @@ export class ExitGateManager {
       );
     }
 
-    const exitZone = new Phaser.Geom.Rectangle(x - 150, y - 80, 50, 160);
+    const range      = GATE_TILE_RANGES[id];
+    const gateLeft   = range.col * TILE_WORLD_SIZE;
+    const zoneTop    = range.rowStart * TILE_WORLD_SIZE;
+    const zoneHeight = (range.rowEnd - range.rowStart + 1) * TILE_WORLD_SIZE;
+    const exitZone   = new Phaser.Geom.Rectangle(gateLeft - 96, zoneTop, 96, zoneHeight);
 
     this.gates[id] = {
       switchX: x,

@@ -41,7 +41,6 @@ export const ON_HIT_SPRINT_SPEED   = 312;   // 165% of survivor run (DBD on-hit 
 export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 
 export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
-export const BLOOD_SELF_VISIBLE         = true; // false = only professor sees blood pools
 
 //  interacoes 
 export const INTERACT_RADIUS    = 48;   // px
