@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import type { Socket } from 'socket.io-client';
+import type { Socket } from '../socketClient';
 import type { MoveDirection } from './playerSkins';
 
 const FRAME_SIZE        = 16;

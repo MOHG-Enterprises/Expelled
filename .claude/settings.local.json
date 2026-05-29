@@ -50,7 +50,9 @@
       "PowerShell(git add src/scenes/GameScene.ts)",
       "PowerShell(git commit -m \"feat: wire downed player arrows for survivors in GameScene\")",
       "PowerShell(npm run typecheck 2>&1)",
-      "PowerShell(head -30)"
+      "PowerShell(head -30)",
+      "Bash(npm show *)",
+      "Bash(tsc *)"
     ]
   }
 }

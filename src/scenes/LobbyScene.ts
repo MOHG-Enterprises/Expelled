@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { io, Socket } from 'socket.io-client';
+import { io } from '../socketClient';
+import type { Socket } from '../socketClient';
 import { ROOM_NAMES } from '../constants';
 
 type LobbyRole = 'professor' | 'survivor';
