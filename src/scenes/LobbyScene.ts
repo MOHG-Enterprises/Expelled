@@ -71,7 +71,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create() {
-    this.socket = io({ path: './expelled/socket.io' });
+    this.socket = io({ path: '/expelled/socket.io' });
 
     this.add.rectangle(400, 300, 800, 600, 0x1a1a2e);
 

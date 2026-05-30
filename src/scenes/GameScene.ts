@@ -247,7 +247,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data?: { socket?: Socket; skinId?: string; roomName?: string }) {
-    this.socket   = data?.socket ?? io({ path: './expelled/socket.io' });
+    this.socket   = data?.socket ?? io({ path: '/expelled/socket.io' });
     this.mySkinId = (data?.skinId && data.skinId !== 'professor') ? data.skinId : '';
     this.resetLocalState();
 
