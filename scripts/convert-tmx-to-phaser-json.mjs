@@ -36,7 +36,7 @@ function readXml(xmlPath) {
 }
 
 function normalizeWebPath(absPath) {
-  const rel = path.relative(projectRoot, absPath).split(path.sep).join('/');
+  const rel = path.relative(projectRoot, absPath).split(path.sep).join('./');
   return `/${rel}`;
 }
 
