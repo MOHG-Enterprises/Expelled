@@ -636,10 +636,10 @@ Add at the top of `LobbyScene.ts`, after the imports:
 
 ```ts
 const SURVIVOR_SKINS = [
-  { skinId: 'arthur',   iconKey: 'arthur-icon',   iconPath: '/personagens/arthur/icons/Arthur_Icon.png',     label: 'Arthur'  },
-  { skinId: 'gustavo',  iconKey: 'gustavo-icon',  iconPath: '/personagens/gustavo/icons/Gustavo_Icon.png',   label: 'Gustavo' },
-  { skinId: 'giu',      iconKey: 'giu-icon',      iconPath: '/personagens/giu/icons/Giu_Icon.png',           label: 'Giu'     },
-  { skinId: 'isabela',  iconKey: 'isabela-icon',  iconPath: '/personagens/isabela/icons/Isabela_Icon.png',   label: 'Isabela' },
+  { skinId: 'arthur',   iconKey: 'arthur-icon',   iconPath: './personagens/arthur/icons/Arthur_Icon.png',     label: 'Arthur'  },
+  { skinId: 'gustavo',  iconKey: 'gustavo-icon',  iconPath: './personagens/gustavo/icons/Gustavo_Icon.png',   label: 'Gustavo' },
+  { skinId: 'giu',      iconKey: 'giu-icon',      iconPath: './personagens/giu/icons/Giu_Icon.png',           label: 'Giu'     },
+  { skinId: 'isabela',  iconKey: 'isabela-icon',  iconPath: './personagens/isabela/icons/Isabela_Icon.png',   label: 'Isabela' },
 ] as const;
 ```
 

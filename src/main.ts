@@ -6,9 +6,13 @@ import { PostGameScene } from './scenes/PostGameScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
   backgroundColor: '#1a1a2e',
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 800,
+    height: 600,
+  },
   physics: { default: 'arcade', arcade: { debug: false } },
   input: { gamepad: true },
   scene: [StartScene, LobbyScene, GameScene, PostGameScene],

@@ -37,13 +37,13 @@ export class SurvivorCard {
     this.overlay  = scene.add.graphics().setScrollFactor(0).setDepth(32).setAlpha(0);
 
     this.nameText = scene.add
-      .text(CARD_X + 8, cardY + PORT_H + 6, '', { fontSize: '10px', color: '#ddd', fontStyle: 'bold' })
+      .text(CARD_X + 8, cardY + PORT_H + 2, '', { fontSize: '10px', color: '#ddd', fontStyle: 'bold' })
       .setScrollFactor(0).setDepth(31).setAlpha(0);
 
     this.hpDots = scene.add.graphics().setScrollFactor(0).setDepth(31).setAlpha(0);
 
     this.hackIcon = scene.add
-      .text(CARD_X + 8, cardY + PORT_H + 19, '⚙ HACK', {
+      .text(CARD_X + 8, cardY + PORT_H + 15, '⚙ HACK', {
         fontSize: '9px', color: '#00e676', fontStyle: 'bold',
         stroke: '#000', strokeThickness: 2,
       })
@@ -76,7 +76,8 @@ export class SurvivorCard {
     this._drawHpDots(hp, downed);
     this._drawStatusBars(downed, healPct, bleedMs, showHealPct);
 
-    this.nameText.setText(label).setAlpha(1);
+    const displayName = label.length > 6 ? label.slice(0, 5) + '…' : label;
+    this.nameText.setText(displayName).setAlpha(1);
     this.bg.setAlpha(1);
     this.overlay.setAlpha(1);
     this.hpDots.setAlpha(1);
@@ -160,10 +161,10 @@ export class SurvivorCard {
     const { hpDots, cardY } = this;
     hpDots.clear();
 
-    const dotR = 5;
-    const gap  = 4;
+    const dotR = 4;
+    const gap  = 3;
     const x    = CARD_X + CARD_W - 8 - (2 * dotR * 2 + gap);
-    const y    = cardY + PORT_H + 9;
+    const y    = cardY + PORT_H + 8;
 
     for (let i = 0; i < 2; i++) {
       const filled = !downed && hp > i;
@@ -183,8 +184,8 @@ export class SurvivorCard {
     const bw  = CARD_W - 8;
     const bh  = 4;
 
-    const bleedY = this.cardY + 63;
-    const healY  = this.cardY + 69;
+    const bleedY = this.cardY + PORT_H + 15;
+    const healY  = this.cardY + PORT_H + 26;
 
     this.statusBars.fillStyle(0x1a1a1a, 0.9);
     this.statusBars.fillRoundedRect(bx, bleedY, bw, bh, 2);
