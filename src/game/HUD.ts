@@ -50,6 +50,9 @@ export class HUD {
   private chaseIndicatorBg!:   Phaser.GameObjects.Graphics;
   private chaseIndicatorText!: Phaser.GameObjects.Text;
 
+  private professorCountdownText:  Phaser.GameObjects.Text | null = null;
+  private professorCountdownTimer: Phaser.Time.TimerEvent | null = null;
+
   private damageVignette!: Phaser.GameObjects.Graphics;
   private vignetteTween:   Phaser.Tweens.Tween | null = null;
   private vignetteAlpha    = 0;
@@ -430,6 +433,36 @@ export class HUD {
     this.chaseIndicatorBg.setAlpha(1);
 
     this.chaseIndicatorText.setPosition(770, 28).setText(tierLabel).setColor(text).setAlpha(1);
+  }
+
+  startProfessorCountdown(endsAt: number): void {
+    this.stopProfessorCountdown();
+    this.professorCountdownText = this.scene.add
+      .text(400, 40, '', {
+        fontSize: '48px',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 5,
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(50);
+    this.professorCountdownTimer = this.scene.time.addEvent({
+      delay: 100,
+      loop: true,
+      callback: () => {
+        const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+        this.professorCountdownText?.setText(String(Math.max(0, remaining)));
+      },
+    });
+  }
+
+  stopProfessorCountdown(): void {
+    this.professorCountdownTimer?.remove();
+    this.professorCountdownTimer = null;
+    this.professorCountdownText?.destroy();
+    this.professorCountdownText = null;
   }
 
   updateTerminalArrows(
