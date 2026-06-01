@@ -647,8 +647,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     s.on('expelled', () => {
-      this.expelled    = true;
-      this.inputFrozen = true;
+      this.expelled = true;
       this.hud.update(this.myRole, this.myHp, false);
       this.hud.flash('EXPULSO!', 0xff4444, 4000);
     });
@@ -728,14 +727,24 @@ export class GameScene extends Phaser.Scene {
 
     s.on('playerExpelled', (id: string) => {
       if (id === s.id) {
-        this.expelled    = true;
-        this.inputFrozen = true;
+        this.expelled     = true;
+        this.ghost        = true;
+        this.downed       = false;
+        this.inputFrozen  = false;
         this.player.setAlpha(0.25);
+        (this.player.body as Phaser.Physics.Arcade.Body).checkCollision.none = true;
+        this.fog.setFullReveal(true);
+        this._spawnCorpse(id, this.player.x, this.player.y, this.mySkinId, this.movement.facingDirection);
         this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
         this.hud.flash('Você foi expulso!', 0xff1744, 4000);
+        this.hud.setGhostMode(true);
       } else {
         this.players.setAlpha(id, 0.25);
         if (this.myRole === 'professor') this.hud.flash('Aluno expulso!', 0x00e676);
+        const pos    = this.players.getPosition(id);
+        const dir    = this.players.getFacingDirection(id) ?? 'down';
+        const skinId = this.survivorMeta.get(id)?.skinId ?? 'arthur';
+        if (pos) this._spawnCorpse(id, pos.x, pos.y, skinId, dir);
       }
       const info = this.survivorInfo.get(id);
       if (info) { this.survivorInfo.set(id, { ...info, expelled: true }); this.refreshSurvivorHUD(); }
