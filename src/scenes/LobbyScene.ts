@@ -43,7 +43,7 @@ export class LobbyScene extends Phaser.Scene {
   private pickerName    = '';
   private pickerUI:     Phaser.GameObjects.GameObject[] = [];
   private nameDisplay!: Phaser.GameObjects.Text;
-  private skinRings:    { skinId: string; ring: Phaser.GameObjects.Graphics }[] = [];
+  private characterBtns: { skinId: string; btn: Phaser.GameObjects.Image }[] = [];
   private kbListener:   ((e: KeyboardEvent) => void) | null = null;
   private cursorTimer?: Phaser.Time.TimerEvent;
   private cursorOn     = false;
@@ -68,6 +68,12 @@ export class LobbyScene extends Phaser.Scene {
         this.load.image(iconKey, iconPath);
       }
     });
+    if (!this.textures.exists('characterScreen')) {
+      this.load.spritesheet('characterScreen', 'screen/characterScreen.png', { frameWidth: 1150, frameHeight: 640 });
+    }
+    if (!this.textures.exists('botaoCharacter')) {
+      this.load.spritesheet('botaoCharacter', 'screen/botaoCharacter.png', { frameWidth: 74, frameHeight: 77 });
+    }
   }
 
   create() {
@@ -258,88 +264,94 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private buildPickerUI() {
-    const CENTER_X = 400;
+    const W = 800, H = 600, cx = W / 2;
 
-    const title = this.add.text(CENTER_X, 150, 'Escolha seu personagem', {
-      fontSize: '20px', color: '#e94560', stroke: '#000', strokeThickness: 4,
+    if (!this.anims.exists('charScreen')) {
+      this.anims.create({
+        key: 'charScreen',
+        frames: this.anims.generateFrameNumbers('characterScreen', { start: 0, end: 15 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
+    const bg = this.add.sprite(cx, H / 2, 'characterScreen');
+    bg.setScale(Math.max(W / 1150, H / 640));
+    bg.play('charScreen');
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.35);
+    overlay.fillRect(0, 0, W, H);
+
+    const title = this.add.text(cx, 68, 'ESCOLHA SEU PERSONAGEM', {
+      fontSize: '15px', color: '#e94560', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    const nameLabelText = this.add.text(CENTER_X, 195, 'Seu nome (max 12 caracteres):', {
-      fontSize: '13px', color: '#aaa',
+    const nameLabelText = this.add.text(cx, 92, 'Seu nome (max 12 caracteres):', {
+      fontSize: '11px', color: '#aaa',
     }).setOrigin(0.5);
 
     const nameBox = this.add.graphics();
     nameBox.fillStyle(0x111122, 0.9);
-    nameBox.fillRoundedRect(CENTER_X - 120, 210, 240, 36, 6);
-    nameBox.lineStyle(2, 0x4285f4, 0.8);
-    nameBox.strokeRoundedRect(CENTER_X - 120, 210, 240, 36, 6);
+    nameBox.fillRoundedRect(cx - 95, 103, 190, 28, 4);
+    nameBox.lineStyle(1, 0x4285f4, 0.8);
+    nameBox.strokeRoundedRect(cx - 95, 103, 190, 28, 4);
 
-    this.nameDisplay = this.add.text(CENTER_X, 228, ' ', {
-      fontSize: '16px', color: '#ffffff', fontStyle: 'bold',
+    this.nameDisplay = this.add.text(cx, 117, ' ', {
+      fontSize: '13px', color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    const iconSize = 64;
-    const gap      = 24;
-    const totalW   = SURVIVOR_SKINS.length * iconSize + (SURVIVOR_SKINS.length - 1) * gap;
-    const startX   = CENTER_X - totalW / 2 + iconSize / 2;
-    const skinY    = 320;
+    const COLS = [175, 400, 625];
+    const ROWS = [210, 345];
+    const BTN_SCALE = 1.0;
+    const BTN_H = 70 * BTN_SCALE;
+    const ICON_SIZE = 78;
 
     SURVIVOR_SKINS.forEach(({ skinId, iconKey, label }, i) => {
-      const bx = startX + i * (iconSize + gap);
-      const by = skinY;
+      const bx = COLS[i % 3];
+      const by = ROWS[Math.floor(i / 3)];
 
-      const ring = this.add.graphics();
-      this.skinRings.push({ skinId, ring });
-
-      const btn = this.add.image(bx, by, iconKey)
-        .setDisplaySize(iconSize, iconSize)
+      const charBtn = this.add.image(bx, by, 'botaoCharacter', 0)
+        .setScale(BTN_SCALE)
         .setInteractive({ useHandCursor: true });
 
-      btn.on('pointerdown', () => this.selectSkin(skinId));
-      btn.on('pointerover', () => {
-        if (skinId !== this.pickerSkinId) {
-          ring.clear();
-          ring.lineStyle(2, 0x888888, 0.6);
-          ring.strokeRect(bx - iconSize / 2, by - iconSize / 2, iconSize, iconSize);
-        }
-      });
-      btn.on('pointerout', () => this.drawSkinRings());
+      this.characterBtns.push({ skinId, btn: charBtn });
 
-      const nameText = this.add.text(bx, by + iconSize / 2 + 10, label, {
-        fontSize: '12px', color: '#cccccc',
+      const icon = this.add.image(bx, by - 4, iconKey)
+        .setDisplaySize(ICON_SIZE, ICON_SIZE)
+        .setInteractive({ useHandCursor: true });
+
+      const nameLabel = this.add.text(bx, by + BTN_H / 2 + 3, label, {
+        fontSize: '10px', color: '#e0e0e0', stroke: '#000', strokeThickness: 2,
       }).setOrigin(0.5, 0);
 
-      this.pickerUI.push(ring, btn, nameText);
+      charBtn.on('pointerover', () => { if (skinId !== this.pickerSkinId) charBtn.setFrame(1); });
+      charBtn.on('pointerout',  () => this.drawSkinRings());
+      charBtn.on('pointerdown', () => this.selectSkin(skinId));
+      icon.on('pointerover',    () => { if (skinId !== this.pickerSkinId) charBtn.setFrame(1); });
+      icon.on('pointerout',     () => this.drawSkinRings());
+      icon.on('pointerdown',    () => this.selectSkin(skinId));
+
+      this.pickerUI.push(charBtn, icon, nameLabel);
     });
 
-    const confirmBtn = this.add.text(CENTER_X, 440, 'Confirmar', {
-      fontSize: '18px', color: '#ffffff', backgroundColor: '#1565c0',
-      padding: { x: 20, y: 10 },
+    const confirmBtn = this.add.text(cx, 432, 'Confirmar', {
+      fontSize: '15px', color: '#ffffff', backgroundColor: '#1565c0',
+      padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
     confirmBtn.on('pointerdown', () => this.confirmCharacter());
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 
-    this.pickerUI.push(title, nameLabelText, nameBox, this.nameDisplay, confirmBtn);
+    this.pickerUI.push(bg, overlay, title, nameLabelText, nameBox, this.nameDisplay, confirmBtn);
     this.pickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.drawSkinRings();
   }
 
   private drawSkinRings() {
-    const iconSize = 64;
-    const gap      = 24;
-    const totalW   = SURVIVOR_SKINS.length * iconSize + (SURVIVOR_SKINS.length - 1) * gap;
-    const startX   = 400 - totalW / 2 + iconSize / 2;
-
-    this.skinRings.forEach(({ skinId, ring }, i) => {
-      ring.clear();
-      const bx = startX + i * (iconSize + gap);
-      const by = 320;
-      if (skinId === this.pickerSkinId) {
-        ring.lineStyle(3, 0xe94560, 1);
-        ring.strokeRect(bx - iconSize / 2 - 2, by - iconSize / 2 - 2, iconSize + 4, iconSize + 4);
-      }
+    this.characterBtns.forEach(({ skinId, btn }) => {
+      btn.setFrame(skinId === this.pickerSkinId ? 1 : 0);
     });
   }
 
