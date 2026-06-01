@@ -188,6 +188,12 @@ io.on('connection', (socket) => {
     if (survivors.length < 1 || !survivors.every((pl) => pl.ready)) return;
     state.phase = 'playing';
     io.to(roomName).emit('gamePhase', 'playing');
+    state.professorLockedEndsAt = Date.now() + 10_000;
+    io.to(roomName).emit('professorLocked', { endsAt: state.professorLockedEndsAt });
+    setTimeout(() => {
+      state.professorLockedEndsAt = null;
+      io.to(roomName).emit('professorReleased');
+    }, 10_000);
   });
 
   socket.on('requestSync', () => {
