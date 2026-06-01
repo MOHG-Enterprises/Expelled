@@ -16,6 +16,7 @@ import {
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
   MAX_PLAYERS_PER_ROOM,
+  PROFESSOR_LOCK_DURATION_MS,
   checkWinConditions,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
@@ -188,12 +189,14 @@ io.on('connection', (socket) => {
     if (survivors.length < 1 || !survivors.every((pl) => pl.ready)) return;
     state.phase = 'playing';
     io.to(roomName).emit('gamePhase', 'playing');
-    state.professorLockedEndsAt = Date.now() + 10_000;
+    state.professorLockedEndsAt = Date.now() + PROFESSOR_LOCK_DURATION_MS;
     io.to(roomName).emit('professorLocked', { endsAt: state.professorLockedEndsAt });
     setTimeout(() => {
-      state.professorLockedEndsAt = null;
+      const currentState = rooms[roomName];
+      if (!currentState || currentState.phase !== 'playing') return;
+      currentState.professorLockedEndsAt = null;
       io.to(roomName).emit('professorReleased');
-    }, 10_000);
+    }, PROFESSOR_LOCK_DURATION_MS);
   });
 
   socket.on('requestSync', () => {

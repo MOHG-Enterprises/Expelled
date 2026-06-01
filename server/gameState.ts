@@ -29,6 +29,7 @@ import {
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
   MAX_PLAYERS_PER_ROOM,
+  PROFESSOR_LOCK_DURATION_MS,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
@@ -111,7 +112,7 @@ export { CHASE_LOS_TIMEOUT_MS };
 export { CHASE_FOV_HALF_DEG };
 export { BLOODLUST_TIER_TIMES_MS };
 export { BLOODLUST_SPEED_BONUS_PX_S };
-export { GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS } from '../shared/gameRules';
+export { GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS, PROFESSOR_LOCK_DURATION_MS } from '../shared/gameRules';
 export { BLEED_OUT_MS };
 export { HEAL_FAIL_REGRESSION };
 export { HEAL_FAIL_LOCK_MS };
