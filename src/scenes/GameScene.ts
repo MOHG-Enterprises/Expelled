@@ -870,6 +870,7 @@ export class GameScene extends Phaser.Scene {
       attackHoldActive: this.combat.attackHoldActive,
       isSwinging:       this.combat.isSwinging,
       skinId:           this.mySkinId,
+      ghost:            this.ghost,
     };
 
     const { vx, vy, intendedToMove } = this.movement.update(input, movCtx, pad, delta);
@@ -891,7 +892,7 @@ export class GameScene extends Phaser.Scene {
       this.socket.emit('facing', { dir: this.movement.facingDirection });
     }
 
-    if (this.myRole === 'survivor') {
+    if (this.myRole === 'survivor' && !this.ghost) {
       this.scratchMarks.tickEmit(
         this.socket,
         this.player.x, this.player.y,
@@ -905,7 +906,7 @@ export class GameScene extends Phaser.Scene {
     this.scratchMarks.update(delta);
 
     const _dbgPreFog = performance.now() - _dbgT0;
-    this.fog.update(this.player, this.movement.lookAngle);
+    if (!this.ghost) this.fog.update(this.player, this.movement.lookAngle);
     const _dbgFog = performance.now() - _dbgT0 - _dbgPreFog;
     this.players.update(this.time.now);
     const _dbgPlayers = performance.now() - _dbgT0 - _dbgPreFog - _dbgFog;
@@ -921,7 +922,7 @@ export class GameScene extends Phaser.Scene {
       );
     }
 
-    if (this.myRole === 'survivor') {
+    if (this.myRole === 'survivor' && !this.ghost) {
       if (this.downed) {
         this.hacking.updateDownedSelf(delta, this.beingHealed, intendedToMove, this.myHealPct);
         this.myDownBleedMs = Math.min(this.myDownBleedMs + delta, BLEED_OUT_MS);
