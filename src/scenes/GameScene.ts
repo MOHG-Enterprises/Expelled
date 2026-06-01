@@ -71,6 +71,10 @@ export class GameScene extends Phaser.Scene {
   private bloodlustTier: 0 | 1 | 2 | 3 = 0;
   private sprinting        = false;
   private onHitSprintTimer = 0;
+  private tpCooldown  = 0;
+  private tpLastDest: 'A' | 'B' | null = null;
+  private tp2Cooldown = 0;
+  private tp2LastDest: 'C' | 'D' | null = null;
 
   private beingHealed    = false;
   private myDownCount:   0 | 1 | 2 = 0;
@@ -753,6 +757,40 @@ export class GameScene extends Phaser.Scene {
     const input = this.inputManager.read(pad);
 
     if (input.cJustDown) this.toggleCollisionDebug();
+
+    this.tpCooldown = Math.max(0, this.tpCooldown - delta);
+    if (this.tpCooldown === 0) {
+      const distA = Phaser.Math.Distance.Between(this.player.x, this.player.y, 700, 375);
+      const distB = Phaser.Math.Distance.Between(this.player.x, this.player.y, 1985, 215);
+      if (distA >= 40 && distB >= 40) {
+        this.tpLastDest = null;
+      } else if (distA < 40 && this.tpLastDest !== 'A') {
+        this.player.setPosition(1985, 215);
+        this.tpLastDest = 'B';
+        this.tpCooldown = 5000;
+      } else if (distB < 40 && this.tpLastDest !== 'B') {
+        this.player.setPosition(700, 375);
+        this.tpLastDest = 'A';
+        this.tpCooldown = 5000;
+      }
+    }
+
+    this.tp2Cooldown = Math.max(0, this.tp2Cooldown - delta);
+    if (this.tp2Cooldown === 0) {
+      const distC = Phaser.Math.Distance.Between(this.player.x, this.player.y, 2565, 2635);
+      const distD = Phaser.Math.Distance.Between(this.player.x, this.player.y, 3300, 2450);
+      if (distC >= 40 && distD >= 40) {
+        this.tp2LastDest = null;
+      } else if (distC < 40 && this.tp2LastDest !== 'C') {
+        this.player.setPosition(3300, 2450);
+        this.tp2LastDest = 'D';
+        this.tp2Cooldown = 5000;
+      } else if (distD < 40 && this.tp2LastDest !== 'D') {
+        this.player.setPosition(2565, 2635);
+        this.tp2LastDest = 'C';
+        this.tp2Cooldown = 5000;
+      }
+    }
 
     if (this.inputFrozen) {
       this.promptManager.hide();
