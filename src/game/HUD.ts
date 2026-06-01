@@ -18,17 +18,13 @@ export interface SurvivorStatus {
   bleedMs:     number;
 }
 
-const CARD_GAP = 6;
-const CARD_H   = 76;
-
 const ACCENT_COLORS = [0x4285f4, 0x34a853, 0xfbbc04, 0x9c27b0] as const;
 
 export class HUD {
   private scene: Phaser.Scene;
 
-  private roleBadge!:   Phaser.GameObjects.Graphics;
-  private hudRole!:     Phaser.GameObjects.Text;
-  private downCountDots!: Phaser.GameObjects.Graphics;
+  private downWarn1!: Phaser.GameObjects.Text;
+  private downWarn2!: Phaser.GameObjects.Text;
   private bleedOutBg!:    Phaser.GameObjects.Graphics;
   private bleedOutBar!:   Phaser.GameObjects.Graphics;
   private recoveryBg!:    Phaser.GameObjects.Graphics;
@@ -36,16 +32,20 @@ export class HUD {
   private currentDownCount: 0 | 1 | 2 = 0;
   private healAlertArrows: Map<string, { x: number; y: number; expiresAt: number }> = new Map();
   private hudTerminals!: Phaser.GameObjects.Text;
+  private hudTerminalIcon!: Phaser.GameObjects.Image;
   private hudGate!:      Phaser.GameObjects.Text;
   private endgameTimerBg!:   Phaser.GameObjects.Graphics;
   private endgameTimerBar!:  Phaser.GameObjects.Graphics;
   private endgameTimerText!: Phaser.GameObjects.Text;
-  private hudHint!:    Phaser.GameObjects.Text;
+  private isTouchDevice = false;
+  private hintPanel!:  Phaser.GameObjects.Graphics;
+  private hintLines:   Phaser.GameObjects.Text[] = [];
+  private readonly HINT_MAX_LINES = 2;
   private hudGamepad!: Phaser.GameObjects.Text;
   private hudMic!:     Phaser.GameObjects.Text;
-  private hudAttack!:  Phaser.GameObjects.Text;
-  private terrorHeart!: Phaser.GameObjects.Text;
-  private terrorTween:  Phaser.Tweens.Tween | null = null;
+  private terrorHeart!:  Phaser.GameObjects.Text;
+  private terrorLabel!:  Phaser.GameObjects.Text;
+  private terrorTween:   Phaser.Tweens.Tween | null = null;
   private currentTerrorLevel = -1;
   private chaseIndicatorBg!:   Phaser.GameObjects.Graphics;
   private chaseIndicatorText!: Phaser.GameObjects.Text;
@@ -57,9 +57,13 @@ export class HUD {
   private arrowGraphics!:     Phaser.GameObjects.Graphics;
   private loudNoiseArrows:    Map<string, number> = new Map();
   private lastLoudNoiseTimes: Map<string, number> = new Map();
+  private terminalErrorArrows:     Map<string, number> = new Map();
+  private terminalCompletedArrows: Map<string, number> = new Map();
+  private terminalPinImages:       Map<string, Phaser.GameObjects.Image> = new Map();
 
   private hackBar!:  ProgressBar;
   private healBar!:  ProgressBar;
+  private ghostLabel!: Phaser.GameObjects.Text;
   private survivorCards: SurvivorCard[] = [];
 
   private currentRole:  Role | null = null;
@@ -70,13 +74,14 @@ export class HUD {
     this.scene = scene;
   }
 
-  build() {
-    this.roleBadge = this.scene.add.graphics().setScrollFactor(0).setDepth(30);
-    this.hudRole   = this.scene.add
-      .text(30, 10, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold' })
-      .setScrollFactor(0).setDepth(31);
-
-    this.downCountDots = this.scene.add.graphics().setScrollFactor(0).setDepth(30);
+  build(isTouchDevice = false) {
+    this.isTouchDevice = isTouchDevice;
+    this.downWarn1 = this.scene.add
+      .text(8, 32, '⚠', { fontSize: '13px', color: '#444' })
+      .setScrollFactor(0).setDepth(30).setAlpha(0);
+    this.downWarn2 = this.scene.add
+      .text(22, 32, '⚠', { fontSize: '13px', color: '#444' })
+      .setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.bleedOutBg  = this.scene.add.graphics().setScrollFactor(0).setDepth(29).setAlpha(0);
     this.bleedOutBar = this.scene.add.graphics().setScrollFactor(0).setDepth(30).setAlpha(0);
@@ -84,8 +89,14 @@ export class HUD {
     this.recoveryBar = this.scene.add.graphics().setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.hudTerminals = this.scene.add
-      .text(8, 60, '', { fontSize: '11px', color: '#ccc' })
+      .text(0, 14, '', { fontSize: '16px', color: '#ffcc00', stroke: '#000', strokeThickness: 3 })
+      .setOrigin(0, 0)
       .setScrollFactor(0).setDepth(30);
+
+    this.hudTerminalIcon = this.scene.add
+      .image(0, 22, 'computer-terminal-sheet', 0)
+      .setDisplaySize(16, 16)
+      .setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.hudGate = this.scene.add
       .text(8, 74, '', { fontSize: '12px', color: '#00e676', stroke: '#000', strokeThickness: 3 })
@@ -94,27 +105,36 @@ export class HUD {
     this.endgameTimerBg   = this.scene.add.graphics().setScrollFactor(0).setDepth(35).setAlpha(0);
     this.endgameTimerBar  = this.scene.add.graphics().setScrollFactor(0).setDepth(36).setAlpha(0);
     this.endgameTimerText = this.scene.add
-      .text(400, 4, '', { fontSize: '12px', color: '#ff4444', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
+      .text(400, 4, '', { fontSize: '15px', color: '#ff4444', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0).setScrollFactor(0).setDepth(37).setAlpha(0);
 
-    this.hudHint = this.scene.add
-      .text(8, 578, '', { fontSize: '11px', color: '#777' })
-      .setScrollFactor(0).setDepth(30);
-
-    this.hudGamepad = this.scene.add
-      .text(792, 8, 'Controle inativo — pressione um botao para ativar', { fontSize: '10px', color: '#555' })
-      .setOrigin(1, 0).setScrollFactor(0).setDepth(30);
-
-    this.hudAttack = this.scene.add
-      .text(792, 550, '', { fontSize: '13px', color: '#fff' })
-      .setOrigin(1, 0).setScrollFactor(0).setDepth(30);
+    this.hintLines = [];
+    if (!this.isTouchDevice) {
+      this.hintPanel = this.scene.add.graphics().setScrollFactor(0).setDepth(30);
+      for (let i = 0; i < this.HINT_MAX_LINES; i++) {
+        this.hintLines.push(
+          this.scene.add
+            .text(0, 0, '', { fontSize: '12px', color: '#bbb' })
+            .setScrollFactor(0).setDepth(31).setAlpha(0),
+        );
+      }
+    }
 
     this.hudMic = this.scene.add
-      .text(792, 568, '', { fontSize: '11px', color: '#4caf50' })
+      .text(792, 8, '', { fontSize: '14px', color: '#4caf50' })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(30);
+
+    this.hudGamepad = this.scene.add
+      .text(792, 26, 'Controle inativo — pressione um botao para ativar', { fontSize: '10px', color: '#555' })
+      .setOrigin(1, 0).setScrollFactor(0).setDepth(30)
+      .setVisible(!this.usingGamepad);
 
     this.terrorHeart = this.scene.add
       .text(400, 548, '♥', { fontSize: '30px', color: '#ff2244', stroke: '#000', strokeThickness: 4 })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
+
+    this.terrorLabel = this.scene.add
+      .text(400, 572, 'TERROR', { fontSize: '10px', color: '#ff2244', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.hackBar = new ProgressBar(this.scene, {
@@ -131,7 +151,7 @@ export class HUD {
 
     this.chaseIndicatorBg   = this.scene.add.graphics().setScrollFactor(0).setDepth(30).setAlpha(0);
     this.chaseIndicatorText = this.scene.add
-      .text(762, 28, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
+      .text(770, 28, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(31).setAlpha(0);
 
     this.arrowGraphics = this.scene.add.graphics().setScrollFactor(0).setDepth(32);
@@ -143,15 +163,31 @@ export class HUD {
     this.damageVignette.fillTriangle(0, 600, 200, 600, 0, 400);
     this.damageVignette.fillTriangle(800, 600, 600, 600, 800, 400);
 
-    this._buildSurvivorCards();
+    this._buildSurvivorCards(isTouchDevice);
+
+    this.ghostLabel = this.scene.add
+      .text(400, 284, '💀 FANTASMA 💀', {
+        fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
+        stroke: '#000', strokeThickness: 4,
+      })
+      .setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(31).setAlpha(0);
+
+    const downWarnY = isTouchDevice
+      ? 8 + 4 * (48 + 4) + 8
+      : 32;
+    this.downWarn1.setY(downWarnY);
+    this.downWarn2.setY(downWarnY);
   }
 
-  private _buildSurvivorCards() {
-    const startY = 92;
+  private _buildSurvivorCards(compact: boolean) {
+    this.survivorCards = [];
+    const startY  = compact ? 8  : 92;
+    const cardH   = compact ? 48 : 76;
+    const cardGap = compact ? 4  : 6;
     for (let i = 0; i < 4; i++) {
-      const cardY     = startY + i * (CARD_H + CARD_GAP);
+      const cardY     = startY + i * (cardH + cardGap);
       const baseColor = ACCENT_COLORS[i];
-      this.survivorCards.push(new SurvivorCard(this.scene, cardY, baseColor));
+      this.survivorCards.push(new SurvivorCard(this.scene, cardY, baseColor, compact));
     }
   }
 
@@ -160,53 +196,30 @@ export class HUD {
     this.currentDowned    = downed;
     this.currentDownCount = downCount;
 
-    this._drawRoleBadge(role);
-    this._drawDownCountDots(role, downCount);
+    this._updateDownWarnings(role, downCount);
 
-    this.hudAttack.setVisible(role === 'professor');
     this.refreshHint();
   }
 
-  private _drawRoleBadge(role: Role | null) {
-    this.roleBadge.clear();
-    if (!role) { this.hudRole.setText(''); return; }
-
-    const isProfessor = role === 'professor';
-    const bgColor     = isProfessor ? 0x6a0000 : 0x0d2b45;
-    const textColor   = isProfessor ? '#ff8a80' : '#80d8ff';
-    const label       = isProfessor ? 'PROFESSOR' : 'SOBREVIVENTE';
-
-    this.roleBadge.fillStyle(bgColor, 0.88);
-    this.roleBadge.fillRoundedRect(4, 4, 128, 22, 5);
-    this.roleBadge.lineStyle(1, isProfessor ? 0xaa2222 : 0x1565c0, 0.8);
-    this.roleBadge.strokeRoundedRect(4, 4, 128, 22, 5);
-
-    this.hudRole.setText(label).setColor(textColor);
-  }
-
-  private _drawDownCountDots(role: Role | null, downCount: 0|1|2) {
-    this.downCountDots.clear();
-    if (role !== 'survivor') return;
-
-    const x   = 8;
-    const y   = 32;
-    const r   = 5;
-    const gap = 4;
-
-    for (let i = 0; i < 2; i++) {
-      const used  = i < downCount;
-      const color = used ? 0xe53935 : 0x2a2a2a;
-      const edge  = used ? 0xff6659 : 0x444444;
-      this.downCountDots.fillStyle(color, 0.95);
-      this.downCountDots.fillCircle(x + i * (r * 2 + gap) + r, y + r, r);
-      this.downCountDots.lineStyle(1, edge, 0.9);
-      this.downCountDots.strokeCircle(x + i * (r * 2 + gap) + r, y + r, r);
+  private _updateDownWarnings(role: Role | null, downCount: 0|1|2): void {
+    if (role !== 'survivor') {
+      this.downWarn1.setAlpha(0);
+      this.downWarn2.setAlpha(0);
+      return;
     }
+    this.downWarn1.setColor(downCount >= 1 ? '#e53935' : '#333').setAlpha(1);
+    this.downWarn2.setColor(downCount >= 2 ? '#e53935' : '#333').setAlpha(1);
   }
 
   setTerminalCount(done: number, total: number) {
     if (total === 0) return;
-    this.hudTerminals.setText(`⚡ ${done} / ${total} terminais`);
+    this.hudTerminals.setText(`${done} / ${total} terminais`);
+    const iconSize = 16;
+    const gap = 4;
+    const totalWidth = iconSize + gap + this.hudTerminals.width;
+    const startX = 400 - totalWidth / 2;
+    this.hudTerminalIcon.setPosition(startX + iconSize / 2, 22).setAlpha(1);
+    this.hudTerminals.setPosition(startX + iconSize + gap, 14);
   }
 
   setEndgameTimer(remainingMs: number | null) {
@@ -222,7 +235,7 @@ export class HUD {
     this.endgameTimerText.setAlpha(1);
 
     const BAR_W = 400;
-    const BAR_H = 8;
+    const BAR_H = 12;
     const BAR_X = (800 - BAR_W) / 2;
     const BAR_Y = 0;
     const fill  = Math.min(1, remainingMs / ENDGAME_DURATION_MS) * BAR_W;
@@ -263,9 +276,22 @@ export class HUD {
     this.healBar.setProgress(progress);
   }
 
+  setGhostMode(enabled = true) {
+    this.ghostLabel.setAlpha(enabled ? 0.6 : 0);
+    if (enabled) {
+      this.downWarn1.setAlpha(0);
+      this.downWarn2.setAlpha(0);
+      this.setBleedOutProgress(null);
+      this.setRecoveryProgress(null);
+      this.setHackProgress(null);
+      this.setHealProgress(null);
+      this.damageVignette.setAlpha(0);
+    }
+  }
+
   setDownCount(downCount: 0|1|2) {
     this.currentDownCount = downCount;
-    this._drawDownCountDots(this.currentRole, downCount);
+    this._updateDownWarnings(this.currentRole, downCount);
   }
 
   setBleedOutProgress(pct: number | null) {
@@ -298,15 +324,6 @@ export class HUD {
     this.healAlertArrows.set(targetId, { x: worldX, y: worldY, expiresAt: Date.now() + 3_000 });
   }
 
-  setAttackCooldown(remainingMs: number) {
-    if (!this.hudAttack.visible) return;
-    const label = this.usingGamepad ? 'X' : 'SPACE';
-    if (remainingMs > 0) {
-      this.hudAttack.setText(`[ ${(remainingMs / 1000).toFixed(1)}s ]`).setColor('#666');
-    } else {
-      this.hudAttack.setText(`[ ${label} ]`).setColor('#fff');
-    }
-  }
 
   setGamepadConnected(connected: boolean) {
     this.hudGamepad.setVisible(!connected);
@@ -335,6 +352,7 @@ export class HUD {
 
     if (level === 0) {
       this.terrorHeart.setAlpha(0);
+      this.terrorLabel.setAlpha(0);
       return;
     }
 
@@ -343,6 +361,7 @@ export class HUD {
     const alphas:     [number, number, number, number] = [0, 0.70, 0.85, 1.00];
 
     this.terrorHeart.setAlpha(alphas[level]);
+    this.terrorLabel.setAlpha(alphas[level]);
     this.terrorTween = this.scene.tweens.add({
       targets:     this.terrorHeart,
       scale:       peakScales[level],
@@ -405,12 +424,12 @@ export class HUD {
     const tierLabel = tier === 0 ? 'CHASE' : `CHASE  ${'I'.repeat(tier)}`;
 
     this.chaseIndicatorBg.fillStyle(bg, 0.85);
-    this.chaseIndicatorBg.fillRoundedRect(668, 26, 100, 20, 4);
+    this.chaseIndicatorBg.fillRoundedRect(648, 24, 124, 24, 4);
     this.chaseIndicatorBg.lineStyle(1, 0xffffff, 0.2);
-    this.chaseIndicatorBg.strokeRoundedRect(668, 26, 100, 20, 4);
+    this.chaseIndicatorBg.strokeRoundedRect(648, 24, 124, 24, 4);
     this.chaseIndicatorBg.setAlpha(1);
 
-    this.chaseIndicatorText.setText(tierLabel).setColor(text).setAlpha(1);
+    this.chaseIndicatorText.setPosition(770, 28).setText(tierLabel).setColor(text).setAlpha(1);
   }
 
   updateTerminalArrows(
@@ -422,26 +441,34 @@ export class HUD {
     screenH: number,
   ) {
     this.arrowGraphics.clear();
-    const now    = Date.now();
+    const now = Date.now();
+
+    this.terminalPinImages.forEach(img => img.setAlpha(0));
+
+    this.terminalErrorArrows.forEach((exp, id) => {
+      if (exp <= now) this.terminalErrorArrows.delete(id);
+    });
+    this.terminalCompletedArrows.forEach((exp, id) => {
+      if (exp <= now) this.terminalCompletedArrows.delete(id);
+    });
+
     const cx     = screenW / 2;
     const cy     = screenH / 2;
     const margin = 18;
 
     (Object.keys(positions) as string[]).forEach((id) => {
-      if (completed.has(id)) return;
+      const isRecentlyCompleted = (this.terminalCompletedArrows.get(id) ?? 0) > now;
+      if (completed.has(id) && !isRecentlyCompleted) return;
       const pos = positions[id];
       if (!pos) return;
 
       const sx = pos.x - camX;
       const sy = pos.y - camY;
-      const onScreen = sx >= 0 && sx <= screenW && sy >= 0 && sy <= screenH;
 
       const isLoud  = (this.loudNoiseArrows.get(id) ?? 0) > now;
-      const color   = isLoud ? 0xff2200 : 0xffcc00;
-      const alpha   = isLoud ? (Math.floor(now / 250) % 2 === 0 ? 1.0 : 0.1) : 0.85;
-
-      if (onScreen && isLoud) {
-        this.arrowGraphics.lineStyle(3, color, alpha);
+      if (sx >= 0 && sx <= screenW && sy >= 0 && sy <= screenH && isLoud) {
+        const flashOn = Math.floor(now / 250) % 2 === 0;
+        this.arrowGraphics.lineStyle(3, 0xff2200, flashOn ? 1.0 : 0.1);
         this.arrowGraphics.strokeCircle(sx, sy, 26);
       }
 
@@ -458,7 +485,7 @@ export class HUD {
       const ex   = cx + dx * t;
       const ey   = cy + dy * t;
 
-      this._drawArrowTriangle(ex, ey, angle, color, alpha);
+      this._drawTerminalPin(ex, ey, angle, id);
     });
 
     this.loudNoiseArrows.forEach((expiresAt, id) => {
@@ -518,8 +545,55 @@ export class HUD {
     });
   }
 
+  private _drawTerminalPin(ex: number, ey: number, angle: number, terminalId: string): void {
+    const now         = Date.now();
+    const isLoud      = (this.loudNoiseArrows.get(terminalId) ?? 0) > now;
+    const isErr       = (this.terminalErrorArrows.get(terminalId) ?? 0) > now;
+    const isDone      = (this.terminalCompletedArrows.get(terminalId) ?? 0) > now;
+    const flashing    = isLoud || isErr || isDone;
+    const flash       = flashing ? (Math.floor(now / 250) % 2 === 0) : true;
+    const alpha       = flash ? 0.92 : 0.1;
+    const color       = isDone ? 0x00e676 : (isLoud || isErr) ? 0xff2200 : 0xffcc00;
+
+    const HEAD_R = 16;
+    const TAIL_L = 12;
+    const cos    = Math.cos(angle);
+    const sin    = Math.sin(angle);
+
+    this.arrowGraphics.fillStyle(color, alpha);
+    this.arrowGraphics.fillCircle(ex, ey, HEAD_R);
+    this.arrowGraphics.lineStyle(2, 0xffffff, alpha * 0.55);
+    this.arrowGraphics.strokeCircle(ex, ey, HEAD_R);
+
+    const tipX  = ex + cos * (HEAD_R + TAIL_L);
+    const tipY  = ey + sin * (HEAD_R + TAIL_L);
+    const perpX = -sin;
+    const perpY =  cos;
+    const wing  = 7;
+    this.arrowGraphics.fillStyle(color, alpha);
+    this.arrowGraphics.fillTriangle(
+      tipX, tipY,
+      ex + perpX * wing, ey + perpY * wing,
+      ex - perpX * wing, ey - perpY * wing,
+    );
+
+    const frame    = isDone ? 9 : (isErr || isLoud) ? 8 : 0;
+    const imgAlpha = flash ? 0.9 : 0.1;
+
+    let img = this.terminalPinImages.get(terminalId);
+    if (!img) {
+      img = this.scene.add
+        .image(ex, ey, 'computer-terminal-sheet', frame)
+        .setDisplaySize(22, 22)
+        .setScrollFactor(0)
+        .setDepth(33);
+      this.terminalPinImages.set(terminalId, img);
+    }
+    img.setPosition(ex, ey).setFrame(frame).setAlpha(imgAlpha);
+  }
+
   private _drawHealAlertArrow(x: number, y: number, angle: number, alpha: number) {
-    const size = 18;
+    const size = 22;
     const cos  = Math.cos(angle);
     const sin  = Math.sin(angle);
     const tipX = x + cos * size;
@@ -535,7 +609,7 @@ export class HUD {
   }
 
   private _drawArrowTriangle(x: number, y: number, angle: number, color: number, alpha: number) {
-    const size = 12;
+    const size = 16;
     const cos  = Math.cos(angle);
     const sin  = Math.sin(angle);
     const tipX = x + cos * size;
@@ -546,6 +620,14 @@ export class HUD {
     const rY   = y + sin * -size * 0.5 - cos * size * 0.6;
     this.arrowGraphics.fillStyle(color, alpha);
     this.arrowGraphics.fillTriangle(tipX, tipY, lX, lY, rX, rY);
+  }
+
+  setTerminalError(terminalId: string, durationMs = 3000): void {
+    this.terminalErrorArrows.set(terminalId, Date.now() + durationMs);
+  }
+
+  setTerminalCompleted(terminalId: string, durationMs = 3000): void {
+    this.terminalCompletedArrows.set(terminalId, Date.now() + durationMs);
   }
 
   showLoudNoiseAlert(
@@ -575,8 +657,9 @@ export class HUD {
     bg.strokeRoundedRect(BX, BY, BW, BH, 6);
 
     const icon = this.scene.add
-      .text(BX + 10, BY + BH / 2, '⚡', { fontSize: '16px', color: '#ff8800' })
-      .setOrigin(0, 0.5).setScrollFactor(0).setDepth(51);
+      .image(BX + 20, BY + BH / 2, 'computer-terminal-sheet', 0)
+      .setDisplaySize(20, 20)
+      .setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(51);
 
     const label = this.scene.add
       .text(BX + 32, BY + BH / 2, `SKILL CHECK — ${terminalId}`, {
@@ -593,19 +676,47 @@ export class HUD {
   }
 
   private refreshHint() {
+    if (this.isTouchDevice) return;
+    if (!this.hintPanel) return;
+
+    this.hintPanel.clear();
+    this.hintLines.forEach(t => t.setAlpha(0));
+
     const gp = this.usingGamepad;
+    let lines: string[] = [];
+
     if (this.currentDowned) {
-      this.hudHint.setText(gp ? 'X para responder' : 'SPACE para responder');
+      lines = [gp ? '[X] Responder' : '[SPACE] Responder'];
     } else if (this.currentRole === 'survivor') {
-      this.hudHint.setText(gp
-        ? 'A (segurar) = hackear  |  A na saida = fugir'
-        : 'E (segurar) = hackear  |  E na saida = fugir');
+      lines = [
+        gp ? '[A] Hackear / Fugir' : '[E] Hackear / Fugir',
+        gp ? '[RB] Correr'         : '[SHIFT] Correr',
+      ];
     } else if (this.currentRole === 'professor') {
-      this.hudHint.setText(gp
-        ? 'X = atacar  |  A = reforcar terminal'
-        : 'SPACE = atacar  |  E = reforcar terminal');
-    } else {
-      this.hudHint.setText('');
+      lines = [
+        gp ? '[X] Atacar'   : '[SPACE] Atacar',
+        gp ? '[A] Reforçar' : '[E] Reforçar',
+      ];
     }
+
+    if (lines.length === 0) return;
+
+    const PANEL_X = 8;
+    const LINE_H  = 17;
+    const PAD_V   = 7;
+    const PANEL_W = 220;
+    const PANEL_H = lines.length * LINE_H + PAD_V * 2 - 2;
+    const PANEL_Y = 596 - PANEL_H;
+
+    this.hintPanel.fillStyle(0x000000, 0.55);
+    this.hintPanel.fillRoundedRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 5);
+
+    lines.forEach((line, i) => {
+      if (i >= this.hintLines.length) return;
+      this.hintLines[i]
+        .setText(line)
+        .setPosition(PANEL_X + 8, PANEL_Y + PAD_V + i * LINE_H)
+        .setAlpha(1);
+    });
   }
 }
