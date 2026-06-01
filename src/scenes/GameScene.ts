@@ -102,6 +102,9 @@ export class GameScene extends Phaser.Scene {
   private collisionDebugEnabled     = false;
   private lastCollisionLogAt: Record<string, number> = {};
 
+  private portaoboiLayer:    Phaser.Tilemaps.TilemapLayer | null = null;
+  private portaoboiCollider: Phaser.Physics.Arcade.Collider | null = null;
+
   private endgameReceivedAt: number | null = null;
   private endgameBellsRung = new Set<number>();
 
@@ -230,6 +233,8 @@ export class GameScene extends Phaser.Scene {
     this.myDownBleedMs   = 0;
     this.lastMoveEmit    = 0;
     this.endgameReceivedAt = null;
+    this.portaoboiLayer    = null;
+    this.portaoboiCollider = null;
     this.endgameBellsRung.clear();
     this.survivorOrder = [];
     this.survivorInfo.clear();
@@ -279,10 +284,14 @@ export class GameScene extends Phaser.Scene {
     map.layers.forEach((layerData) => {
       const layer = map.getLayer(layerData.name)?.tilemapLayer;
       if (layer && COLLISION_LAYERS.has(layerData.name)) {
-        this.physics.add.collider(
+        const collider = this.physics.add.collider(
           this.player, layer,
           (_p, tile) => this.logCollisionLayer(layerData.name, tile as Phaser.Tilemaps.Tile),
         );
+        if (layerData.name === 'PORTAOBOI') {
+          this.portaoboiLayer    = layer;
+          this.portaoboiCollider = collider;
+        }
       }
     });
 
@@ -376,6 +385,15 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  private _releaseProfessor(silent = false): void {
+    this.portaoboiCollider?.destroy();
+    this.portaoboiLayer?.destroy();
+    this.portaoboiCollider = null;
+    this.portaoboiLayer    = null;
+    this.hud.stopProfessorCountdown();
+    if (!silent) this.hud.flash('O professor foi liberado!', 0xff4444, 3000);
+  }
+
   // ── Socket event setup ─────────────────────────────────────────────────────
 
   private setupSocketEvents() {
@@ -411,6 +429,14 @@ export class GameScene extends Phaser.Scene {
         this.trackSurvivor(s.id!, { hp: this.myHp, downed: false, expelled: false, escaped: false });
         this.refreshSurvivorHUD();
       }
+    });
+
+    s.on('professorLocked', ({ endsAt }: { endsAt: number }) => {
+      this.hud.startProfessorCountdown(endsAt);
+    });
+
+    s.on('professorReleased', () => {
+      this._releaseProfessor();
     });
 
     s.on('gameState', (state: GameState) => {
@@ -464,6 +490,13 @@ export class GameScene extends Phaser.Scene {
         this.hud.setEndgameTimer(Math.max(0, ENDGAME_DURATION_MS - elapsed));
       }
       this.refreshSurvivorHUD();
+      if (state.professorLockedEndsAt !== null) {
+        if (state.professorLockedEndsAt > Date.now()) {
+          this.hud.startProfessorCountdown(state.professorLockedEndsAt);
+        } else {
+          this._releaseProfessor(true);
+        }
+      }
     });
 
     s.on('gamePhase', (_phase: GamePhase) => {
