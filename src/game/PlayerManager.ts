@@ -267,6 +267,11 @@ export class PlayerManager {
     return { x: tracked.sprite.x, y: tracked.sprite.y };
   }
 
+  getFacingDirection(id: string): MoveDirection | null {
+    const p = this.others[id];
+    return p ? p.facingDirection : null;
+  }
+
   getPositions(): Record<string, { x: number; y: number }> {
     const result: Record<string, { x: number; y: number }> = {};
     Object.entries(this.others).forEach(([id, p]) => {

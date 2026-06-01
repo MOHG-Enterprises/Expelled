@@ -34,7 +34,7 @@ export class FogOfWar {
     this.maskGraphics?.destroy();
 
     this.overlay = this.scene.add
-      .rectangle(0, 0, 800, 600, 0x000000)
+      .rectangle(0, 0, 8000, 8000, 0x000000)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(25);
@@ -54,6 +54,10 @@ export class FogOfWar {
 
   rebuildGrid(map: Phaser.Tilemaps.Tilemap) {
     this.buildSolidGrid(map);
+  }
+
+  setFullReveal(enabled: boolean) {
+    this.overlay?.setVisible(!enabled);
   }
 
   private buildSolidGrid(map: Phaser.Tilemaps.Tilemap) {

@@ -67,6 +67,14 @@ export class StartScene extends Phaser.Scene {
 
     const startGame = () => {
       (this.sound as { context?: AudioContext }).context?.resume();
+      if (this.scale.isFullscreen === false) {
+        this.scale.startFullscreen();
+      }
+      this.input.off('pointerup', startGame);
+      if (kb) {
+        kb.off('keydown-SPACE', startGame);
+        kb.off('keydown-ENTER', startGame);
+      }
       this.scene.start('LobbyScene');
     };
 
@@ -75,5 +83,10 @@ export class StartScene extends Phaser.Scene {
     sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       button.setVisible(true);
     });
+    this.input.on('pointerup', startGame);
+    if (kb) {
+      kb.on('keydown-SPACE', startGame);
+      kb.on('keydown-ENTER', startGame);
+    }
   }
 }

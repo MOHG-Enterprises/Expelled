@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { io } from '../socketClient';
 import type { Socket } from '../socketClient';
-import { ROOM_NAMES } from '../constants';
+import { ROOM_NAMES, MAX_PLAYERS_PER_ROOM } from '../constants';
 
 type LobbyRole = 'professor' | 'survivor';
 
@@ -52,6 +52,7 @@ export class LobbyScene extends Phaser.Scene {
   private roomButtons: Phaser.GameObjects.Text[] = [];
   private roomCountTexts: Phaser.GameObjects.Text[] = [];
   private inRoomUI: Phaser.GameObjects.GameObject[] = [];
+  private errorText!: Phaser.GameObjects.Text;
 
   // gamepad nav
   private selectedRoomIdx = 0;
@@ -61,6 +62,35 @@ export class LobbyScene extends Phaser.Scene {
   private padPrevStart = false;
 
   constructor() { super('LobbyScene'); }
+
+  init() {
+    if (this.kbListener) {
+      window.removeEventListener('keydown', this.kbListener);
+      this.kbListener = null;
+    }
+    this.cursorTimer?.remove(false);
+    this.cursorTimer    = undefined;
+    this.cursorOn       = false;
+    this.playerCount    = 0;
+    this.myRole         = null;
+    this.isReady        = false;
+    this.readySurvivors = 0;
+    this.totalSurvivors = 0;
+    this.currentRoom    = null;
+    this.chosenSkinId   = 'arthur';
+    this.pickerSkinId   = 'arthur';
+    this.pickerName     = '';
+    this.pickerUI       = [];
+    this.skinRings      = [];
+    this.roomButtons    = [];
+    this.roomCountTexts = [];
+    this.inRoomUI       = [];
+    this.selectedRoomIdx  = 0;
+    this.padPrevDown    = false;
+    this.padPrevUp      = false;
+    this.padPrevA       = false;
+    this.padPrevStart   = false;
+  }
 
   preload() {
     SURVIVOR_SKINS.forEach(({ iconKey, iconPath }) => {
@@ -79,7 +109,8 @@ export class LobbyScene extends Phaser.Scene {
   create() {
     this.socket = io({ path: '/expelled/socket.io' });
 
-    this.add.rectangle(400, 300, 800, 600, 0x1a1a2e);
+    this.cameras.main.setBackgroundColor('#1a1a2e');
+    this.cameras.main.centerOn(400, 300);
 
     this.add.text(400, 60, 'EXPELLED', {
       fontSize: '48px', color: '#e94560', stroke: '#000', strokeThickness: 6,
@@ -118,7 +149,7 @@ export class LobbyScene extends Phaser.Scene {
       this.readySurvivors = survivors.filter((p) => p.ready).length;
       const me = this.socket.id ? state.players[this.socket.id] : undefined;
       if (me?.role === 'survivor') this.isReady = !!me.ready;
-      this.countText.setText(`Jogadores na sala: ${this.playerCount} / 5`);
+      this.countText.setText(`Jogadores na sala: ${this.playerCount} / ${MAX_PLAYERS_PER_ROOM}`);
       this.statusText.setText(`Alunos prontos: ${this.readySurvivors}/${this.totalSurvivors}`);
       this.refreshActionLabel();
     });
@@ -127,6 +158,15 @@ export class LobbyScene extends Phaser.Scene {
       if (phase === 'playing') {
         this.stopKeyboardInput();
         this.scene.start('GameScene', { socket: this.socket, roomName: this.currentRoom, skinId: this.chosenSkinId });
+      }
+    });
+
+    this.socket.on('joinRejected', ({ reason }: { reason: string }) => {
+      if (reason === 'full') {
+        this.currentRoom = null;
+        this.showRoomSelection();
+        this.errorText.setText('Sala cheia! Escolha outra.').setVisible(true);
+        this.time.delayedCall(2000, () => this.errorText.setVisible(false));
       }
     });
 
@@ -261,6 +301,10 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     this.inRoomUI = [this.countText, this.statusText, hint, padHint, this.actionText, controls];
+
+    this.errorText = this.add.text(400, 560, '', {
+      fontSize: '16px', color: '#e94560', align: 'center',
+    }).setOrigin(0.5).setVisible(false);
   }
 
   private buildPickerUI() {
@@ -432,7 +476,7 @@ export class LobbyScene extends Phaser.Scene {
 
   private roomLabel(name: string, count: number, phase: string): string {
     const phaseStr = phase === 'playing' ? ' [em jogo]' : phase === 'ended' ? ' [encerrada]' : '';
-    return `${name.toUpperCase()}  —  ${count}/5 jogadores${phaseStr}`;
+    return `${name.toUpperCase()}  —  ${count}/${MAX_PLAYERS_PER_ROOM} jogadores${phaseStr}`;
   }
 
   private updateRoomButtons(summary: RoomSummary) {

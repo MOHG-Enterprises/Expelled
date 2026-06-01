@@ -52,7 +52,9 @@
       "PowerShell(npm run typecheck 2>&1)",
       "PowerShell(head -30)",
       "Bash(npm show *)",
-      "Bash(tsc *)"
+      "Bash(tsc *)",
+      "Bash(grep -v \"^.*//.*$\")",
+      "Bash(python3 *)"
     ]
   }
 }
