@@ -56,6 +56,10 @@ export class FogOfWar {
     this.buildSolidGrid(map);
   }
 
+  setFullReveal(enabled: boolean) {
+    this.overlay?.setVisible(!enabled);
+  }
+
   private buildSolidGrid(map: Phaser.Tilemaps.Tilemap) {
     this.mapWidth = map.width;
     this.mapHeight = map.height;
