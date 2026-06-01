@@ -15,6 +15,7 @@ import {
   HEAL_FAIL_REGRESSION,
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
+  MAX_PLAYERS_PER_ROOM,
   checkWinConditions,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
@@ -110,6 +111,12 @@ io.on('connection', (socket) => {
     if (!(ROOM_NAMES as readonly string[]).includes(roomName)) return;
     if (socketToRoom.has(socket.id)) return;
 
+    const existing = rooms[roomName];
+    if (existing && Object.keys(existing.players).length >= MAX_PLAYERS_PER_ROOM) {
+      socket.emit('joinRejected', { reason: 'full' });
+      return;
+    }
+
     const state = getOrCreateRoom(roomName);
     socket.join(roomName);
     socketToRoom.set(socket.id, roomName);
@@ -199,7 +206,7 @@ io.on('connection', (socket) => {
     if (!room) return;
     const { roomName, state } = room;
     const p = state.players[socket.id];
-    if (!p || p.expelled || p.escaped) return;
+    if (!p || p.escaped) return;
     if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
     p.x = data.x;
     p.y = data.y;
