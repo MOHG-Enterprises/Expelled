@@ -36,7 +36,7 @@ import { processEscape, tickBleedOut } from './systems/detention';
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server, { path: './expelled/socket.io' });
+const io     = new Server(server, { path: '/expelled/socket.io' });
 
 app.use(express.static(path.join(__dirname, '../')));
 
