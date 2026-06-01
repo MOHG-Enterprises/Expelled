@@ -10,6 +10,8 @@ import {
   WORLD_WIDTH, WORLD_HEIGHT, MAP_SCALE,
   TERROR_RADIUS,
   ENDGAME_DURATION_MS,
+  FOV_PROFESSOR,
+  FOV_PROFESSOR_CONE_DEG,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { buildTilemap, preloadMapAssets, COLLISION_LAYERS } from '../mapConfig';
@@ -24,6 +26,7 @@ import { TerminalManager } from '../game/TerminalManager';
 import { PlayerManager }   from '../game/PlayerManager';
 import { ScratchMarkManager } from '../game/ScratchMarkManager';
 import { VoiceManager }       from '../game/VoiceManager';
+import { TouchControlManager } from '../game/TouchControlManager';
 import { ExitGateManager }    from '../game/ExitGateManager';
 import { InteractionPromptManager } from '../game/InteractionPromptManager';
 import {
@@ -63,6 +66,8 @@ export class GameScene extends Phaser.Scene {
   private myHp         = 2;
   private downed       = false;
   private expelled     = false;
+  private ghost         = false;
+  private corpseSprites = new Map<string, Phaser.GameObjects.Sprite>();
   private escaped      = false;
   private inputFrozen  = false;
   private staggerTimer = 0;
@@ -107,7 +112,9 @@ export class GameScene extends Phaser.Scene {
   private players!:     PlayerManager;
   private gates!:       ExitGateManager;
   private scratchMarks!: ScratchMarkManager;
-  private voiceManager:  VoiceManager | null = null;
+  private voiceManager:   VoiceManager | null = null;
+  private touchControls:  TouchControlManager | null = null;
+  private isTouchDevice   = false;
 
   private inputManager!:   InputManager;
   private movement!:       MovementSystem;
@@ -208,6 +215,8 @@ export class GameScene extends Phaser.Scene {
     this.myHp            = 2;
     this.downed          = false;
     this.expelled        = false;
+    this.ghost           = false;
+    this.corpseSprites.clear();
     this.escaped         = false;
     this.inputFrozen     = false;
     this.staggerTimer    = 0;
@@ -287,15 +296,15 @@ export class GameScene extends Phaser.Scene {
     this.players     = new PlayerManager(this);
     this.scratchMarks = new ScratchMarkManager(this);
 
-    this.promptManager = new InteractionPromptManager(this);
-    this.inputManager  = new InputManager(this);
+    this.promptManager  = new InteractionPromptManager(this);
+    this.isTouchDevice  = navigator.maxTouchPoints > 0;
+    this.inputManager   = new InputManager(this, this.isTouchDevice);
     this.movement      = new MovementSystem(this.player);
     this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager);
     this.hacking       = new HackingSystem(
       this, this.player, this.socket,
       this.terminals, this.gates, this.players,
       this.hud, this.skillCheck,
-      (frozen) => { this.inputFrozen = frozen; },
       this.promptManager,
     );
 
@@ -311,25 +320,47 @@ export class GameScene extends Phaser.Scene {
       this.hud.setGamepadConnected(false);
     });
 
-    this.hud.build();
+    if (this.isTouchDevice) {
+      this.touchControls = new TouchControlManager(this);
+      this.touchControls.build();
+    }
+    this.hud.build(this.isTouchDevice);
     this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). C = debug', 0xffcc00, 2600);
 
     this.socket.removeAllListeners();
     this.setupSocketEvents();
     this.socket.emit('requestSync');
 
-    this.voiceManager = new VoiceManager();
-    this.voiceManager.init(this.socket)
-      .then(() => { this.hud.setMicState('active'); })
-      .catch(() => {
-        this.hud.flash('Microfone nao detectado — sem voz', 0xff8800, 3000);
-        this.hud.setMicState('error');
-      });
+    let _renderT = 0;
+    this.events.on('prerender',  () => { _renderT = performance.now(); });
+    this.events.on('postrender', () => {
+      const dt = performance.now() - _renderT;
+      if (dt > 30) console.warn(`[render-slow] ${dt.toFixed(1)}ms`);
+    });
+
+    let _hbLast = performance.now();
+    setInterval(() => {
+      const now = performance.now();
+      const gap = now - _hbLast;
+      if (gap > 300) console.warn(`[hb-miss] ${gap.toFixed(0)}ms @ ${now.toFixed(0)}ms`);
+      _hbLast = now;
+    }, 100);
+
+    // TEMP: desabilitado para diagnóstico de lag
+    // this.voiceManager = new VoiceManager();
+    // this.voiceManager.init(this.socket)
+    //   .then(() => { this.hud.setMicState('active'); })
+    //   .catch(() => {
+    //     this.hud.flash('Microfone nao detectado — sem voz', 0xff8800, 3000);
+    //     this.hud.setMicState('error');
+    //   });
   }
 
   shutdown() {
     this.voiceManager?.destroy();
     this.voiceManager = null;
+    this.touchControls?.destroy();
+    this.touchControls = null;
   }
 
   private getSpawnPoint(role: Role): { x: number; y: number } {
@@ -369,8 +400,9 @@ export class GameScene extends Phaser.Scene {
       this.player.setPosition(spawn.x, spawn.y);
       (this.player.body as Phaser.Physics.Arcade.Body).reset(spawn.x, spawn.y);
       this.fog.setup(role, this.mapRef!);
-      this.hud.build();
+      this.hud.build(this.isTouchDevice);
       this.hud.update(role, this.myHp, this.downed);
+      this.touchControls?.setRole(role, this.downed);
       if (role === 'professor') {
         this.terminals.setAuraMode(true);
         this.gates.setAuraMode(true);
@@ -458,10 +490,14 @@ export class GameScene extends Phaser.Scene {
         myId:   s.id!,
         socket: s,
       });
-      this.time.delayedCall(600, () => this.scene.start('PostGameScene'));
+      const msg   = payload.winner === 'survivors' ? 'ALUNOS ESCAPARAM!' : 'PROFESSOR VENCEU!';
+      const color = payload.winner === 'survivors' ? 0x00e676 : 0xff1744;
+      this.hud.flash(msg, color, 4500);
+      this.time.delayedCall(5000, () => this.scene.start('PostGameScene'));
     });
 
     s.on('gameReset', () => {
+      if (!this.scene.isActive()) return;
       this.scratchMarks?.clear();
       this.voiceManager?.destroy();
       this.voiceManager = null;
@@ -520,12 +556,14 @@ export class GameScene extends Phaser.Scene {
     s.on('terminalHacked', (id: string) => {
       this.terminals.setProgress(id, 100);
       this.refreshTerminalHUD();
+      this.hud.setTerminalCompleted(id, 3000);
       this.hud.flash('Terminal hackeado!', 0x00e676);
     });
 
     s.on('firewallAlert', ({ terminalId }: { terminalId: string }) => {
       this.terminals.setFailed(terminalId, HACK_FAIL_LOCK_MS);
       this.terminals.setLocked(terminalId, HACK_FAIL_LOCK_MS);
+      this.hud.setTerminalError(terminalId, 3000);
       if (this.hacking.activeHackingTerminal === terminalId) {
         this.hacking.onHackLockApplied();
       }
@@ -585,6 +623,7 @@ export class GameScene extends Phaser.Scene {
         this.promptManager.hide();
         this.socket.emit('setHealing', { targetId: null });
         this.hud.update(this.myRole, this.myHp, true, this.myDownCount);
+        this.touchControls?.setRole(this.myRole, true);
         this.hud.flash('Você foi derrubado!', 0xff4444);
         this.hud.setDamageVignette(0, true);
         this.hud.flashDamageVignette();
@@ -621,6 +660,7 @@ export class GameScene extends Phaser.Scene {
         this.myHealPct   = 0;
         this.beingHealed = false;
         this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
+        this.touchControls?.setRole(this.myRole, false);
         this.hud.setHealProgress(null);
         this.hud.flash('Revivido! Cuide-se.', 0x4fc3f7);
         this.hud.setDamageVignette(hp, false);
@@ -689,8 +729,8 @@ export class GameScene extends Phaser.Scene {
     s.on('playerExpelled', (id: string) => {
       if (id === s.id) {
         this.expelled    = true;
-        this.downed      = false;
         this.inputFrozen = true;
+        this.player.setAlpha(0.25);
         this.hud.update(this.myRole, this.myHp, false, this.myDownCount);
         this.hud.flash('Você foi expulso!', 0xff1744, 4000);
       } else {
@@ -739,7 +779,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (delta > 200) console.warn(`[spike] frame=${Math.round(delta)}ms @ t=${Math.round(_time)}ms`);
+    if (delta > 50) console.warn(`[spike] frame=${Math.round(delta)}ms @ t=${Math.round(_time)}ms`);
     const _dbgT0 = performance.now();
     this.skillCheck.update(delta);
     this.terminals.update(delta);
@@ -750,18 +790,17 @@ export class GameScene extends Phaser.Scene {
     const pad = (this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.pad1 ?? null;
     this.hud.setGamepadConnected(pad !== null);
 
-    const input = this.inputManager.read(pad);
+    const touchState = this.touchControls?.readAndClear();
+    const input      = this.inputManager.read(pad, touchState);
 
     if (input.cJustDown) this.toggleCollisionDebug();
 
+    if (!this.inputFrozen && this.skillCheck.active && (input.attackJust || input.actionJust)) {
+      this.skillCheck.tryHit();
+    }
+
     if (this.inputFrozen) {
       this.promptManager.hide();
-      if (this.skillCheck.active && input.attackJust) {
-        this.skillCheck.tryHit();
-      }
-      if (this.skillCheck.active && this.hacking.activeHackingTerminal !== null && !input.actionHeld) {
-        this.skillCheck.cancel();
-      }
       if (this.staggerTimer > 0) {
         this.staggerTimer -= delta;
         if (this.staggerTimer <= 0) {
@@ -794,7 +833,7 @@ export class GameScene extends Phaser.Scene {
       if (this.myRole === 'professor') {
         const cam = this.cameras.main;
         this.hud.updateTerminalArrows(
-          this.terminals.getPositions(), this.terminals.getCompleted(),
+          this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
         );
       }
@@ -898,7 +937,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.myRole === 'professor') {
       const nearTermId = this.terminals.nearest(this.player.x, this.player.y) as TerminalId | null;
-      const nearTermInfo = nearTermId && this.terminals.getProgress(nearTermId) > 0
+      const nearTermInfo = nearTermId && this.terminals.getProgress(nearTermId) > 0 && !this.terminals.isRegressing(nearTermId)
         ? { id: nearTermId, pos: this.terminals.getPositions()[nearTermId]! }
         : null;
       this.combat.update(
@@ -907,11 +946,9 @@ export class GameScene extends Phaser.Scene {
         this.movement.lookAngle,
         nearTermInfo,
       );
-      this.hud.setAttackCooldown(this.staggerTimer);
-
-      const cam = this.cameras.main;
+const cam = this.cameras.main;
       this.hud.updateTerminalArrows(
-        this.terminals.getPositions(), this.terminals.getCompleted(),
+        this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
         cam.scrollX, cam.scrollY, cam.width, cam.height,
       );
     }
@@ -942,6 +979,40 @@ export class GameScene extends Phaser.Scene {
       this.playerBodyDebugGraphics.lineStyle(2, 0x00ff00, 1);
       this.playerBodyDebugGraphics.strokeRect(body.left, body.top, body.width, body.height);
     }
+
+    this.touchControls?.setSkillCheckActive(this.skillCheck.active && this.myRole === 'survivor');
+  }
+
+  private _terminalPositionsOutsideFov(): Readonly<Partial<Record<string, { x: number; y: number }>>> {
+    const all = this.terminals.getPositions();
+    const px = this.player.x;
+    const py = this.player.y;
+    const angle = this.movement.lookAngle;
+    const radiusSq = FOV_PROFESSOR * FOV_PROFESSOR;
+    const halfCone = Phaser.Math.DegToRad(FOV_PROFESSOR_CONE_DEG / 2);
+    const result: Partial<Record<string, { x: number; y: number }>> = {};
+    for (const [id, pos] of Object.entries(all)) {
+      if (!pos) continue;
+      const dx = pos.x - px;
+      const dy = pos.y - py;
+      if (dx * dx + dy * dy <= radiusSq) {
+        let diff = Math.atan2(dy, dx) - angle;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        if (Math.abs(diff) <= halfCone) continue;
+      }
+      result[id] = pos;
+    }
+    return result;
+  }
+
+  private _spawnCorpse(id: string, x: number, y: number, skinId: string, direction: MoveDirection) {
+    const effectiveSkin = skinId || 'arthur';
+    const skin = getSkinById(effectiveSkin);
+    if (!skin.hurt) return;
+    const sprite = this.add.sprite(x, y, skin.hurt.key).setDepth(3);
+    applyDownedFrameById(sprite, effectiveSkin, direction);
+    this.corpseSprites.set(id, sprite);
   }
 
   private _getDownedArrowPositions(): Record<string, { x: number; y: number }> {
