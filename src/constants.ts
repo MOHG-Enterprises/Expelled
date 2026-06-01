@@ -90,6 +90,31 @@ export const COLOR_OTHER_PROF     = 0xff6b6b;
 export const COLOR_TERMINAL_IDLE  = 0xaaaaaa;
 export const COLOR_TERMINAL_DONE  = 0x00e676;
 
+//  spawn points dos sobreviventes
+export const SURVIVOR_SPAWN_POINTS: ReadonlyArray<{ x: number; y: number }> = [
+  // Ala superior-esquerda
+  { x: 640,  y: 384  },
+  { x: 992,  y: 256  },
+  { x: 1120, y: 640  },
+  { x: 1312, y: 448  },
+  // Corredor esquerdo
+  { x: 672,  y: 1440 },
+  { x: 672,  y: 2208 },
+  { x: 672,  y: 2560 },
+  { x: 1056, y: 2208 },
+  // Ala inferior-esquerda
+  { x: 672,  y: 3200 },
+  { x: 1056, y: 3456 },
+  { x: 1024, y: 4064 },
+  // Ala superior-centro
+  { x: 1760, y: 800  },
+  { x: 1216, y: 1120 },
+  { x: 1760, y: 1760 },
+  // Ala direita
+  { x: 2656, y: 1504 },
+  { x: 2880, y: 2208 },
+];
+
 //  gates
 export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {
   g1: { x: 464, y: 2222 },

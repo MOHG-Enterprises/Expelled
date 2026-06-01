@@ -12,6 +12,7 @@ import {
   ENDGAME_DURATION_MS,
   FOV_PROFESSOR,
   FOV_PROFESSOR_CONE_DEG,
+  SURVIVOR_SPAWN_POINTS,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { buildTilemap, preloadMapAssets, COLLISION_LAYERS } from '../mapConfig';
@@ -376,13 +377,7 @@ export class GameScene extends Phaser.Scene {
     const centerX = this.mapWorldWidth * 0.5;
     const centerY = this.mapWorldHeight * 0.55;
     if (role === 'professor') return { x: centerX, y: centerY };
-
-    const angle  = Phaser.Math.FloatBetween(Math.PI * 0.5, Math.PI * 1.5);
-    const radius = 180;
-    return {
-      x: Phaser.Math.Clamp(centerX + Math.cos(angle) * radius, 64, this.mapWorldWidth - 64),
-      y: Phaser.Math.Clamp(centerY + Math.sin(angle) * radius, 64, this.mapWorldHeight - 64),
-    };
+    return Phaser.Math.RND.pick(SURVIVOR_SPAWN_POINTS as Array<{ x: number; y: number }>);
   }
 
   private _releaseProfessor(silent = false): void {
