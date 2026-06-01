@@ -26,6 +26,7 @@ export {
   HEAL_FAIL_LOCK_MS,
   HEAL_AMOUNT_MAX,
   HEAL_SELF_CAP,
+  MAX_PLAYERS_PER_ROOM,
 } from '../shared/gameRules';
 
 //  mundo 
@@ -49,9 +50,9 @@ export const STAGGER_MS         = 1500; // tempo que o professor fica parado dep
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //Hack
-export const HACK_PASSIVE_TICK    = 0.667; // % por tick passivo (DBD: 1 c/s ÷ 90 × 100 × 0.6s)
+export const HACK_PASSIVE_TICK    = 1.0;   // % por tick passivo (+50% vs original 0.667)
 export const HACK_PASSIVE_RATE_MS = 600;   // intervalo do tick passivo
-export const HACK_GREAT_BONUS     = 1;     // % extra no great (DBD: +1%)
+export const HACK_GREAT_BONUS     = 1.5;   // % extra no great (+50% vs original 1%)
 
 //  Heal
 export const HEAL_PASSIVE_TICK     = 5;
@@ -59,13 +60,14 @@ export const HEAL_PASSIVE_RATE_MS  = 1_000;
 export const HEAL_GREAT_BONUS      = 10;
 export const HEAL_SELF_RATE_FACTOR = 0.5;
 export const CRAWL_SPEED_FACTOR    = 0.28;
+export const GHOST_SPEED_FACTOR    = 1.8;
 
 //  terror radius (professor)
 export const TERROR_RADIUS = 450; // px — raio do terror do professor
 
 //  visao (fov)
-export const FOV_PROFESSOR = 460;
-export const FOV_SURVIVOR  = 280;
+export const FOV_PROFESSOR = 380;
+export const FOV_SURVIVOR  = 230;
 export const FOV_PROFESSOR_CONE_DEG = 80;
 
 export const TILE_WORLD_SIZE = 32; // 16px tile × MAP_SCALE 2
