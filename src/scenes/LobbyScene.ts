@@ -303,9 +303,9 @@ export class LobbyScene extends Phaser.Scene {
 
     const COLS = [175, 400, 625];
     const ROWS = [210, 345];
-    const BTN_SCALE = 1.0;
-    const BTN_H = 70 * BTN_SCALE;
-    const ICON_SIZE = 78;
+    const BTN_SCALE = 1.05;
+    const BTN_H = 77 * BTN_SCALE;
+    const ICON_SIZE = 90;
 
     SURVIVOR_SKINS.forEach(({ skinId, iconKey, label }, i) => {
       const bx = COLS[i % 3];
