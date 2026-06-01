@@ -53,6 +53,7 @@ export interface GameStateRecord {
   gatesOpen:         Record<string, boolean>;
   gatesPowered:      boolean;
   endgameStartedAt:  number | null;
+  professorLockedEndsAt: number | null;
   phase:             GamePhase;
   chase: {
     target:    string | null;
