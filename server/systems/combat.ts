@@ -47,6 +47,7 @@ function applyDamage(
     emit.all('setBeingHealed', { targetId: id, isBeingHealed: false });
   }
   emit.all('playerDowned', { id, downCount: target.downCount });
+  checkWinConditions(state, (e, d) => emit.all(e, d));
 }
 
 export function processLungeTick(

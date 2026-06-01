@@ -40,7 +40,7 @@ const io     = new Server(server, { path: './expelled/socket.io' });
 
 app.use(express.static(path.join(__dirname, '../')));
 
-const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
+const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2546 };
 const DEFAULT_SURVIVOR_SPAWN  = { x: 1680, y: 2155 };
 
 const socketToRoom = new Map<string, string>();

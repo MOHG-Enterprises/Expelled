@@ -376,7 +376,7 @@ export class GameScene extends Phaser.Scene {
   private getSpawnPoint(role: Role): { x: number; y: number } {
     const centerX = this.mapWorldWidth * 0.5;
     const centerY = this.mapWorldHeight * 0.55;
-    if (role === 'professor') return { x: centerX, y: centerY };
+    if (role === 'professor') return { x: 1847, y: 2556 };
     return Phaser.Math.RND.pick(SURVIVOR_SPAWN_POINTS as Array<{ x: number; y: number }>);
   }
 

@@ -53,7 +53,10 @@ export class StartScene extends Phaser.Scene {
 
     const startGame = () => {
       (this.sound as { context?: AudioContext }).context?.resume();
-      this.input.off('pointerdown', startGame);
+      if (this.scale.isFullscreen === false) {
+        this.scale.startFullscreen();
+      }
+      this.input.off('pointerup', startGame);
       if (kb) {
         kb.off('keydown-SPACE', startGame);
         kb.off('keydown-ENTER', startGame);
@@ -61,7 +64,7 @@ export class StartScene extends Phaser.Scene {
       this.scene.start('LobbyScene');
     };
 
-    this.input.on('pointerdown', startGame);
+    this.input.on('pointerup', startGame);
     if (kb) {
       kb.on('keydown-SPACE', startGame);
       kb.on('keydown-ENTER', startGame);

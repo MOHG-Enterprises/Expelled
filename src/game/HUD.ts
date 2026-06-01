@@ -79,6 +79,9 @@ export class HUD {
 
   build(isTouchDevice = false) {
     this.isTouchDevice = isTouchDevice;
+    const w = this.scene.scale.width;
+    const h = this.scene.scale.height;
+
     this.downWarn1 = this.scene.add
       .text(8, 32, '⚠', { fontSize: '13px', color: '#444' })
       .setScrollFactor(0).setDepth(30).setAlpha(0);
@@ -108,7 +111,7 @@ export class HUD {
     this.endgameTimerBg   = this.scene.add.graphics().setScrollFactor(0).setDepth(35).setAlpha(0);
     this.endgameTimerBar  = this.scene.add.graphics().setScrollFactor(0).setDepth(36).setAlpha(0);
     this.endgameTimerText = this.scene.add
-      .text(400, 4, '', { fontSize: '15px', color: '#ff4444', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
+      .text(w / 2, 4, '', { fontSize: '15px', color: '#ff4444', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0).setScrollFactor(0).setDepth(37).setAlpha(0);
 
     this.hintLines = [];
@@ -124,52 +127,52 @@ export class HUD {
     }
 
     this.hudMic = this.scene.add
-      .text(792, 8, '', { fontSize: '14px', color: '#4caf50' })
+      .text(w - 8, 8, '', { fontSize: '14px', color: '#4caf50' })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(30);
 
     this.hudGamepad = this.scene.add
-      .text(792, 26, 'Controle inativo — pressione um botao para ativar', { fontSize: '10px', color: '#555' })
+      .text(w - 8, 26, 'Controle inativo — pressione um botao para ativar', { fontSize: '10px', color: '#555' })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(30)
       .setVisible(!this.usingGamepad);
 
     this.terrorHeart = this.scene.add
-      .text(400, 548, '♥', { fontSize: '30px', color: '#ff2244', stroke: '#000', strokeThickness: 4 })
+      .text(w / 2, h - 52, '♥', { fontSize: '30px', color: '#ff2244', stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.terrorLabel = this.scene.add
-      .text(400, 572, 'TERROR', { fontSize: '10px', color: '#ff2244', stroke: '#000', strokeThickness: 3 })
+      .text(w / 2, h - 28, 'TERROR', { fontSize: '10px', color: '#ff2244', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5).setScrollFactor(0).setDepth(30).setAlpha(0);
 
     this.hackBar = new ProgressBar(this.scene, {
-      x: 270, y: 480, w: 260, h: 14, depth: 30,
+      x: w / 2 - 130, y: h - 120, w: 260, h: 14, depth: 30,
       bgColor: 0x070f1c, borderColor: 0x2a4a6e, fillColor: 0x8ec8f0,
-      label: 'HACKEANDO', labelColor: '#8ec8f0', labelY: 465, pctY: 480,
+      label: 'HACKEANDO', labelColor: '#8ec8f0', labelY: h - 135, pctY: h - 120,
     });
 
     this.healBar = new ProgressBar(this.scene, {
-      x: 270, y: 464, w: 260, h: 14, depth: 30,
+      x: w / 2 - 130, y: h - 136, w: 260, h: 14, depth: 30,
       bgColor: 0x071c0f, borderColor: 0x2a6e3a, fillColor: 0x81c995,
-      label: 'CURANDO', labelColor: '#81c995', labelY: 449, pctY: 480,
+      label: 'CURANDO', labelColor: '#81c995', labelY: h - 151, pctY: h - 120,
     });
 
     this.chaseIndicatorBg   = this.scene.add.graphics().setScrollFactor(0).setDepth(30).setAlpha(0);
     this.chaseIndicatorText = this.scene.add
-      .text(770, 28, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
+      .text(w - 30, 28, '', { fontSize: '12px', color: '#fff', fontStyle: 'bold', stroke: '#000', strokeThickness: 3 })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(31).setAlpha(0);
 
     this.arrowGraphics = this.scene.add.graphics().setScrollFactor(0).setDepth(32);
 
     this.damageVignette = this.scene.add.graphics().setScrollFactor(0).setDepth(45).setAlpha(0);
     this.damageVignette.fillStyle(0xff0000, 1);
-    this.damageVignette.fillTriangle(0, 0, 200, 0, 0, 200);
-    this.damageVignette.fillTriangle(800, 0, 600, 0, 800, 200);
-    this.damageVignette.fillTriangle(0, 600, 200, 600, 0, 400);
-    this.damageVignette.fillTriangle(800, 600, 600, 600, 800, 400);
+    this.damageVignette.fillTriangle(0, 0, w / 4, 0, 0, h / 3);
+    this.damageVignette.fillTriangle(w, 0, w * 0.75, 0, w, h / 3);
+    this.damageVignette.fillTriangle(0, h, w / 4, h, 0, h * 0.67);
+    this.damageVignette.fillTriangle(w, h, w * 0.75, h, w, h * 0.67);
 
     this._buildSurvivorCards(isTouchDevice);
 
     this.ghostLabel = this.scene.add
-      .text(400, 284, '💀 FANTASMA 💀', {
+      .text(w / 2, h / 2 - 16, '💀 FANTASMA 💀', {
         fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
         stroke: '#000', strokeThickness: 4,
       })
@@ -220,7 +223,7 @@ export class HUD {
     const iconSize = 16;
     const gap = 4;
     const totalWidth = iconSize + gap + this.hudTerminals.width;
-    const startX = 400 - totalWidth / 2;
+    const startX = this.scene.scale.width / 2 - totalWidth / 2;
     this.hudTerminalIcon.setPosition(startX + iconSize / 2, 22).setAlpha(1);
     this.hudTerminals.setPosition(startX + iconSize + gap, 14);
   }
@@ -239,7 +242,7 @@ export class HUD {
 
     const BAR_W = 400;
     const BAR_H = 12;
-    const BAR_X = (800 - BAR_W) / 2;
+    const BAR_X = (this.scene.scale.width - BAR_W) / 2;
     const BAR_Y = 0;
     const fill  = Math.min(1, remainingMs / ENDGAME_DURATION_MS) * BAR_W;
 
@@ -379,7 +382,7 @@ export class HUD {
   flash(text: string, color = 0xffffff, duration = 2000) {
     const hex = '#' + color.toString(16).padStart(6, '0');
     const t   = this.scene.add
-      .text(400, 200, text, { fontSize: '22px', color: hex, stroke: '#000', strokeThickness: 4 })
+      .text(this.scene.scale.width / 2, this.scene.scale.height / 3, text, { fontSize: '22px', color: hex, stroke: '#000', strokeThickness: 4 })
       .setOrigin(0.5).setScrollFactor(0).setDepth(50);
     this.scene.time.delayedCall(duration, () => t.destroy());
   }
@@ -426,19 +429,20 @@ export class HUD {
     const { bg, text } = tierColors[tier];
     const tierLabel = tier === 0 ? 'CHASE' : `CHASE  ${'I'.repeat(tier)}`;
 
+    const w = this.scene.scale.width;
     this.chaseIndicatorBg.fillStyle(bg, 0.85);
-    this.chaseIndicatorBg.fillRoundedRect(648, 24, 124, 24, 4);
+    this.chaseIndicatorBg.fillRoundedRect(w - 152, 24, 124, 24, 4);
     this.chaseIndicatorBg.lineStyle(1, 0xffffff, 0.2);
-    this.chaseIndicatorBg.strokeRoundedRect(648, 24, 124, 24, 4);
+    this.chaseIndicatorBg.strokeRoundedRect(w - 152, 24, 124, 24, 4);
     this.chaseIndicatorBg.setAlpha(1);
 
-    this.chaseIndicatorText.setPosition(770, 28).setText(tierLabel).setColor(text).setAlpha(1);
+    this.chaseIndicatorText.setPosition(w - 30, 28).setText(tierLabel).setColor(text).setAlpha(1);
   }
 
   startProfessorCountdown(endsAt: number): void {
     this.stopProfessorCountdown();
     this.professorCountdownText = this.scene.add
-      .text(400, 40, '', {
+      .text(this.scene.scale.width / 2, 40, '', {
         fontSize: '48px',
         fontStyle: 'bold',
         color: '#ffffff',
@@ -739,7 +743,7 @@ export class HUD {
     const PAD_V   = 7;
     const PANEL_W = 220;
     const PANEL_H = lines.length * LINE_H + PAD_V * 2 - 2;
-    const PANEL_Y = 596 - PANEL_H;
+    const PANEL_Y = this.scene.scale.height - PANEL_H - 4;
 
     this.hintPanel.fillStyle(0x000000, 0.55);
     this.hintPanel.fillRoundedRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 5);

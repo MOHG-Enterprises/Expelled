@@ -33,7 +33,6 @@ export class HackingSystem {
   private players:        PlayerManager;
   private hud:            HUD;
   private skillCheck:     SkillCheck;
-  private setInputFrozen: (frozen: boolean) => void;
   private promptManager: InteractionPromptManager;
 
   private hackingTerminal:    TerminalId | null = null;
@@ -43,6 +42,7 @@ export class HackingSystem {
   private hackNextThreshold   = 0;
   private hackTimerTerminal:  TerminalId | null = null;
   private hackLockUntil       = 0;
+  private interactionActive = false;
 
   private healingTarget:      string | null = null;
   private prevHealingEmitted: string | null = null;
@@ -63,7 +63,6 @@ export class HackingSystem {
     players:        PlayerManager,
     hud:            HUD,
     skillCheck:     SkillCheck,
-    setInputFrozen: (frozen: boolean) => void,
     promptManager:  InteractionPromptManager,
   ) {
     this.scene          = scene;
@@ -74,10 +73,9 @@ export class HackingSystem {
     this.players        = players;
     this.hud            = hud;
     this.skillCheck     = skillCheck;
-    this.setInputFrozen = setInputFrozen;
     this.promptManager  = promptManager;
-    this.hackNextThreshold = Phaser.Math.Between(20000, 35000);
-    this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+    this.hackNextThreshold = Phaser.Math.Between(6667, 11667);
+    this.healNextThreshold = Phaser.Math.Between(833, 1667);
   }
 
   get activeHackingTerminal(): TerminalId | null { return this.hackingTerminal; }
@@ -89,13 +87,14 @@ export class HackingSystem {
     this.hackPassiveTimer      = 0;
     this.hackHoldTimer         = 0;
     this.hackTimerTerminal     = null;
-    this.hackNextThreshold     = Phaser.Math.Between(20000, 35000);
+    this.hackNextThreshold     = Phaser.Math.Between(6667, 11667);
     this.hackLockUntil         = 0;
+    this.interactionActive     = false;
     this.healingTarget         = null;
     this.prevHealingEmitted    = null;
     this.healPassiveTimer      = 0;
     this.healHoldTimer         = 0;
-    this.healNextThreshold     = Phaser.Math.Between(2500, 5000);
+    this.healNextThreshold     = Phaser.Math.Between(833, 1667);
     this.healLockUntil         = 0;
     this.openingGate           = null;
     this.gateOpenTimer         = 0;
@@ -131,14 +130,23 @@ export class HackingSystem {
     escaped:     boolean,
     survivorInfo: ReadonlyMap<string, SurvivorInfo>,
   ) {
-    const eHeld = input.actionHeld;
-
     // ── Interaction prompt ────────────────────────────────────────────────────
     const healableNearby = !downed && !beingHealed
       ? this._nearestHealablePlayer(survivorInfo)
       : null;
     const nearT = !downed ? this.terminals.nearest(this.player.x, this.player.y) : null;
     const nearS = !downed ? this.gates.getNearestActiveSwitch(this.player.x, this.player.y) : null;
+
+    if (this.interactionActive && !healableNearby && !nearT && !nearS) {
+      this.interactionActive = false;
+    }
+    if (input.actionJust && (healableNearby || nearT || nearS) && !this.interactionActive) {
+      this.interactionActive = true;
+    }
+    if (input.intendedToMove) {
+      if (this.interactionActive && this.skillCheck.active) this.skillCheck.cancel();
+      this.interactionActive = false;
+    }
 
     if (healableNearby) {
       const pos = this.players.getPosition(healableNearby)!;
@@ -153,7 +161,7 @@ export class HackingSystem {
     }
 
     // ── Heal path ────────────────────────────────────────────────────────────
-    const healTarget = eHeld ? healableNearby : null;
+    const healTarget = this.interactionActive ? healableNearby : null;
 
     if (healTarget) {
       if (healTarget !== this.healingTarget) {
@@ -186,7 +194,7 @@ export class HackingSystem {
         this.healHoldTimer += delta;
         if (this.healHoldTimer >= this.healNextThreshold) {
           this.healHoldTimer     = 0;
-          this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+          this.healNextThreshold = Phaser.Math.Between(833, 1667);
           this._runHealSkillCheck(healTarget, false);
         }
       }
@@ -212,7 +220,7 @@ export class HackingSystem {
       this.hackHoldTimer     = 0;
     }
 
-    if (eHeld && nearTerminal && !downed) {
+    if (this.interactionActive && nearTerminal && !downed) {
       this.hackingTerminal = nearTerminal;
       if (this.prevHackingEmitted !== nearTerminal) {
         this.prevHackingEmitted = nearTerminal;
@@ -231,7 +239,7 @@ export class HackingSystem {
         this.hackHoldTimer += delta;
         if (this.hackHoldTimer >= this.hackNextThreshold) {
           this.hackHoldTimer     = 0;
-          this.hackNextThreshold = Phaser.Math.Between(20000, 35000);
+          this.hackNextThreshold = Phaser.Math.Between(6667, 11667);
           this._runHackSkillCheck(nearTerminal);
         }
       }
@@ -244,6 +252,7 @@ export class HackingSystem {
     }
     this.hackingTerminal  = null;
     this.hackPassiveTimer = 0;
+    this.hackHoldTimer    = 0;
     this.terminals.setWorking(null);
     this.hud.setHackProgress(null);
 
@@ -259,7 +268,7 @@ export class HackingSystem {
         this.gateOpenTimer = 0;
       }
 
-      if (eHeld) {
+      if (this.interactionActive) {
         this.gateOpenTimer += delta;
         while (this.gateOpenTimer >= GATE_TICK_MS) {
           this.gateOpenTimer -= GATE_TICK_MS;
@@ -307,7 +316,7 @@ export class HackingSystem {
         this.healHoldTimer += delta;
         if (this.healHoldTimer >= this.healNextThreshold) {
           this.healHoldTimer     = 0;
-          this.healNextThreshold = Phaser.Math.Between(2500, 5000);
+          this.healNextThreshold = Phaser.Math.Between(833, 1667);
           this._runHealSkillCheck(this.socket.id!, true);
         }
       }
@@ -315,31 +324,25 @@ export class HackingSystem {
   }
 
   private _runHackSkillCheck(terminalId: TerminalId) {
-    this.setInputFrozen(true);
     this.skillCheck.show(
       (isGreat) => {
-        this.setInputFrozen(false);
         if (isGreat) this.socket.emit('hackProgress', { terminalId, amount: HACK_GREAT_BONUS });
       },
       () => {
-        this.setInputFrozen(false);
         this.socket.emit('skillCheckFailed', { terminalId });
       },
     );
   }
 
   private _runHealSkillCheck(targetId: string, isSelf: boolean) {
-    this.setInputFrozen(true);
     this.skillCheck.show(
       (isGreat) => {
-        this.setInputFrozen(false);
         if (isGreat) {
           const bonus = isSelf ? HEAL_GREAT_BONUS * HEAL_SELF_RATE_FACTOR : HEAL_GREAT_BONUS;
           this.socket.emit('healProgress', { targetId, amount: bonus });
         }
       },
       () => {
-        this.setInputFrozen(false);
         this.socket.emit('healSkillCheckFailed', { targetId });
         this.healLockUntil = this.scene.time.now + HEAL_FAIL_LOCK_MS;
       },
