@@ -17,12 +17,12 @@ interface LobbyState {
 type RoomSummary = Record<string, { playerCount: number; phase: string }>;
 
 const SURVIVOR_SKINS = [
-  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
-  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
-  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/giu/icons/Giu_Icon.png',         label: 'Giu'     },
-  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/isabela/icons/Isabela_Icon.png', label: 'Isabela' },
-  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/davi/icons/Davi_Icon.png',       label: 'Davi'    },
-  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/caio/icons/Caio_Icon.png',       label: 'Caio'    },
+  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/Survivors/Arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
+  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/Survivors/Gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
+  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/Survivors/Giu/icons/Giu_Icon.png',         label: 'Giu'     },
+  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/Survivors/Isabela/icons/Isabela_Icon.png', label: 'Isabela' },
+  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/Survivors/Dave/icons/Dave_Icon.png',       label: 'Davi'    },
+  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/Survivors/Caio/icons/Caio_Icon.png',       label: 'Caio'    },
 ] as const;
 
 export class LobbyScene extends Phaser.Scene {
@@ -81,7 +81,7 @@ export class LobbyScene extends Phaser.Scene {
     this.pickerSkinId   = 'arthur';
     this.pickerName     = '';
     this.pickerUI       = [];
-    this.skinRings      = [];
+    this.characterBtns  = [];
     this.roomButtons    = [];
     this.roomCountTexts = [];
     this.inRoomUI       = [];
@@ -331,12 +331,16 @@ export class LobbyScene extends Phaser.Scene {
     overlay.fillStyle(0x000000, 0.35);
     overlay.fillRect(0, 0, W, H);
 
+    const headerBar = this.add.graphics();
+    headerBar.fillStyle(0x000000, 0.72);
+    headerBar.fillRect(cx - 130, 54, 260, 84);
+
     const title = this.add.text(cx, 68, 'ESCOLHA SEU PERSONAGEM', {
       fontSize: '15px', color: '#e94560', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5);
 
     const nameLabelText = this.add.text(cx, 92, 'Seu nome (max 12 caracteres):', {
-      fontSize: '11px', color: '#aaa',
+      fontSize: '11px', color: '#aaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
     const nameBox = this.add.graphics();
@@ -351,9 +355,9 @@ export class LobbyScene extends Phaser.Scene {
 
     const COLS = [175, 400, 625];
     const ROWS = [210, 345];
-    const BTN_SCALE = 1.05;
+    const BTN_SCALE = 1.12;
     const BTN_H = 77 * BTN_SCALE;
-    const ICON_SIZE = 90;
+    const ICON_SIZE = 92;
 
     SURVIVOR_SKINS.forEach(({ skinId, iconKey, label }, i) => {
       const bx = COLS[i % 3];
@@ -369,7 +373,12 @@ export class LobbyScene extends Phaser.Scene {
         .setDisplaySize(ICON_SIZE, ICON_SIZE)
         .setInteractive({ useHandCursor: true });
 
-      const nameLabel = this.add.text(bx, by + BTN_H / 2 + 3, label, {
+      const labelY = by + BTN_H / 2 + 2;
+      const nameHeaderBar = this.add.graphics();
+      nameHeaderBar.fillStyle(0x000000, 0.72);
+      nameHeaderBar.fillRect(bx - 35, labelY, 70, 15);
+
+      const nameLabel = this.add.text(bx, labelY + 1, label, {
         fontSize: '10px', color: '#e0e0e0', stroke: '#000', strokeThickness: 2,
       }).setOrigin(0.5, 0);
 
@@ -380,7 +389,7 @@ export class LobbyScene extends Phaser.Scene {
       icon.on('pointerout',     () => this.drawSkinRings());
       icon.on('pointerdown',    () => this.selectSkin(skinId));
 
-      this.pickerUI.push(charBtn, icon, nameLabel);
+      this.pickerUI.push(charBtn, icon, nameHeaderBar, nameLabel);
     });
 
     const confirmBtn = this.add.text(cx, 432, 'Confirmar', {
@@ -392,7 +401,7 @@ export class LobbyScene extends Phaser.Scene {
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 
-    this.pickerUI.push(bg, overlay, title, nameLabelText, nameBox, this.nameDisplay, confirmBtn);
+    this.pickerUI.push(bg, overlay, headerBar, title, nameLabelText, nameBox, this.nameDisplay, confirmBtn);
     this.pickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.drawSkinRings();
   }
