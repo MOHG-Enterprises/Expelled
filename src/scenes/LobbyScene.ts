@@ -171,6 +171,10 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     this.updateRoomSelection();
+
+    const onResize = () => this.cameras.main.centerOn(400, 300);
+    this.scale.on('resize', onResize);
+    this.events.once('shutdown', () => this.scale.off('resize', onResize));
   }
 
   update() {

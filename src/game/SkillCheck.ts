@@ -32,7 +32,9 @@ export class SkillCheck {
     this.zoneStart     = MIN_ZONE_START + Math.random() * (MAX_ZONE_START - MIN_ZONE_START);
 
     if (!this.container) {
-      this.container = this.scene.add.container(400, 300)
+      const cx = this.scene.scale.width  / 2;
+      const cy = this.scene.scale.height / 2;
+      this.container = this.scene.add.container(cx, cy)
         .setDepth(40)
         .setScrollFactor(0);
 
@@ -73,8 +75,10 @@ export class SkillCheck {
   }
 
   private showGreatFeedback() {
+    const cx = this.scene.scale.width  / 2;
+    const cy = this.scene.scale.height / 2;
     const text = this.scene.add
-      .text(400, 265, 'GREAT!', {
+      .text(cx, cy - 35, 'GREAT!', {
         fontSize: '30px',
         fontStyle: 'bold',
         color: '#ffee00',
@@ -88,7 +92,7 @@ export class SkillCheck {
 
     this.scene.tweens.add({
       targets: text,
-      y: 205,
+      y: cy - 95,
       alpha: 0,
       scaleX: 1.4,
       scaleY: 1.4,
@@ -108,6 +112,10 @@ export class SkillCheck {
 
   update(delta: number) {
     if (!this.active || !this.graphics) return;
+    this.container?.setPosition(
+      this.scene.scale.width  / 2,
+      this.scene.scale.height / 2,
+    );
     const step = this.speed * (delta / 1000);
     this.totalRotation += step;
 

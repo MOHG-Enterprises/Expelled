@@ -195,7 +195,7 @@ export class HackingSystem {
         if (this.healHoldTimer >= this.healNextThreshold) {
           this.healHoldTimer     = 0;
           this.healNextThreshold = Phaser.Math.Between(833, 1667);
-          this._runHealSkillCheck(healTarget, false);
+          if (!this.skillCheck.active) this._runHealSkillCheck(healTarget, false);
         }
       }
 
@@ -317,7 +317,7 @@ export class HackingSystem {
         if (this.healHoldTimer >= this.healNextThreshold) {
           this.healHoldTimer     = 0;
           this.healNextThreshold = Phaser.Math.Between(833, 1667);
-          this._runHealSkillCheck(this.socket.id!, true);
+          if (!this.skillCheck.active) this._runHealSkillCheck(this.socket.id!, true);
         }
       }
     }

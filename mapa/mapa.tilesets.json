@@ -4,21 +4,21 @@
     "firstgid": 1,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/Dungeon_Tiles.png"
+    "image": "/mapa./Expelled./abc./Dungeon_Tiles.png"
   },
   {
     "name": "1",
     "firstgid": 626,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/Interiors_free_32x32.png"
+    "image": "/mapa./Expelled./abc./Interiors_free_32x32.png"
   },
   {
     "name": "3",
     "firstgid": 6322,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/mainlevbuild.png"
+    "image": "/mapa./Expelled./abc./mainlevbuild.png"
   },
   {
     "name": "pingpong",
@@ -32,7 +32,7 @@
     "firstgid": 8946,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/House Interiors – Cozy Farmhouse Bedroom/obj/spr_book_case.png"
+    "image": "/mapa./Expelled./abc./House Interiors – Cozy Farmhouse Bedroom./obj./spr_book_case.png"
   },
   {
     "name": "Computer Room Spritesheet 1 (1)",
@@ -46,41 +46,41 @@
     "firstgid": 9002,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/AnimatedAutum.png"
+    "image": "/mapa./Expelled./abc./AnimatedAutum.png"
   },
   {
     "name": "mesaArvor",
     "firstgid": 9258,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/mesaArvor.png"
+    "image": "/mapa./Expelled./abc./mesaArvor.png"
   },
   {
     "name": "mapaClosev5",
     "firstgid": 9274,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/mapaClosev5.png"
+    "image": "/mapa./Expelled./abc./mapaClosev5.png"
   },
   {
     "name": "PrincipalV2 (1)",
     "firstgid": 17466,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/PrincipalV2 (1).png"
+    "image": "/mapa./Expelled./abc./PrincipalV2 (1).png"
   },
   {
     "name": "mesas",
     "firstgid": 17722,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/mesas.png"
+    "image": "/mapa./Expelled./abc./mesas.png"
   },
   {
     "name": "conundrum",
     "firstgid": 17762,
     "tilewidth": 16,
     "tileheight": 16,
-    "image": "/mapa/Expelled/abc/titleGame.png"
+    "image": "/mapa./Expelled./abc./titleGame.png"
   }
 ]
