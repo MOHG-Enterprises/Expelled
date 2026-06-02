@@ -172,17 +172,49 @@ export class HUD {
     this._buildSurvivorCards(isTouchDevice);
 
     this.ghostLabel = this.scene.add
-      .text(w / 2, h / 2 - 16, '💀 FANTASMA 💀', {
+      .text(w / 2, 40, '💀 FANTASMA 💀', {
         fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
         stroke: '#000', strokeThickness: 4,
       })
-      .setOrigin(0.5, 0.5).setScrollFactor(0).setDepth(31).setAlpha(0);
+      .setOrigin(0.5, 0).setScrollFactor(0).setDepth(31).setAlpha(0);
 
     const downWarnY = isTouchDevice
       ? 8 + 4 * (48 + 4) + 8
       : 32;
     this.downWarn1.setY(downWarnY);
     this.downWarn2.setY(downWarnY);
+
+    const onResize = (gameSize: Phaser.Structs.Size) => this._onResize(gameSize.width, gameSize.height);
+    this.scene.scale.on('resize', onResize);
+    this.scene.events.once('destroy', () => this.scene.scale.off('resize', onResize));
+  }
+
+  private _onResize(w: number, h: number): void {
+    this.hudMic.setPosition(w - 8, 8);
+    this.hudGamepad.setPosition(w - 8, 26);
+    this.terrorHeart.setPosition(w / 2, h - 52);
+    this.terrorLabel.setPosition(w / 2, h - 28);
+    this.ghostLabel.setPosition(w / 2, 40);
+    this.endgameTimerText.setPosition(w / 2, 4);
+    this.hackBar.reposition(w / 2 - 130, h - 120, h - 135, h - 120);
+    this.healBar.reposition(w / 2 - 130, h - 136, h - 151, h - 120);
+
+    if (this.hudTerminals.text) {
+      const iconSize = 16;
+      const gap = 4;
+      const totalWidth = iconSize + gap + this.hudTerminals.width;
+      const startX = w / 2 - totalWidth / 2;
+      this.hudTerminalIcon.setPosition(startX + iconSize / 2, 22);
+      this.hudTerminals.setPosition(startX + iconSize + gap, 14);
+    }
+
+    this.damageVignette.clear();
+    this.damageVignette.fillStyle(0xff0000, 1);
+    this.damageVignette.fillTriangle(0, 0, w / 4, 0, 0, h / 3);
+    this.damageVignette.fillTriangle(w, 0, w * 0.75, 0, w, h / 3);
+    this.damageVignette.fillTriangle(0, h, w / 4, h, 0, h * 0.67);
+    this.damageVignette.fillTriangle(w, h, w * 0.75, h, w, h * 0.67);
+    this.refreshHint();
   }
 
   private _buildSurvivorCards(compact: boolean) {
