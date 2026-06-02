@@ -94,6 +94,20 @@ export class ProgressBar {
     }
   }
 
+  reposition(x: number, y: number, labelY?: number, pctY?: number): void {
+    this.cfg.x = x;
+    this.cfg.y = y;
+    if (labelY !== undefined) this.cfg.labelY = labelY;
+    if (pctY !== undefined) this.cfg.pctY = pctY;
+    this.labelText?.setPosition(x + this.cfg.w / 2, this.cfg.labelY ?? y - 18);
+    this.pctText?.setPosition(x + this.cfg.w / 2, this.cfg.pctY ?? y + this.cfg.h + 2);
+    if (this.lastProgress !== null) {
+      const p = this.lastProgress;
+      this.lastProgress = null;
+      this.setProgress(p);
+    }
+  }
+
   setAlpha(a: number) {
     this.graphic.setAlpha(a);
     this.labelText?.setAlpha(a);

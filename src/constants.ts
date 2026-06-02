@@ -26,6 +26,7 @@ export {
   HEAL_FAIL_LOCK_MS,
   HEAL_AMOUNT_MAX,
   HEAL_SELF_CAP,
+  MAX_PLAYERS_PER_ROOM,
 } from '../shared/gameRules';
 
 //  mundo 
@@ -49,9 +50,9 @@ export const STAGGER_MS         = 1500; // tempo que o professor fica parado dep
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
 
 //Hack
-export const HACK_PASSIVE_TICK    = 0.667; // % por tick passivo (DBD: 1 c/s ÷ 90 × 100 × 0.6s)
+export const HACK_PASSIVE_TICK    = 1.0;   // % por tick passivo (+50% vs original 0.667)
 export const HACK_PASSIVE_RATE_MS = 600;   // intervalo do tick passivo
-export const HACK_GREAT_BONUS     = 1;     // % extra no great (DBD: +1%)
+export const HACK_GREAT_BONUS     = 1.5;   // % extra no great (+50% vs original 1%)
 
 //  Heal
 export const HEAL_PASSIVE_TICK     = 5;
@@ -59,13 +60,14 @@ export const HEAL_PASSIVE_RATE_MS  = 1_000;
 export const HEAL_GREAT_BONUS      = 10;
 export const HEAL_SELF_RATE_FACTOR = 0.5;
 export const CRAWL_SPEED_FACTOR    = 0.28;
+export const GHOST_SPEED_FACTOR    = 1.8;
 
 //  terror radius (professor)
 export const TERROR_RADIUS = 450; // px — raio do terror do professor
 
 //  visao (fov)
-export const FOV_PROFESSOR = 460;
-export const FOV_SURVIVOR  = 280;
+export const FOV_PROFESSOR = 380;
+export const FOV_SURVIVOR  = 230;
 export const FOV_PROFESSOR_CONE_DEG = 80;
 
 export const TILE_WORLD_SIZE = 32; // 16px tile × MAP_SCALE 2
@@ -87,6 +89,31 @@ export const COLOR_OTHER_SURVIVOR = 0x81c995;
 export const COLOR_OTHER_PROF     = 0xff6b6b;
 export const COLOR_TERMINAL_IDLE  = 0xaaaaaa;
 export const COLOR_TERMINAL_DONE  = 0x00e676;
+
+//  spawn points dos sobreviventes
+export const SURVIVOR_SPAWN_POINTS: ReadonlyArray<{ x: number; y: number }> = [
+  // Ala superior-esquerda
+  { x: 640,  y: 384  },
+  { x: 992,  y: 256  },
+  { x: 1120, y: 640  },
+  { x: 1312, y: 448  },
+  // Corredor esquerdo
+  { x: 672,  y: 1440 },
+  { x: 672,  y: 2208 },
+  { x: 672,  y: 2560 },
+  { x: 1056, y: 2208 },
+  // Ala inferior-esquerda
+  { x: 672,  y: 3200 },
+  { x: 1056, y: 3456 },
+  { x: 1024, y: 4064 },
+  // Ala superior-centro
+  { x: 1760, y: 800  },
+  { x: 1216, y: 1120 },
+  { x: 1760, y: 1760 },
+  // Ala direita
+  { x: 2656, y: 1504 },
+  { x: 2880, y: 2208 },
+];
 
 //  gates
 export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {

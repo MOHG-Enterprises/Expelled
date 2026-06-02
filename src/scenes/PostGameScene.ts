@@ -39,16 +39,34 @@ const OUTCOME_COLOR: Record<'escaped' | 'expelled' | 'downed', string> = {
 };
 
 export class PostGameScene extends Phaser.Scene {
+  private contentObjects: Phaser.GameObjects.GameObject[] = [];
+
   constructor() {
     super('PostGameScene');
   }
 
   create() {
-    const { width, height } = this.scale;
-    const data = this.registry.get('postGameData') as PostGameData;
-    const my = data.stats[data.myId];
-
     this.cameras.main.setBackgroundColor('#1a1a2e');
+    const data = this.registry.get('postGameData') as PostGameData;
+    this._build(this.scale.width, this.scale.height, data);
+
+    const onResize = (gameSize: Phaser.Structs.Size) => {
+      this._clearContent();
+      this._build(gameSize.width, gameSize.height, data);
+    };
+    this.scale.on('resize', onResize);
+    this.events.once('shutdown', () => this.scale.off('resize', onResize));
+  }
+
+  private _clearContent(): void {
+    this.input.keyboard?.off('keydown-ENTER');
+    this.input.keyboard?.off('keydown-SPACE');
+    this.contentObjects.forEach(o => o.destroy());
+    this.contentObjects = [];
+  }
+
+  private _build(width: number, height: number, data: PostGameData): void {
+    const my = data.stats[data.myId];
 
     if (!my) {
       this._renderButton(width, height, data.socket);
@@ -57,12 +75,14 @@ export class PostGameScene extends Phaser.Scene {
 
     const { label, color } = this._getResult(data, my);
 
-    this.add.text(width / 2, height * 0.22, label, {
-      fontSize: '48px',
-      color,
-      fontFamily: 'monospace',
-      fontStyle: 'bold',
-    }).setOrigin(0.5);
+    this.contentObjects.push(
+      this.add.text(width / 2, height * 0.22, label, {
+        fontSize: '48px',
+        color,
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+      }).setOrigin(0.5),
+    );
 
     this._renderStatBoxes(width, height, my);
     this._renderButton(width, height, data.socket);
@@ -105,22 +125,28 @@ export class PostGameScene extends Phaser.Scene {
     boxes.forEach(({ label, value }, i) => {
       const bx = startX + i * (boxW + gap);
 
-      this.add.graphics()
-        .fillStyle(0x2a2a4e, 1)
-        .fillRect(bx, by, boxW, boxH);
+      this.contentObjects.push(
+        this.add.graphics()
+          .fillStyle(0x2a2a4e, 1)
+          .fillRect(bx, by, boxW, boxH),
+      );
 
-      this.add.text(bx + boxW / 2, by + 20, value, {
-        fontSize: '26px',
-        color: '#e0e0ff',
-        fontFamily: 'monospace',
-      }).setOrigin(0.5);
+      this.contentObjects.push(
+        this.add.text(bx + boxW / 2, by + 20, value, {
+          fontSize: '26px',
+          color: '#e0e0ff',
+          fontFamily: 'monospace',
+        }).setOrigin(0.5),
+      );
 
-      this.add.text(bx + boxW / 2, by + 58, label, {
-        fontSize: '11px',
-        color: '#666688',
-        fontFamily: 'monospace',
-        letterSpacing: 2,
-      }).setOrigin(0.5);
+      this.contentObjects.push(
+        this.add.text(bx + boxW / 2, by + 58, label, {
+          fontSize: '11px',
+          color: '#666688',
+          fontFamily: 'monospace',
+          letterSpacing: 2,
+        }).setOrigin(0.5),
+      );
     });
   }
 
@@ -143,5 +169,7 @@ export class PostGameScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ENTER', goToLobby);
     this.input.keyboard?.on('keydown-SPACE', goToLobby);
+
+    this.contentObjects.push(btn);
   }
 }

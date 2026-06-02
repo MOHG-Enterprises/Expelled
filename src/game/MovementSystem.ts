@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   PLAYER_SPEED, PLAYER_SPRINT_SPEED, PROFESSOR_SPEED,
-  ON_HIT_SPRINT_SPEED, CRAWL_SPEED_FACTOR,
+  ON_HIT_SPRINT_SPEED, CRAWL_SPEED_FACTOR, GHOST_SPEED_FACTOR,
   BLOODLUST_SPEED_BONUS_PX_S,
 } from '../constants';
 import type { Role } from '../types';
@@ -21,6 +21,7 @@ export interface MovementContext {
   attackHoldActive:  boolean;
   isSwinging:        boolean;
   skinId:            string;
+  ghost:             boolean;
 }
 
 export class MovementSystem {
@@ -59,7 +60,9 @@ export class MovementSystem {
       speed = PROFESSOR_SPEED + BLOODLUST_SPEED_BONUS_PX_S[ctx.bloodlustTier];
       if (ctx.attackHoldActive && !ctx.isSwinging) speed *= 1.5;
     } else {
-      if (ctx.downed) {
+      if (ctx.ghost) {
+        speed = PLAYER_SPEED * GHOST_SPEED_FACTOR;
+      } else if (ctx.downed) {
         speed = PLAYER_SPEED * CRAWL_SPEED_FACTOR;
       } else if (ctx.onHitSprintTimer > 0) {
         speed = ON_HIT_SPRINT_SPEED;
@@ -91,24 +94,29 @@ export class MovementSystem {
       else                                          this.facingDirection = vy > 0 ? 'down' : 'up';
     }
 
-    if (ctx.role === 'professor' && pad === null) {
-      const pointer = this.player.scene.input.activePointer;
-      this.targetLookAngle = Math.atan2(
-        pointer.worldY - this.player.y,
-        pointer.worldX - this.player.x,
-      );
-      const dx = pointer.worldX - this.player.x;
-      const dy = pointer.worldY - this.player.y;
-      if (Math.abs(dx) >= Math.abs(dy)) this.facingDirection = dx > 0 ? 'right' : 'left';
-      else this.facingDirection = dy > 0 ? 'down' : 'up';
-    }
-
-    if (ctx.role === 'professor' && pad) {
-      const PAD_DEADZONE = 0.2;
-      const rx = pad.rightStick.x;
-      const ry = pad.rightStick.y;
-      if (Math.abs(rx) > PAD_DEADZONE || Math.abs(ry) > PAD_DEADZONE) {
-        this.targetLookAngle = Math.atan2(ry, rx);
+    if (ctx.role === 'professor') {
+      if (input.lookAngle !== undefined) {
+        this.targetLookAngle = input.lookAngle;
+        const dx = Math.cos(input.lookAngle);
+        const dy = Math.sin(input.lookAngle);
+        if (Math.abs(dx) >= Math.abs(dy)) this.facingDirection = dx > 0 ? 'right' : 'left';
+        else this.facingDirection = dy > 0 ? 'down' : 'up';
+      } else if (!input.isTouchInput && pad !== null) {
+        const PAD_DEADZONE = 0.2;
+        const rx = pad.rightStick.x;
+        const ry = pad.rightStick.y;
+        if (Math.abs(rx) > PAD_DEADZONE || Math.abs(ry) > PAD_DEADZONE) {
+          this.targetLookAngle = Math.atan2(ry, rx);
+        }
+      } else if (!input.isTouchInput) {
+        const pointer = this.player.scene.input.activePointer;
+        const cam = this.player.scene.cameras.main;
+        const wp = cam.getWorldPoint(pointer.x, pointer.y);
+        this.targetLookAngle = Math.atan2(wp.y - this.player.y, wp.x - this.player.x);
+        const dx = wp.x - this.player.x;
+        const dy = wp.y - this.player.y;
+        if (Math.abs(dx) >= Math.abs(dy)) this.facingDirection = dx > 0 ? 'right' : 'left';
+        else this.facingDirection = dy > 0 ? 'down' : 'up';
       }
     }
 
@@ -122,10 +130,10 @@ export class MovementSystem {
   }
 
   applyAnimation(ctx: MovementContext, intendedToMove: boolean) {
-    const { role, downed, skinId } = ctx;
+    const { role, downed, skinId, ghost } = ctx;
     if (!role) return;
 
-    if (downed && role === 'survivor') {
+    if (downed && !ghost && role === 'survivor') {
       const effectiveSkinId = skinId || 'arthur';
       const skin = getSkinById(effectiveSkinId);
       const hurtFallKey = `${skin.id}:hurt-fall`;

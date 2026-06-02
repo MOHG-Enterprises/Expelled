@@ -159,6 +159,10 @@ export class TerminalManager {
     return this.completed;
   }
 
+  isRegressing(id: TerminalId): boolean {
+    return this.regressingTerminals.has(id);
+  }
+
   nearest(x: number, y: number): TerminalId | null {
     let best: TerminalId | null = null;
     let bestDist = Infinity;

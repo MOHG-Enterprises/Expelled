@@ -27,6 +27,7 @@ export const BLOODLUST_SPEED_BONUS_PX_S = [0, 6.4, 12.8, 19.2] as const;
 export const GATE_TICK_MS        = 500;
 export const GATE_TICK_AMOUNT    = 2.5;
 export const ENDGAME_DURATION_MS = 120_000;
+export const PROFESSOR_LOCK_DURATION_MS = 10_000;
 
 export const BLEED_OUT_MS         = 70_000;
 export const HEAL_FAIL_REGRESSION  = 10;
@@ -34,3 +35,5 @@ export const HEAL_FAIL_LOCK_MS     = 3_000;
 export const HEAL_AMOUNT_MAX       = 20;
 export const HEAL_SELF_CAP         = 95;
 export const HEAL_EFFICIENCY_PENALTY = 15;
+
+export const MAX_PLAYERS_PER_ROOM = 5;

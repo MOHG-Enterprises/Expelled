@@ -15,6 +15,8 @@ import {
   HEAL_FAIL_REGRESSION,
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
+  MAX_PLAYERS_PER_ROOM,
+  PROFESSOR_LOCK_DURATION_MS,
   checkWinConditions,
 } from './gameState';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
@@ -38,7 +40,7 @@ const io     = new Server(server, { path: '/expelled/socket.io' });
 
 app.use(express.static(path.join(__dirname, '../')));
 
-const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2160 };
+const DEFAULT_PROFESSOR_SPAWN = { x: 1840, y: 2546 };
 const DEFAULT_SURVIVOR_SPAWN  = { x: 1680, y: 2155 };
 
 const socketToRoom = new Map<string, string>();
@@ -109,6 +111,12 @@ io.on('connection', (socket) => {
   socket.on('joinRoom', ({ roomName }: { roomName: string }) => {
     if (!(ROOM_NAMES as readonly string[]).includes(roomName)) return;
     if (socketToRoom.has(socket.id)) return;
+
+    const existing = rooms[roomName];
+    if (existing && Object.keys(existing.players).length >= MAX_PLAYERS_PER_ROOM) {
+      socket.emit('joinRejected', { reason: 'full' });
+      return;
+    }
 
     const state = getOrCreateRoom(roomName);
     socket.join(roomName);
@@ -181,6 +189,14 @@ io.on('connection', (socket) => {
     if (survivors.length < 1 || !survivors.every((pl) => pl.ready)) return;
     state.phase = 'playing';
     io.to(roomName).emit('gamePhase', 'playing');
+    state.professorLockedEndsAt = Date.now() + PROFESSOR_LOCK_DURATION_MS;
+    io.to(roomName).emit('professorLocked', { endsAt: state.professorLockedEndsAt });
+    setTimeout(() => {
+      const currentState = rooms[roomName];
+      if (!currentState || currentState.phase !== 'playing') return;
+      currentState.professorLockedEndsAt = null;
+      io.to(roomName).emit('professorReleased');
+    }, PROFESSOR_LOCK_DURATION_MS);
   });
 
   socket.on('requestSync', () => {
@@ -199,7 +215,7 @@ io.on('connection', (socket) => {
     if (!room) return;
     const { roomName, state } = room;
     const p = state.players[socket.id];
-    if (!p || p.expelled || p.escaped) return;
+    if (!p || p.escaped) return;
     if (typeof data.x !== 'number' || typeof data.y !== 'number') return;
     p.x = data.x;
     p.y = data.y;

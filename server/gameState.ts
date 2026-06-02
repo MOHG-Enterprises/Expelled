@@ -28,6 +28,8 @@ import {
   HEAL_AMOUNT_MAX,
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
+  MAX_PLAYERS_PER_ROOM,
+  PROFESSOR_LOCK_DURATION_MS,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
@@ -110,13 +112,14 @@ export { CHASE_LOS_TIMEOUT_MS };
 export { CHASE_FOV_HALF_DEG };
 export { BLOODLUST_TIER_TIMES_MS };
 export { BLOODLUST_SPEED_BONUS_PX_S };
-export { GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS } from '../shared/gameRules';
+export { GATE_TICK_MS, GATE_TICK_AMOUNT, ENDGAME_DURATION_MS, PROFESSOR_LOCK_DURATION_MS } from '../shared/gameRules';
 export { BLEED_OUT_MS };
 export { HEAL_FAIL_REGRESSION };
 export { HEAL_FAIL_LOCK_MS };
 export { HEAL_AMOUNT_MAX };
 export { HEAL_SELF_CAP };
 export { HEAL_EFFICIENCY_PENALTY };
+export { MAX_PLAYERS_PER_ROOM };
 
 // partida nova resetada
 export function freshGameState(): GameStateRecord {
@@ -135,6 +138,7 @@ export function freshGameState(): GameStateRecord {
     gatesOpen:         { g1: false, g2: false },
     gatesPowered:      false,
     endgameStartedAt:  null,
+    professorLockedEndsAt: null,
     phase:             'lobby',
     chase:             { target: null, elapsed: 0, tier: 0, losLostAt: null },
   };
@@ -144,7 +148,10 @@ export function freshGameState(): GameStateRecord {
 export const rooms: Record<string, GameStateRecord> = {};
 
 export function getOrCreateRoom(roomName: string): GameStateRecord {
-  if (!rooms[roomName]) rooms[roomName] = freshGameState();
+  const existing = rooms[roomName];
+  if (!existing || (existing.phase === 'ended' && Object.keys(existing.players).length === 0)) {
+    rooms[roomName] = freshGameState();
+  }
   return rooms[roomName];
 }
 
@@ -176,7 +183,8 @@ export function checkWinConditions(state: GameStateRecord, emit: EmitFn): boolea
     return true;
   }
 
-  if (allSurvivors.length > 0 && allSurvivors.every((p) => p.expelled)) {
+  const nonEscaped = allSurvivors.filter((p) => !p.escaped);
+  if (nonEscaped.length > 0 && nonEscaped.every((p) => p.expelled || p.downed)) {
     state.phase = 'ended';
     emit('gameOver', { winner: 'professor', stats: buildStats(state) });
     return true;

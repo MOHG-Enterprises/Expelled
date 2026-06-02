@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 
 export class StartScene extends Phaser.Scene {
+  private bgSprite!:   Phaser.GameObjects.Sprite;
+  private playButton!: Phaser.GameObjects.Image;
+
   constructor() {
     super('StartScene');
   }
@@ -44,6 +47,7 @@ export class StartScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const kb = this.input.keyboard;
 
     this.anims.create({
       key: 'firstScreen_play',
@@ -52,28 +56,50 @@ export class StartScene extends Phaser.Scene {
       repeat: 0,
     });
 
-    const sprite = this.add.sprite(width / 2, height / 2, 'firstScreen');
-    const scale = Math.max(width / 1150, height / 640);
-    sprite.setScale(scale);
-    sprite.play('firstScreen_play');
+    this.bgSprite = this.add.sprite(width / 2, height / 2, 'firstScreen');
+    this.bgSprite.setScale(Math.max(width / 1150, height / 640));
+    this.bgSprite.play('firstScreen_play');
 
-    const button = this.add.image(width / 2, height / 2 + 20, 'botaoPlay', 0);
-    button.setScale(1.5);
-    button.setVisible(false);
-    button.setInteractive({ useHandCursor: true });
+    this.playButton = this.add.image(width / 2, height / 2 + 20, 'botaoPlay', 0);
+    this.playButton.setScale(1.5);
+    this.playButton.setVisible(false);
+    this.playButton.setInteractive({ useHandCursor: true });
+
+    const button = this.playButton;
 
     button.on('pointerover', () => button.setFrame(1));
     button.on('pointerout', () => button.setFrame(0));
 
     const startGame = () => {
       (this.sound as { context?: AudioContext }).context?.resume();
+      if (this.scale.isFullscreen === false) {
+        this.scale.startFullscreen();
+      }
+      this.input.off('pointerup', startGame);
+      if (kb) {
+        kb.off('keydown-SPACE', startGame);
+        kb.off('keydown-ENTER', startGame);
+      }
       this.scene.start('LobbyScene');
     };
 
     button.on('pointerdown', startGame);
 
-    sprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+    this.bgSprite.on(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       button.setVisible(true);
     });
+    this.input.on('pointerup', startGame);
+    if (kb) {
+      kb.on('keydown-SPACE', startGame);
+      kb.on('keydown-ENTER', startGame);
+    }
+
+    const onResize = (gameSize: Phaser.Structs.Size) => {
+      const { width: w, height: h } = gameSize;
+      this.bgSprite.setPosition(w / 2, h / 2).setScale(Math.max(w / 1150, h / 640));
+      this.playButton.setPosition(w / 2, h / 2 + 20);
+    };
+    this.scale.on('resize', onResize);
+    this.events.once('shutdown', () => this.scale.off('resize', onResize));
   }
 }

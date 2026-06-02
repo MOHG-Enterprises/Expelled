@@ -16,6 +16,24 @@ export interface InputState {
   eJustDown:       boolean;
   cJustDown:       boolean;
   usingGamepad:    boolean;
+  isTouchInput:    boolean;
+  lookAngle?:      number;
+}
+
+export interface TouchInputState {
+  active:       boolean;
+  vx:           number;
+  vy:           number;
+  analogScale:  number;
+  sprinting:    boolean;
+  actionHeld:   boolean;
+  actionJust:   boolean;
+  attackHeld:   boolean;
+  attackJust:   boolean;
+  attackJustUp: boolean;
+  lookVx:       number;
+  lookVy:       number;
+  hasLookInput: boolean;
 }
 
 const PAD_DEADZONE = 0.2;
@@ -34,7 +52,7 @@ export class InputManager {
   private mouseAttackJust:   boolean = false;
   private mouseAttackJustUp: boolean = false;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, isTouchDevice = false) {
     this.cursors  = scene.input.keyboard!.createCursorKeys();
     this.wasd     = scene.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.spaceKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -42,15 +60,17 @@ export class InputManager {
     this.shiftKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.cKey     = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
-    scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.button === 0) this.mouseAttackJust = true;
-    });
-    scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.button === 0) this.mouseAttackJustUp = true;
-    });
+    if (!isTouchDevice) {
+      scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.button === 0) this.mouseAttackJust = true;
+      });
+      scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+        if (pointer.button === 0) this.mouseAttackJustUp = true;
+      });
+    }
   }
 
-  read(pad: Phaser.Input.Gamepad.Gamepad | null): InputState {
+  read(pad: Phaser.Input.Gamepad.Gamepad | null, touchState?: TouchInputState): InputState {
     const padActionNow = pad?.buttons[0].pressed ?? false;
     const padAttackNow = pad?.buttons[2].pressed ?? false;
 
@@ -92,6 +112,30 @@ export class InputManager {
       }
     }
 
+    if (touchState?.active) {
+      return {
+        vx:             touchState.vx,
+        vy:             touchState.vy,
+        analogScale:    touchState.analogScale,
+        intendedToMove: touchState.vx !== 0 || touchState.vy !== 0,
+        sprinting:      touchState.sprinting,
+        actionHeld:     touchState.actionHeld,
+        attackHeld:     touchState.attackHeld,
+        actionJust:     touchState.actionJust,
+        attackJust:     touchState.attackJust,
+        attackJustUp:   touchState.attackJustUp,
+        spaceJustDown:  touchState.attackJust,
+        spaceJustUp:    touchState.attackJustUp,
+        eJustDown:      touchState.actionJust,
+        cJustDown:      false,
+        usingGamepad:   false,
+        isTouchInput:   true,
+        lookAngle:      touchState.hasLookInput
+          ? Math.atan2(touchState.lookVy, touchState.lookVx)
+          : undefined,
+      };
+    }
+
     return {
       vx,
       vy,
@@ -108,6 +152,7 @@ export class InputManager {
       eJustDown,
       cJustDown,
       usingGamepad:   pad !== null,
+      isTouchInput:   false,
     };
   }
 
