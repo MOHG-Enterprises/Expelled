@@ -868,7 +868,8 @@ export class GameScene extends Phaser.Scene {
         this.tp2LastDest = 'C';
         this.tp2Cooldown = 5000;
       }
-      
+    }
+
     if (!this.inputFrozen && this.skillCheck.active && (input.attackJust || input.actionJust)) {
       this.skillCheck.tryHit();
     }
