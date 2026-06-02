@@ -17,12 +17,12 @@ interface LobbyState {
 type RoomSummary = Record<string, { playerCount: number; phase: string }>;
 
 const SURVIVOR_SKINS = [
-  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
-  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
-  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/giu/icons/Giu_Icon.png',         label: 'Giu'     },
-  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/isabela/icons/Isabela_Icon.png', label: 'Isabela' },
-  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/davi/icons/Davi_Icon.png',       label: 'Davi'    },
-  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/caio/icons/Caio_Icon.png',       label: 'Caio'    },
+  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/Survivors/Arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
+  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/Survivors/Gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
+  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/Survivors/Giu/icons/Giu_Icon.png',         label: 'Giu'     },
+  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/Survivors/Isabela/icons/Isabela_Icon.png', label: 'Isabela' },
+  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/Survivors/Dave/icons/Dave_Icon.png',       label: 'Davi'    },
+  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/Survivors/Caio/icons/Caio_Icon.png',       label: 'Caio'    },
 ] as const;
 
 export class LobbyScene extends Phaser.Scene {

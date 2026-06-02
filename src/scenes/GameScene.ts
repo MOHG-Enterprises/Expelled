@@ -254,10 +254,10 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('computer-terminal-sheet', './Computer Room Spritesheet 1 (1).png', {
       frameWidth: 32, frameHeight: 32,
     });
-    this.load.spritesheet('professor-slash', './personagens/professor/slash_128.png', {
+    this.load.spritesheet('professor-slash', './personagens/Killers/Professor/standard/slash_128.png', {
       frameWidth: 128, frameHeight: 128,
     });
-    this.load.spritesheet('professor-hurt', './personagens/professor/hurt.png', {
+    this.load.spritesheet('professor-hurt', './personagens/Killers/Professor/standard/hurt.png', {
       frameWidth: 64, frameHeight: 64,
     });
     preloadMapAssets(this);
@@ -378,8 +378,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getSpawnPoint(role: Role): { x: number; y: number } {
-    const centerX = this.mapWorldWidth * 0.5;
-    const centerY = this.mapWorldHeight * 0.55;
     if (role === 'professor') return { x: 1847, y: 2556 };
     return Phaser.Math.RND.pick(SURVIVOR_SPAWN_POINTS as Array<{ x: number; y: number }>);
   }
