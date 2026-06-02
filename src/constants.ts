@@ -125,3 +125,6 @@ export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; r
   g1: { col: 12, rowStart: 70, rowEnd: 75 },
   g2: { col: 12, rowStart: 47, rowEnd: 52 },
 };
+
+export const FEIRA_PRODUCT_ID  = 0;
+export const GOOGLE_CLIENT_ID  = '331191695151-ku8mdhd76pc2k36itas8lm722krn0u64.apps.googleusercontent.com';
