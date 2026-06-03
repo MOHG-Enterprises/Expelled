@@ -11,10 +11,13 @@ import type { Role } from '../types';
 const EPS = 0.0001;
 const ARC_STEP = Phaser.Math.DegToRad(3);
 
+const EDGE_FADE_KEY = '__fov_edge_fade__';
+
 export class FogOfWar {
   private scene: Phaser.Scene;
   private overlay: Phaser.GameObjects.Rectangle | null = null;
   private maskGraphics: Phaser.GameObjects.Graphics | null = null;
+  private edgeFade: Phaser.GameObjects.Image | null = null;
   private role: Role = 'survivor';
   private fovRadius = FOV_SURVIVOR;
 
