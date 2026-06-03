@@ -75,6 +75,9 @@ export class GameScene extends Phaser.Scene {
   private isHitStagger = false;
 
   private bloodlustTier: 0 | 1 | 2 | 3 = 0;
+  private afkTimer         = 0;
+  private afkHeart:  Phaser.GameObjects.Text | null = null;
+  private afkTween:  Phaser.Tweens.Tween   | null = null;
   private sprinting        = false;
   private onHitSprintTimer = 0;
   private tpCooldown  = 0;
@@ -230,6 +233,8 @@ export class GameScene extends Phaser.Scene {
     this.staggerTimer    = 0;
     this.isHitStagger    = false;
     this.bloodlustTier   = 0;
+    this.afkTimer        = 0;
+    this._hideAfkHeart();
     this.sprinting       = false;
     this.onHitSprintTimer = 0;
     this.beingHealed     = false;
@@ -918,7 +923,7 @@ export class GameScene extends Phaser.Scene {
           cam.scrollX, cam.scrollY, cam.width, cam.height,
         );
       }
-      this.players.update(this.time.now);
+      this.players.update(this.time.now, this._busySurvivorIds());
       return;
     }
 
@@ -973,7 +978,7 @@ export class GameScene extends Phaser.Scene {
     const _dbgPreFog = performance.now() - _dbgT0;
     if (!this.ghost) this.fog.update(this.player, this.movement.lookAngle);
     const _dbgFog = performance.now() - _dbgT0 - _dbgPreFog;
-    this.players.update(this.time.now);
+    this.players.update(this.time.now, this._busySurvivorIds());
     const _dbgPlayers = performance.now() - _dbgT0 - _dbgPreFog - _dbgFog;
     if (_dbgPreFog > 8 || _dbgFog > 8 || _dbgPlayers > 4)
       console.warn(`[slow] preFog=${_dbgPreFog.toFixed(1)} fog=${_dbgFog.toFixed(1)} players=${_dbgPlayers.toFixed(1)}`);
@@ -988,6 +993,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.myRole === 'survivor' && !this.ghost) {
+      this._tickAfk(
+        intendedToMove || this.inputFrozen || this.downed
+        || this.hacking.activeHackingTerminal !== null
+        || this.hacking.activeHealingTarget   !== null
+        || this.beingHealed,
+        delta,
+      );
       if (this.downed) {
         this.hacking.updateDownedSelf(delta, this.beingHealed, intendedToMove, this.myHealPct);
         this.myDownBleedMs = Math.min(this.myDownBleedMs + delta, BLEED_OUT_MS);
@@ -1079,6 +1091,54 @@ const cam = this.cameras.main;
       result[id] = pos;
     }
     return result;
+  }
+
+  private _busySurvivorIds(): ReadonlySet<string> {
+    const busy = new Set<string>();
+    for (const [id, info] of this.survivorInfo) {
+      if (info.hacking || info.beingHealed) busy.add(id);
+    }
+    return busy;
+  }
+
+  private _hideAfkHeart() {
+    if (!this.afkHeart?.visible) return;
+    this.afkTween?.stop();
+    this.afkTween = null;
+    this.afkHeart.setVisible(false);
+  }
+
+  private _tickAfk(isActive: boolean, delta: number) {
+    const AFK_MS = 8_000;
+    if (isActive) {
+      this.afkTimer = 0;
+      this._hideAfkHeart();
+      return;
+    }
+    this.afkTimer += delta;
+    if (this.afkTimer < AFK_MS) return;
+
+    if (!this.afkHeart) {
+      this.afkHeart = this.add
+        .text(0, 0, '💗', { fontSize: '20px' })
+        .setOrigin(0.5, 1)
+        .setDepth(10)
+        .setAlpha(0.82);
+    }
+
+    if (!this.afkHeart.visible) {
+      this.afkHeart.setVisible(true);
+      this.afkTween = this.tweens.add({
+        targets:  this.afkHeart,
+        scale:    1.4,
+        duration: 550,
+        yoyo:     true,
+        repeat:   -1,
+        ease:     'Sine.easeInOut',
+      });
+    }
+
+    this.afkHeart.setPosition(this.player.x, this.player.y - 34);
   }
 
   private _spawnCorpse(id: string, x: number, y: number, skinId: string, direction: MoveDirection) {
