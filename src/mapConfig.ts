@@ -34,6 +34,7 @@ export const COLLISION_LAYERS = new Set([
   'PORTAO',
   'ARVORES',
   'PORTAOBOI',
+  'GRADE',
 ]);
 
 export function preloadMapAssets(scene: Phaser.Scene) {
