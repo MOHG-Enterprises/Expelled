@@ -44,7 +44,7 @@ export class InputManager {
   private spaceKey: Phaser.Input.Keyboard.Key;
   private eKey:     Phaser.Input.Keyboard.Key;
   private shiftKey: Phaser.Input.Keyboard.Key;
-  private cKey:     Phaser.Input.Keyboard.Key;
+  private f5Key:    Phaser.Input.Keyboard.Key;
 
   private padPrevAction = false;
   private padPrevAttack = false;
@@ -58,7 +58,7 @@ export class InputManager {
     this.spaceKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.eKey     = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.shiftKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-    this.cKey     = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.f5Key    = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F5);
 
     if (!isTouchDevice) {
       scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -87,7 +87,7 @@ export class InputManager {
     const spaceJustDown = Phaser.Input.Keyboard.JustDown(this.spaceKey);
     const spaceJustUp   = Phaser.Input.Keyboard.JustUp(this.spaceKey);
     const eJustDown     = Phaser.Input.Keyboard.JustDown(this.eKey);
-    const cJustDown     = Phaser.Input.Keyboard.JustDown(this.cKey);
+    const cJustDown     = this.shiftKey.isDown && Phaser.Input.Keyboard.JustDown(this.f5Key);
     const mouseAJ       = this.mouseAttackJust;
     const mouseAJU      = this.mouseAttackJustUp;
     this.mouseAttackJust    = false;

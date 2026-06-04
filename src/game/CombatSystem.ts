@@ -7,7 +7,7 @@ import {
 } from '../constants';
 import type { TerminalId } from '../types';
 import type { InputState } from './InputManager';
-import type { MoveDirection } from './playerSkins';
+import { getSkinById, type MoveDirection } from './playerSkins';
 import type { InteractionPromptManager } from './InteractionPromptManager';
 
 export class CombatSystem {
@@ -25,16 +25,20 @@ export class CombatSystem {
   private _kickSprite:  Phaser.GameObjects.Sprite | null = null;
   private promptManager: InteractionPromptManager;
 
+  private readonly skinId: string;
+
   constructor(
     scene:         Phaser.Scene,
     player:        Phaser.Physics.Arcade.Sprite,
     socket:        Socket,
     promptManager: InteractionPromptManager,
+    skinId:        string,
   ) {
     this.scene         = scene;
     this.player        = player;
     this.socket        = socket;
     this.promptManager = promptManager;
+    this.skinId        = skinId;
   }
 
   get isSwinging():       boolean { return this._isSwinging; }
@@ -42,22 +46,25 @@ export class CombatSystem {
   get attackHoldActive(): boolean { return this._attackHoldStart !== null && !this._isSwinging; }
 
   createSlashAnimations() {
+    const skin = getSkinById(this.skinId);
+    if (!skin.slash) return;
+    const slashTexKey = skin.slash.key;
     const dirs: [MoveDirection, number][] = [['up', 0], ['left', 1], ['down', 2], ['right', 3]];
     dirs.forEach(([dir, row]) => {
-      const slashKey = `professor-slash:${dir}`;
-      if (!this.scene.anims.exists(slashKey)) {
+      const slashAnimKey = `${slashTexKey}:${dir}`;
+      if (!this.scene.anims.exists(slashAnimKey)) {
         this.scene.anims.create({
-          key:       slashKey,
-          frames:    this.scene.anims.generateFrameNumbers('professor-slash', { start: row * 6, end: row * 6 + 5 }),
+          key:       slashAnimKey,
+          frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
           frameRate: 12,
           repeat:    0,
         });
       }
-      const kickKey = `professor-kick:${dir}`;
-      if (!this.scene.anims.exists(kickKey)) {
+      const kickAnimKey = `${slashTexKey}:kick:${dir}`;
+      if (!this.scene.anims.exists(kickAnimKey)) {
         this.scene.anims.create({
-          key:       kickKey,
-          frames:    this.scene.anims.generateFrameNumbers('professor-slash', { start: row * 6, end: row * 6 + 5 }),
+          key:       kickAnimKey,
+          frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
           frameRate: 5,
           repeat:    1,
         });
@@ -66,22 +73,24 @@ export class CombatSystem {
   }
 
   playHurtAnimation(ms: number) {
-    if (!this.scene.textures.exists('professor-hurt')) return;
-    if (this.scene.anims.exists('professor:hurt')) this.scene.anims.remove('professor:hurt');
+    const skin = getSkinById(this.skinId);
+    if (!skin.hurt || !this.scene.textures.exists(skin.hurt.key)) return;
+    const hurtAnimKey = `${this.skinId}:hurt`;
+    if (this.scene.anims.exists(hurtAnimKey)) this.scene.anims.remove(hurtAnimKey);
     this.scene.anims.create({
-      key: 'professor:hurt',
+      key: hurtAnimKey,
       frames: [
-        { key: 'professor-hurt', frame: 0 },
-        { key: 'professor-hurt', frame: 1 },
-        { key: 'professor-hurt', frame: 2 },
-        { key: 'professor-hurt', frame: 2 },
-        { key: 'professor-hurt', frame: 1 },
-        { key: 'professor-hurt', frame: 0 },
+        { key: skin.hurt.key, frame: 0 },
+        { key: skin.hurt.key, frame: 1 },
+        { key: skin.hurt.key, frame: 2 },
+        { key: skin.hurt.key, frame: 2 },
+        { key: skin.hurt.key, frame: 1 },
+        { key: skin.hurt.key, frame: 0 },
       ],
       duration: ms,
       repeat:   0,
     });
-    this.player.play('professor:hurt');
+    this.player.play(hurtAnimKey);
   }
 
   cancelAll() {
@@ -167,12 +176,13 @@ export class CombatSystem {
     this._isSwinging     = true;
     this._swingDirection = facingDirection;
 
+    const slashTexKey = getSkinById(this.skinId).slash?.key ?? 'boi-slash';
     this.player.setVisible(false);
-    const slash = this.scene.add.sprite(this.player.x, this.player.y, 'professor-slash')
+    const slash = this.scene.add.sprite(this.player.x, this.player.y, slashTexKey)
       .setDepth(6)
       .setDisplaySize(128, 128);
     this._slashSprite = slash;
-    slash.play(`professor-slash:${this._swingDirection}`);
+    slash.play(`${slashTexKey}:${this._swingDirection}`);
 
     this._showAttackHitbox(this.player.x, this.player.y, lookAngle, isLunge);
     this.socket.emit('attack', {
@@ -195,11 +205,12 @@ export class CombatSystem {
     this.socket.emit('kick', { x: this.player.x, y: this.player.y, dir: facingDirection });
     this.player.setVisible(false);
 
-    const kick = this.scene.add.sprite(this.player.x, this.player.y, 'professor-slash')
+    const slashTexKey = getSkinById(this.skinId).slash?.key ?? 'boi-slash';
+    const kick = this.scene.add.sprite(this.player.x, this.player.y, slashTexKey)
       .setDepth(6)
       .setDisplaySize(128, 128);
     this._kickSprite = kick;
-    kick.play(`professor-kick:${facingDirection}`);
+    kick.play(`${slashTexKey}:kick:${facingDirection}`);
 
     kick.once('animationcomplete', () => {
       kick.destroy();

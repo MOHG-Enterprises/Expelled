@@ -49,6 +49,7 @@ const socketToRoom = new Map<string, string>();
 const roomHealingMap = new Map<string, Map<string, string>>();
 
 const VALID_SURVIVOR_SKINS = new Set(['arthur', 'gustavo', 'giu', 'isabela', 'davi', 'caio']);
+const VALID_KILLER_SKINS = new Set(['boi', 'clayrton', 'fernanda', 'aquarioguy']);
 
 function getRoomForSocket(socketId: string): { roomName: string; state: GameStateRecord } | null {
   const roomName = socketToRoom.get(socketId);
@@ -169,11 +170,17 @@ io.on('connection', (socket) => {
     if (!room) return;
     const { roomName, state } = room;
     const p = state.players[socket.id];
-    if (!p || p.role !== 'survivor') return;
+    if (!p) return;
     if (typeof name !== 'string' || typeof skinId !== 'string') return;
     const trimmed = name.trim().slice(0, 12);
     if (!trimmed) return;
-    if (!VALID_SURVIVOR_SKINS.has(skinId)) return;
+    if (p.role === 'survivor') {
+      if (!VALID_SURVIVOR_SKINS.has(skinId)) return;
+    } else if (p.role === 'professor') {
+      if (!VALID_KILLER_SKINS.has(skinId)) return;
+    } else {
+      return;
+    }
     p.name   = trimmed;
     p.skinId = skinId;
     io.to(roomName).emit('gameState', state);

@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
+import axios from 'axios';
 import type { Socket } from '../socketClient';
+import { calculateReward, type RewardBreakdown } from '../game/rewards';
+import { FEIRA_PRODUCT_ID, GOOGLE_CLIENT_ID } from '../constants';
 
 interface PlayerStatSnapshot {
   role: 'survivor' | 'professor';
@@ -27,19 +30,25 @@ const PROFESSOR_RATINGS: [number, string][] = [
 ];
 
 const OUTCOME_LABEL: Record<'escaped' | 'expelled' | 'downed', string> = {
-  escaped: 'FUGIU!',
+  escaped:  'FUGIU!',
   expelled: 'EXPULSO',
-  downed: 'DERRUBADO',
+  downed:   'DERRUBADO',
 };
 
 const OUTCOME_COLOR: Record<'escaped' | 'expelled' | 'downed', string> = {
-  escaped: '#00e676',
+  escaped:  '#00e676',
   expelled: '#ff4444',
-  downed: '#ffb300',
+  downed:   '#ffb300',
 };
+
+type FeiraStatus = 'idle' | 'pending' | 'done' | 'error';
 
 export class PostGameScene extends Phaser.Scene {
   private contentObjects: Phaser.GameObjects.GameObject[] = [];
+  private _data: PostGameData | null = null;
+  private _feiraStatus: FeiraStatus = 'idle';
+  private _feiraMessage = '';
+  private _feiraBreakdown: RewardBreakdown | null = null;
 
   constructor() {
     super('PostGameScene');
@@ -47,7 +56,14 @@ export class PostGameScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#1a1a2e');
-    const data = this.registry.get('postGameData') as PostGameData;
+    this._data = this.registry.get('postGameData') as PostGameData;
+    const data = this._data;
+    this._feiraStatus = 'idle';
+    this._feiraMessage = '';
+
+    const my = data.stats[data.myId];
+    this._feiraBreakdown = my ? calculateReward(my, data.winner) : null;
+
     this._build(this.scale.width, this.scale.height, data);
 
     const onResize = (gameSize: Phaser.Structs.Size) => {
@@ -56,6 +72,8 @@ export class PostGameScene extends Phaser.Scene {
     };
     this.scale.on('resize', onResize);
     this.events.once('shutdown', () => this.scale.off('resize', onResize));
+
+    if (my) this._initFeira(data);
   }
 
   private _clearContent(): void {
@@ -69,7 +87,7 @@ export class PostGameScene extends Phaser.Scene {
     const my = data.stats[data.myId];
 
     if (!my) {
-      this._renderButton(width, height, data.socket);
+      this._renderButton(width, height * 0.75, data.socket);
       return;
     }
 
@@ -85,7 +103,30 @@ export class PostGameScene extends Phaser.Scene {
     );
 
     this._renderStatBoxes(width, height, my);
-    this._renderButton(width, height, data.socket);
+
+    let bottomY = height * 0.62;
+
+    if (this._feiraBreakdown) {
+      bottomY = this._renderRewardBreakdown(width, bottomY, this._feiraBreakdown);
+      bottomY += 12;
+    }
+
+    if (this._feiraStatus !== 'idle') {
+      const statusColor =
+        this._feiraStatus === 'done'  ? '#00e676' :
+        this._feiraStatus === 'error' ? '#ff4444' : '#aaaacc';
+
+      this.contentObjects.push(
+        this.add.text(width / 2, bottomY, this._feiraMessage, {
+          fontSize: '14px',
+          color: statusColor,
+          fontFamily: 'monospace',
+        }).setOrigin(0.5),
+      );
+      bottomY += 28;
+    }
+
+    this._renderButton(width, bottomY + 8, data.socket);
   }
 
   private _getResult(data: PostGameData, my: PlayerStatSnapshot): { label: string; color: string } {
@@ -113,7 +154,7 @@ export class PostGameScene extends Phaser.Scene {
     ];
   }
 
-  private _renderStatBoxes(width: number, height: number, my: PlayerStatSnapshot) {
+  private _renderStatBoxes(width: number, height: number, my: PlayerStatSnapshot): void {
     const boxes  = this._getStatBoxes(my);
     const boxW   = 150;
     const boxH   = 80;
@@ -150,13 +191,64 @@ export class PostGameScene extends Phaser.Scene {
     });
   }
 
-  private _renderButton(width: number, height: number, socket: Socket) {
+  private _renderRewardBreakdown(width: number, startY: number, breakdown: RewardBreakdown): number {
+    const lineH = 18;
+    const col1X = width / 2 - 90;
+    const col2X = width / 2 + 90;
+
+    breakdown.lines.forEach((line, i) => {
+      const y = startY + i * lineH;
+      this.contentObjects.push(
+        this.add.text(col1X, y, line.label, {
+          fontSize: '13px',
+          color: '#888899',
+          fontFamily: 'monospace',
+        }).setOrigin(0, 0.5),
+      );
+      this.contentObjects.push(
+        this.add.text(col2X, y, `+${line.amount} tj`, {
+          fontSize: '13px',
+          color: '#e0e0ff',
+          fontFamily: 'monospace',
+        }).setOrigin(1, 0.5),
+      );
+    });
+
+    const divY = startY + breakdown.lines.length * lineH + 6;
+    this.contentObjects.push(
+      this.add.graphics()
+        .lineStyle(1, 0x444466, 1)
+        .lineBetween(col1X, divY, col2X, divY),
+    );
+
+    const totalY = divY + 14;
+    this.contentObjects.push(
+      this.add.text(col1X, totalY, 'Total', {
+        fontSize: '14px',
+        color: '#aaaacc',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+      }).setOrigin(0, 0.5),
+    );
+    this.contentObjects.push(
+      this.add.text(col2X, totalY, `+${breakdown.total} tj`, {
+        fontSize: '14px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+        fontStyle: 'bold',
+      }).setOrigin(1, 0.5),
+    );
+
+    return totalY + 10;
+  }
+
+  private _renderButton(width: number, y: number, socket: Socket): void {
     const goToLobby = () => {
       socket.disconnect();
       this.scene.start('LobbyScene');
     };
 
-    const btn = this.add.text(width / 2, height * 0.75, '[ JOGAR DE NOVO ]', {
+    const btn = this.add.text(width / 2, y, '[ JOGAR DE NOVO ]', {
       fontSize: '16px',
       color: '#aaaacc',
       fontFamily: 'monospace',
@@ -171,5 +263,42 @@ export class PostGameScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-SPACE', goToLobby);
 
     this.contentObjects.push(btn);
+  }
+
+  private _initFeira(data: PostGameData): void {
+    const rebuild = () => {
+      this._clearContent();
+      this._build(this.scale.width, this.scale.height, data);
+    };
+
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (res: google.accounts.id.CredentialResponse) => {
+        const breakdown = this._feiraBreakdown;
+        if (!breakdown) return;
+
+        this._feiraStatus = 'pending';
+        this._feiraMessage = 'Enviando crédito...';
+        rebuild();
+
+        axios
+          .post(
+            'https://feira-de-jogos.dev.br/api/v2/credit',
+            { product: FEIRA_PRODUCT_ID, value: breakdown.total },
+            { headers: { Authorization: `Bearer ${res.credential}` } },
+          )
+          .then(() => {
+            this._feiraStatus = 'done';
+            this._feiraMessage = `✓ +${breakdown.total} tijolinhos adicionados!`;
+          })
+          .catch(() => {
+            this._feiraStatus = 'error';
+            this._feiraMessage = 'Erro ao adicionar crédito :(';
+          })
+          .finally(rebuild);
+      },
+    });
+
+    google.accounts.id.prompt();
   }
 }
