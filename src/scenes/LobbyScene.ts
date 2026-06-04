@@ -21,15 +21,15 @@ const SURVIVOR_SKINS = [
   { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/survivors/gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
   { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/survivors/giu/icons/Giu_Icon.png',         label: 'Giu'     },
   { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/survivors/isabela/icons/Isabela_Icon.png', label: 'Isabela' },
-  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/survivors/dave/icons/Dave_Icon.png',       label: 'Davi'    },
+  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/survivors/davi/icons/Davi_Icon.png',       label: 'Davi'    },
   { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/survivors/caio/icons/Caio_Icon.png',       label: 'Caio'    },
 ] as const;
 
 const KILLER_SKINS: Array<{ skinId: string; iconKey: string | null; iconPath: string | null; label: string }> = [
-  { skinId: 'boi',  iconKey: 'boi-icon', iconPath: './personagens/killers/professor/icon/Icon_Boi_Finished.png', label: 'Boi'  },
-  { skinId: 'clayrton',   iconKey: null,             iconPath: null, label: 'Clayrton'   },
-  { skinId: 'fernanda',   iconKey: null,             iconPath: null, label: 'Fernanda'   },
-  { skinId: 'aquarioguy', iconKey: null,             iconPath: null, label: 'AquarioGuy' },
+  { skinId: 'boi',        iconKey: 'boi-icon',      iconPath: './personagens/killers/professor/icon/Boi_Icon.png',          label: 'Boi'       },
+  { skinId: 'clayrton',   iconKey: 'clayrton-icon', iconPath: './personagens/killers/clayrton/icon/Clayrton_Icon.png',      label: 'Clayrton'  },
+  { skinId: 'fernanda',   iconKey: 'fernanda-icon', iconPath: './personagens/killers/fernanda/icon/Fernanda_Icon.png',      label: 'Fernanda'  },
+  { skinId: 'aquarioguy', iconKey: null,            iconPath: null,                                                         label: 'AquarioGuy' },
 ];
 
 export class LobbyScene extends Phaser.Scene {
