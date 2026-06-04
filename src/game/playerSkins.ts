@@ -19,7 +19,9 @@ export interface PlayerSkin {
   run: LpcSheet;
   sit: LpcSheet;
   combat?: LpcSheet;
-  hurt?: { key: string; path: string };
+  hurt?:  { key: string; path: string };
+  slash?: { key: string; path: string };
+  totalRows?: number;
   icon?:     { key: string; path: string };
   iconHurt?: { key: string; path: string };
   displayWidth: number;
@@ -41,14 +43,64 @@ const DIRECTION_ROWS: Record<MoveDirection, number> = {
 };
 
 export const PLAYER_SKINS: Record<string, PlayerSkin> = {
-  professor: {
-    id: 'professor',
+  boi: {
+    id: 'boi',
     frameSize: 64,
-    idle:   { key: 'professor-idle',   path: './personagens/professor/idle.png',   totalCols: 13, animCols: 2 },
-    walk:   { key: 'professor-walk',   path: './personagens/professor/walk.png',   totalCols: 13, animCols: 9 },
-    run:    { key: 'professor-run',    path: './personagens/professor/run.png',    totalCols: 13, animCols: 6 },
-    sit:    { key: 'professor-sit',    path: './personagens/professor/sit.png',    totalCols: 13, animCols: 3 },
-    combat: { key: 'professor-combat', path: './personagens/professor/combat.png', totalCols: 13, animCols: 2 },
+    idle:   { key: 'boi-idle',   path: './personagens/killers/professor/standard/idle.png',   totalCols: 13, animCols: 2 },
+    walk:   { key: 'boi-walk',   path: './personagens/killers/professor/standard/walk.png',   totalCols: 13, animCols: 9 },
+    run:    { key: 'boi-run',    path: './personagens/killers/professor/standard/run.png',    totalCols: 13, animCols: 6 },
+    sit:    { key: 'boi-sit',    path: './personagens/killers/professor/standard/sit.png',    totalCols: 13, animCols: 3 },
+    combat: { key: 'boi-combat', path: './personagens/killers/professor/standard/combat.png', totalCols: 13, animCols: 2 },
+    hurt:  { key: 'boi-hurt',  path: './personagens/killers/professor/standard/hurt.png' },
+    slash: { key: 'boi-slash', path: './personagens/killers/professor/standard/slash_128.png' },
+    totalRows: 3,
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+    frameRates: { walk: 14 },
+  },
+  clayrton: {
+    id: 'clayrton',
+    frameSize: 64,
+    idle:   { key: 'clayrton-idle',   path: './personagens/killers/clayrton/standard/idle.png',   totalCols: 13, animCols: 2 },
+    walk:   { key: 'clayrton-walk',   path: './personagens/killers/clayrton/standard/walk.png',   totalCols: 13, animCols: 9 },
+    run:    { key: 'clayrton-run',    path: './personagens/killers/clayrton/standard/run.png',    totalCols: 13, animCols: 6 },
+    sit:    { key: 'clayrton-sit',    path: './personagens/killers/clayrton/standard/sit.png',    totalCols: 13, animCols: 3 },
+    combat: { key: 'clayrton-combat', path: './personagens/killers/clayrton/standard/combat.png', totalCols: 13, animCols: 2 },
+    hurt:  { key: 'clayrton-hurt',  path: './personagens/killers/clayrton/standard/hurt.png' },
+    slash: { key: 'clayrton-slash', path: './personagens/killers/clayrton/standard/slash_128.png' },
+    totalRows: 3,
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+    frameRates: { walk: 14 },
+  },
+  fernanda: {
+    id: 'fernanda',
+    frameSize: 64,
+    idle:   { key: 'fernanda-idle',   path: './personagens/killers/fernanda/standard/idle.png',   totalCols: 13, animCols: 2 },
+    walk:   { key: 'fernanda-walk',   path: './personagens/killers/fernanda/standard/walk.png',   totalCols: 13, animCols: 9 },
+    run:    { key: 'fernanda-run',    path: './personagens/killers/fernanda/standard/run.png',    totalCols: 13, animCols: 6 },
+    sit:    { key: 'fernanda-sit',    path: './personagens/killers/fernanda/standard/sit.png',    totalCols: 13, animCols: 3 },
+    combat: { key: 'fernanda-combat', path: './personagens/killers/fernanda/standard/combat.png', totalCols: 13, animCols: 2 },
+    hurt:  { key: 'fernanda-hurt',  path: './personagens/killers/fernanda/standard/hurt.png' },
+    slash: { key: 'fernanda-slash', path: './personagens/killers/fernanda/standard/slash_128.png' },
+    totalRows: 3,
+    displayWidth: 64,
+    displayHeight: 64,
+    bodyOffset: { x: 16, y: 10 },
+    frameRates: { walk: 14 },
+  },
+  aquarioguy: {
+    id: 'aquarioguy',
+    frameSize: 64,
+    idle:   { key: 'aquarioguy-idle',   path: './personagens/killers/aquarioguy/standard/idle.png',   totalCols: 13, animCols: 2 },
+    walk:   { key: 'aquarioguy-walk',   path: './personagens/killers/aquarioguy/standard/walk.png',   totalCols: 13, animCols: 9 },
+    run:    { key: 'aquarioguy-run',    path: './personagens/killers/aquarioguy/standard/run.png',    totalCols: 13, animCols: 6 },
+    sit:    { key: 'aquarioguy-sit',    path: './personagens/killers/aquarioguy/standard/sit.png',    totalCols: 13, animCols: 3 },
+    combat: { key: 'aquarioguy-combat', path: './personagens/killers/aquarioguy/standard/combat.png', totalCols: 13, animCols: 2 },
+    hurt:  { key: 'aquarioguy-hurt',  path: './personagens/killers/aquarioguy/standard/hurt.png' },
+    totalRows: 3,
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -57,13 +109,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   arthur: {
     id: 'arthur',
     frameSize: 64,
-    idle: { key: 'arthur-idle', path: './personagens/arthur/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'arthur-walk', path: './personagens/arthur/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'arthur-run',  path: './personagens/arthur/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'arthur-sit',  path: './personagens/arthur/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'arthur-hurt', path: './personagens/arthur/hurt.png' },
-    icon:     { key: 'arthur-icon',      path: './personagens/arthur/icons/Arthur_Icon.png' },
-    iconHurt: { key: 'arthur-icon-hurt', path: './personagens/arthur/icons/Arthur_Icon_Hurt.png' },
+    idle: { key: 'arthur-idle', path: './personagens/survivors/arthur/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'arthur-walk', path: './personagens/survivors/arthur/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'arthur-run',  path: './personagens/survivors/arthur/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'arthur-sit',  path: './personagens/survivors/arthur/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'arthur-hurt', path: './personagens/survivors/arthur/standard/hurt.png' },
+    icon:     { key: 'arthur-icon',      path: './personagens/survivors/arthur/icons/Arthur_Icon.png' },
+    iconHurt: { key: 'arthur-icon-hurt', path: './personagens/survivors/arthur/icons/Arthur_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -71,13 +123,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   gustavo: {
     id: 'gustavo',
     frameSize: 64,
-    idle: { key: 'gustavo-idle', path: './personagens/gustavo/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'gustavo-walk', path: './personagens/gustavo/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'gustavo-run',  path: './personagens/gustavo/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'gustavo-sit',  path: './personagens/gustavo/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'gustavo-hurt', path: './personagens/gustavo/hurt.png' },
-    icon:     { key: 'gustavo-icon',      path: './personagens/gustavo/icons/Gustavo_Icon.png' },
-    iconHurt: { key: 'gustavo-icon-hurt', path: './personagens/gustavo/icons/Gustavo_Icon_Hurt.png' },
+    idle: { key: 'gustavo-idle', path: './personagens/survivors/gustavo/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'gustavo-walk', path: './personagens/survivors/gustavo/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'gustavo-run',  path: './personagens/survivors/gustavo/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'gustavo-sit',  path: './personagens/survivors/gustavo/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'gustavo-hurt', path: './personagens/survivors/gustavo/standard/hurt.png' },
+    icon:     { key: 'gustavo-icon',      path: './personagens/survivors/gustavo/icons/Gustavo_Icon.png' },
+    iconHurt: { key: 'gustavo-icon-hurt', path: './personagens/survivors/gustavo/icons/Gustavo_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -85,13 +137,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   giu: {
     id: 'giu',
     frameSize: 64,
-    idle: { key: 'giu-idle', path: './personagens/giu/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'giu-walk', path: './personagens/giu/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'giu-run',  path: './personagens/giu/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'giu-sit',  path: './personagens/giu/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'giu-hurt', path: './personagens/giu/hurt.png' },
-    icon:     { key: 'giu-icon',      path: './personagens/giu/icons/Giu_Icon.png' },
-    iconHurt: { key: 'giu-icon-hurt', path: './personagens/giu/icons/Giu_Icon_Hurt.png' },
+    idle: { key: 'giu-idle', path: './personagens/survivors/giu/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'giu-walk', path: './personagens/survivors/giu/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'giu-run',  path: './personagens/survivors/giu/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'giu-sit',  path: './personagens/survivors/giu/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'giu-hurt', path: './personagens/survivors/giu/standard/hurt.png' },
+    icon:     { key: 'giu-icon',      path: './personagens/survivors/giu/icons/Giu_Icon.png' },
+    iconHurt: { key: 'giu-icon-hurt', path: './personagens/survivors/giu/icons/Giu_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -99,13 +151,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   isabela: {
     id: 'isabela',
     frameSize: 64,
-    idle: { key: 'isabela-idle', path: './personagens/isabela/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'isabela-walk', path: './personagens/isabela/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'isabela-run',  path: './personagens/isabela/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'isabela-sit',  path: './personagens/isabela/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'isabela-hurt', path: './personagens/isabela/hurt.png' },
-    icon:     { key: 'isabela-icon',      path: './personagens/isabela/icons/Isabela_Icon.png' },
-    iconHurt: { key: 'isabela-icon-hurt', path: './personagens/isabela/icons/Isabela_Icon_Hurt.png' },
+    idle: { key: 'isabela-idle', path: './personagens/survivors/isabela/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'isabela-walk', path: './personagens/survivors/isabela/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'isabela-run',  path: './personagens/survivors/isabela/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'isabela-sit',  path: './personagens/survivors/isabela/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'isabela-hurt', path: './personagens/survivors/isabela/standard/hurt.png' },
+    icon:     { key: 'isabela-icon',      path: './personagens/survivors/isabela/icons/Isabela_Icon.png' },
+    iconHurt: { key: 'isabela-icon-hurt', path: './personagens/survivors/isabela/icons/Isabela_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -113,13 +165,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   davi: {
     id: 'davi',
     frameSize: 64,
-    idle: { key: 'davi-idle', path: './personagens/davi/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'davi-walk', path: './personagens/davi/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'davi-run',  path: './personagens/davi/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'davi-sit',  path: './personagens/davi/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'davi-hurt', path: './personagens/davi/hurt.png' },
-    icon:     { key: 'davi-icon',      path: './personagens/davi/icons/Davi_Icon.png' },
-    iconHurt: { key: 'davi-icon-hurt', path: './personagens/davi/icons/Davi_Icon_Hurt.png' },
+    idle: { key: 'davi-idle', path: './personagens/survivors/dave/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'davi-walk', path: './personagens/survivors/dave/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'davi-run',  path: './personagens/survivors/dave/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'davi-sit',  path: './personagens/survivors/dave/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'davi-hurt', path: './personagens/survivors/dave/standard/hurt.png' },
+    icon:     { key: 'davi-icon',      path: './personagens/survivors/dave/icons/Dave_Icon.png' },
+    iconHurt: { key: 'davi-icon-hurt', path: './personagens/survivors/dave/icons/Dave_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -127,13 +179,13 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
   caio: {
     id: 'caio',
     frameSize: 64,
-    idle: { key: 'caio-idle', path: './personagens/caio/idle.png', totalCols: 13, animCols: 2 },
-    walk: { key: 'caio-walk', path: './personagens/caio/walk.png', totalCols: 13, animCols: 9 },
-    run:  { key: 'caio-run',  path: './personagens/caio/run.png',  totalCols: 13, animCols: 6 },
-    sit:  { key: 'caio-sit',  path: './personagens/caio/sit.png',  totalCols: 13, animCols: 3 },
-    hurt: { key: 'caio-hurt', path: './personagens/caio/hurt.png' },
-    icon:     { key: 'caio-icon',      path: './personagens/caio/icons/Caio_Icon.png' },
-    iconHurt: { key: 'caio-icon-hurt', path: './personagens/caio/icons/Caio_Icon_Hurt.png' },
+    idle: { key: 'caio-idle', path: './personagens/survivors/caio/standard/idle.png', totalCols: 13, animCols: 2 },
+    walk: { key: 'caio-walk', path: './personagens/survivors/caio/standard/walk.png', totalCols: 13, animCols: 9 },
+    run:  { key: 'caio-run',  path: './personagens/survivors/caio/standard/run.png',  totalCols: 13, animCols: 6 },
+    sit:  { key: 'caio-sit',  path: './personagens/survivors/caio/standard/sit.png',  totalCols: 13, animCols: 3 },
+    hurt: { key: 'caio-hurt', path: './personagens/survivors/caio/standard/hurt.png' },
+    icon:     { key: 'caio-icon',      path: './personagens/survivors/caio/icons/Caio_Icon.png' },
+    iconHurt: { key: 'caio-icon-hurt', path: './personagens/survivors/caio/icons/Caio_Icon_Hurt.png' },
     displayWidth: 64,
     displayHeight: 64,
     bodyOffset: { x: 16, y: 10 },
@@ -141,7 +193,7 @@ export const PLAYER_SKINS: Record<string, PlayerSkin> = {
 };
 
 export const ROLE_DEFAULT_SKINS: Record<Role, string> = {
-  professor: 'professor',
+  professor: 'boi',
   survivor: 'arthur',
 };
 
@@ -167,6 +219,11 @@ export function preloadPlayerSkins(scene: Phaser.Scene): void {
         frameHeight: skin.frameSize,
       });
     }
+    if (skin.slash && !scene.textures.exists(skin.slash.key)) {
+      scene.load.spritesheet(skin.slash.key, skin.slash.path, {
+        frameWidth: 128, frameHeight: 128,
+      });
+    }
     if (skin.icon && !scene.textures.exists(skin.icon.key)) {
       scene.load.image(skin.icon.key, skin.icon.path);
     }
@@ -190,8 +247,9 @@ function animationKey(skin: PlayerSkin, state: AnimationState, direction: MoveDi
 }
 
 function ensureSkinAnimations(scene: Phaser.Scene, skin: PlayerSkin): void {
+  const maxRows = skin.totalRows ?? 4;
   (Object.keys(DIRECTION_ROWS) as MoveDirection[]).forEach((direction) => {
-    const row = DIRECTION_ROWS[direction];
+    const row = Math.min(DIRECTION_ROWS[direction], maxRows - 1);
 
     const sheets: [AnimationState, LpcSheet, number][] = [
       ['idle', skin.idle, skin.frameRates?.idle ?? 8],
@@ -274,6 +332,19 @@ export function playCombatAnimation(
   direction: MoveDirection,
 ): boolean {
   const skin = getSkinForRole(role);
+  if (!skin.combat) return false;
+  const key = `${skin.id}:combat:${direction}`;
+  if (!sprite.scene.anims.exists(key)) return false;
+  sprite.play(key, true);
+  return true;
+}
+
+export function playCombatAnimationById(
+  sprite:    Phaser.GameObjects.Sprite,
+  skinId:    string,
+  direction: MoveDirection,
+): boolean {
+  const skin = getSkinById(skinId);
   if (!skin.combat) return false;
   const key = `${skin.id}:combat:${direction}`;
   if (!sprite.scene.anims.exists(key)) return false;

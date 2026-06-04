@@ -6,8 +6,9 @@ import {
   applyDownedFrameById,
   getSkinById,
   playSkinAnimation,
-  playCombatAnimation,
+  playCombatAnimationById,
   playHurtFallById,
+  ROLE_DEFAULT_SKINS,
   type MoveDirection,
 } from './playerSkins';
 
@@ -35,7 +36,7 @@ export class PlayerManager {
   getOrCreate(id: string, data: Partial<PlayerState>): Phaser.GameObjects.Sprite {
     if (!this.others[id]) {
       const role: Role  = data.role ?? 'survivor';
-      const skinId      = role === 'professor' ? 'professor' : (data.skinId || 'arthur');
+      const skinId      = data.skinId || ROLE_DEFAULT_SKINS[role];
       const skin        = getSkinById(skinId);
       const sprite      = this.scene.add.sprite(data.x ?? 100, data.y ?? 100, skin.idle.key).setDepth(5);
       applySkinByIdToSprite(sprite, skinId);
@@ -58,10 +59,10 @@ export class PlayerManager {
 
     if (data.role && tracked.role !== data.role) {
       tracked.role   = data.role;
-      tracked.skinId = data.role === 'professor' ? 'professor' : (data.skinId || 'arthur');
+      tracked.skinId = data.skinId || ROLE_DEFAULT_SKINS[data.role];
       applySkinByIdToSprite(tracked.sprite, tracked.skinId);
       playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
-    } else if (data.skinId && data.skinId !== tracked.skinId && tracked.role !== 'professor') {
+    } else if (data.skinId && data.skinId !== tracked.skinId) {
       tracked.skinId = data.skinId;
       applySkinByIdToSprite(tracked.sprite, tracked.skinId);
       playSkinAnimation(tracked.sprite, tracked.skinId, 'idle', tracked.facingDirection);
@@ -108,7 +109,7 @@ export class PlayerManager {
       tracked.lastMoveAt = this.scene.time.now;
 
       if (tracked.isCharging) {
-        playCombatAnimation(tracked.sprite, tracked.role, tracked.facingDirection);
+        playCombatAnimationById(tracked.sprite, tracked.skinId, tracked.facingDirection);
       } else {
         const moveAnim = (tracked.role === 'survivor' && sprinting) ? 'run' : 'walk';
         playSkinAnimation(tracked.sprite, tracked.skinId, moveAnim, tracked.facingDirection);
@@ -133,7 +134,7 @@ export class PlayerManager {
     if (!p || p.role !== 'professor') return;
     p.isCharging = charging;
     if (charging) {
-      playCombatAnimation(p.sprite, p.role, p.facingDirection);
+      playCombatAnimationById(p.sprite, p.skinId, p.facingDirection);
     } else {
       playSkinAnimation(p.sprite, p.skinId, 'idle', p.facingDirection);
     }
@@ -142,11 +143,12 @@ export class PlayerManager {
   playAttack(id: string, x: number, y: number, dir: MoveDirection) {
     const p = this.others[id];
     if (!p) return;
+    const slashTexKey = getSkinById(p.skinId).slash?.key ?? 'boi-slash';
     p.sprite.setVisible(false);
-    const slash = this.scene.add.sprite(x, y, 'professor-slash')
+    const slash = this.scene.add.sprite(x, y, slashTexKey)
       .setDepth(6)
       .setDisplaySize(128, 128);
-    slash.play(`professor-slash:${dir}`);
+    slash.play(`${slashTexKey}:${dir}`);
     slash.once('animationcomplete', () => {
       slash.destroy();
       if (!this.others[id]) return;
@@ -165,11 +167,12 @@ export class PlayerManager {
   playKick(id: string, x: number, y: number, dir: MoveDirection) {
     const p = this.others[id];
     if (!p) return;
+    const slashTexKey = getSkinById(p.skinId).slash?.key ?? 'boi-slash';
     p.sprite.setVisible(false);
-    const kick = this.scene.add.sprite(x, y, 'professor-slash')
+    const kick = this.scene.add.sprite(x, y, slashTexKey)
       .setDepth(6)
       .setDisplaySize(128, 128);
-    kick.play(`professor-kick:${dir}`);
+    kick.play(`${slashTexKey}:kick:${dir}`);
     kick.once('animationcomplete', () => {
       kick.destroy();
       if (!this.others[id]) return;
@@ -188,7 +191,8 @@ export class PlayerManager {
   playStagger(id: string, ms: number) {
     const p = this.others[id];
     if (!p || p.role !== 'professor') return;
-    if (!this.scene.textures.exists('professor-hurt')) return;
+    const hurtKey = getSkinById(p.skinId).hurt?.key;
+    if (!hurtKey || !this.scene.textures.exists(hurtKey)) return;
     if (p.sprite.visible) {
       this._playHurtNow(id, ms);
     } else {
@@ -202,16 +206,17 @@ export class PlayerManager {
     if (!p) return;
     p.isPlayingHurt = true;
 
-    const key = 'professor:stagger';
+    const hurtTexKey = getSkinById(p.skinId).hurt?.key ?? 'boi-hurt';
+    const key = `${p.skinId}:stagger`;
     if (this.scene.anims.exists(key)) this.scene.anims.remove(key);
     this.scene.anims.create({
       key,
       frames: [
-        { key: 'professor-hurt', frame: 0 },
-        { key: 'professor-hurt', frame: 1 },
-        { key: 'professor-hurt', frame: 2 },
-        { key: 'professor-hurt', frame: 1 },
-        { key: 'professor-hurt', frame: 0 },
+        { key: hurtTexKey, frame: 0 },
+        { key: hurtTexKey, frame: 1 },
+        { key: hurtTexKey, frame: 2 },
+        { key: hurtTexKey, frame: 1 },
+        { key: hurtTexKey, frame: 0 },
       ],
       duration: ms,
       repeat: 0,
@@ -233,7 +238,7 @@ export class PlayerManager {
     const isIdle = (this.scene.time.now - p.lastMoveAt) > 120;
     if (!isIdle || p.isPlayingHurt) return;
     if (p.isCharging) {
-      playCombatAnimation(p.sprite, p.role, dir);
+      playCombatAnimationById(p.sprite, p.skinId, dir);
     } else {
       playSkinAnimation(p.sprite, p.skinId, 'idle', dir);
     }

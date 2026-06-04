@@ -7,7 +7,7 @@ import {
 import type { Role } from '../types';
 import type { InputState } from './InputManager';
 import {
-  applyDownedFrameById, playCombatAnimation, playRoleAnimation, getSkinById,
+  applyDownedFrameById, playCombatAnimationById, playRoleAnimation, getSkinById,
   playSkinAnimation,
   type MoveDirection,
 } from './playerSkins';
@@ -143,15 +143,16 @@ export class MovementSystem {
     }
 
     if (role === 'professor') {
+      const effectiveSkinId = skinId || 'professor';
       const inCombatStance = ctx.attackHoldActive && !ctx.isSwinging;
       if (inCombatStance) {
-        if (!playCombatAnimation(this.player, role, this.facingDirection)) {
-          playRoleAnimation(this.player, role, intendedToMove ? 'walk' : 'idle', this.facingDirection);
+        if (!playCombatAnimationById(this.player, effectiveSkinId, this.facingDirection)) {
+          playSkinAnimation(this.player, effectiveSkinId, intendedToMove ? 'walk' : 'idle', this.facingDirection);
         }
       } else if (intendedToMove) {
-        playRoleAnimation(this.player, role, 'walk', this.facingDirection);
+        playSkinAnimation(this.player, effectiveSkinId, 'walk', this.facingDirection);
       } else {
-        playRoleAnimation(this.player, role, 'idle', this.facingDirection);
+        playSkinAnimation(this.player, effectiveSkinId, 'idle', this.facingDirection);
       }
       return;
     }

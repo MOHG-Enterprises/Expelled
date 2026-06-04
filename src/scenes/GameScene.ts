@@ -250,12 +250,6 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('computer-terminal-sheet', './Computer Room Spritesheet 1 (1).png', {
       frameWidth: 32, frameHeight: 32,
     });
-    this.load.spritesheet('professor-slash', './personagens/professor/slash_128.png', {
-      frameWidth: 128, frameHeight: 128,
-    });
-    this.load.spritesheet('professor-hurt', './personagens/professor/hurt.png', {
-      frameWidth: 64, frameHeight: 64,
-    });
     preloadMapAssets(this);
     preloadPlayerSkins(this);
     ScratchMarkManager.preload(this);
@@ -263,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
   create(data?: { socket?: Socket; skinId?: string; roomName?: string }) {
     this.socket   = data?.socket ?? io({ path: '/expelled/socket.io' });
-    this.mySkinId = (data?.skinId && data.skinId !== 'professor') ? data.skinId : '';
+    this.mySkinId = data?.skinId ?? '';
     this.resetLocalState();
 
     const map = buildTilemap(this);
@@ -310,7 +304,7 @@ export class GameScene extends Phaser.Scene {
     this.isTouchDevice  = navigator.maxTouchPoints > 0;
     this.inputManager   = new InputManager(this, this.isTouchDevice);
     this.movement      = new MovementSystem(this.player);
-    this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager);
+    this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager, this.mySkinId);
     this.hacking       = new HackingSystem(
       this, this.player, this.socket,
       this.terminals, this.gates, this.players,
@@ -335,7 +329,7 @@ export class GameScene extends Phaser.Scene {
       this.touchControls.build();
     }
     this.hud.build(this.isTouchDevice);
-    this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). C = debug', 0xffcc00, 2600);
+    this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). Shift+F5 = debug', 0xffcc00, 2600);
 
     this.socket.removeAllListeners();
     this.setupSocketEvents();
@@ -402,7 +396,7 @@ export class GameScene extends Phaser.Scene {
   private _bindGameLifecycle(s: Socket) {
     s.on('roleAssigned', (role: Role) => {
       this.myRole = role;
-      if (role === 'survivor' && this.mySkinId) {
+      if (this.mySkinId) {
         applySkinByIdToSprite(this.player, this.mySkinId);
         playSkinAnimation(this.player, this.mySkinId, 'idle', this.movement.facingDirection);
       } else {
@@ -860,7 +854,7 @@ export class GameScene extends Phaser.Scene {
           const hurtFallKey = `${skin.id}:hurt-fall`;
           const hurtFallPlaying = this.player.anims.currentAnim?.key === hurtFallKey && this.player.anims.isPlaying;
           if (!hurtFallPlaying) applyDownedFrameById(this.player, effectiveSkinId, this.movement.facingDirection);
-        } else if (this.myRole === 'survivor' && this.mySkinId) {
+        } else if (this.mySkinId) {
           playSkinAnimation(this.player, this.mySkinId, 'idle', this.movement.facingDirection);
         } else {
           playRoleAnimation(this.player, this.myRole, 'idle', this.movement.facingDirection);
