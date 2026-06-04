@@ -74,7 +74,6 @@ export const TILE_WORLD_SIZE = 32; // 16px tile × MAP_SCALE 2
 
 export const FOV_BLOCKING_LAYERS = new Set([
   'Parede',
-  'PORTAO',
 ]);
 
 //  voz

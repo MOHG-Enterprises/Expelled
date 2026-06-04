@@ -23,6 +23,8 @@ interface RemotePlayer {
   pendingStagger:  boolean;
   staggerMs:       number;
   isPlayingHurt:   boolean;
+  afkHeart:        Phaser.GameObjects.Text | null;
+  afkTween:        Phaser.Tweens.Tween    | null;
 }
 
 export class PlayerManager {
@@ -45,12 +47,14 @@ export class PlayerManager {
         role,
         skinId,
         facingDirection: 'down',
-        lastMoveAt: 0,
+        lastMoveAt: this.scene.time.now,
         isCharging: false,
         isDowned: false,
         pendingStagger: false,
         staggerMs: 0,
         isPlayingHurt: false,
+        afkHeart: null,
+        afkTween: null,
       };
       playSkinAnimation(sprite, skinId, 'idle', 'down');
     }
@@ -244,17 +248,51 @@ export class PlayerManager {
     }
   }
 
-  update(now: number) {
-    Object.values(this.others).forEach((player) => {
+  private static AFK_MS = 8_000;
+
+  update(now: number, busyIds: ReadonlySet<string> = new Set()) {
+    Object.entries(this.others).forEach(([id, player]) => {
       if (player.isDowned || player.isCharging || player.isPlayingHurt) return;
       if (now - player.lastMoveAt > 120) {
         playSkinAnimation(player.sprite, player.skinId, 'idle', player.facingDirection);
+      }
+
+      if (player.role !== 'survivor') return;
+      const isAfk = now - player.lastMoveAt > PlayerManager.AFK_MS && !busyIds.has(id);
+
+      if (isAfk) {
+        if (!player.afkHeart) {
+          player.afkHeart = this.scene.add
+            .text(0, 0, '💗', { fontSize: '20px' })
+            .setOrigin(0.5, 1)
+            .setDepth(10)
+            .setAlpha(0.82);
+          player.afkTween = this.scene.tweens.add({
+            targets:  player.afkHeart,
+            scale:    1.4,
+            duration: 550,
+            yoyo:     true,
+            repeat:   -1,
+            ease:     'Sine.easeInOut',
+          });
+        }
+        player.afkHeart.setPosition(player.sprite.x, player.sprite.y - 34);
+      } else if (player.afkHeart) {
+        player.afkTween?.stop();
+        player.afkTween = null;
+        player.afkHeart.destroy();
+        player.afkHeart = null;
       }
     });
   }
 
   remove(id: string) {
-    this.others[id]?.sprite.destroy();
+    const p = this.others[id];
+    if (p) {
+      p.afkTween?.stop();
+      p.afkHeart?.destroy();
+      p.sprite.destroy();
+    }
     delete this.others[id];
   }
 
