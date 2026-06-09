@@ -17,13 +17,20 @@ interface LobbyState {
 type RoomSummary = Record<string, { playerCount: number; phase: string }>;
 
 const SURVIVOR_SKINS = [
-  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/Survivors/Arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
-  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/Survivors/Gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
-  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/Survivors/Giu/icons/Giu_Icon.png',         label: 'Giu'     },
-  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/Survivors/Isabela/icons/Isabela_Icon.png', label: 'Isabela' },
-  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/Survivors/Dave/icons/Dave_Icon.png',       label: 'Davi'    },
-  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/Survivors/Caio/icons/Caio_Icon.png',       label: 'Caio'    },
+  { skinId: 'arthur',  iconKey: 'arthur-icon',  iconPath: './personagens/survivors/arthur/icons/Arthur_Icon.png',   label: 'Arthur'  },
+  { skinId: 'gustavo', iconKey: 'gustavo-icon', iconPath: './personagens/survivors/gustavo/icons/Gustavo_Icon.png', label: 'Gustavo' },
+  { skinId: 'giu',     iconKey: 'giu-icon',     iconPath: './personagens/survivors/giu/icons/Giu_Icon.png',         label: 'Giu'     },
+  { skinId: 'isabela', iconKey: 'isabela-icon', iconPath: './personagens/survivors/isabela/icons/Isabela_Icon.png', label: 'Isabela' },
+  { skinId: 'davi',    iconKey: 'davi-icon',    iconPath: './personagens/survivors/davi/icons/Davi_Icon.png',       label: 'Davi'    },
+  { skinId: 'caio',    iconKey: 'caio-icon',    iconPath: './personagens/survivors/caio/icons/Caio_Icon.png',       label: 'Caio'    },
 ] as const;
+
+const KILLER_SKINS: Array<{ skinId: string; iconKey: string | null; iconPath: string | null; label: string }> = [
+  { skinId: 'boi',        iconKey: 'boi-icon',      iconPath: './personagens/killers/professor/icon/Boi_Icon.png',          label: 'Boi'       },
+  { skinId: 'clayrton',   iconKey: 'clayrton-icon', iconPath: './personagens/killers/clayrton/icon/Clayrton_Icon.png',      label: 'Clayrton'  },
+  { skinId: 'fernanda',   iconKey: 'fernanda-icon', iconPath: './personagens/killers/fernanda/icon/Fernanda_Icon.png',      label: 'Fernanda'  },
+  { skinId: 'aquarioguy', iconKey: null,            iconPath: null,                                                         label: 'AquarioGuy' },
+];
 
 export class LobbyScene extends Phaser.Scene {
   private socket!: Socket;
@@ -44,6 +51,10 @@ export class LobbyScene extends Phaser.Scene {
   private pickerUI:     Phaser.GameObjects.GameObject[] = [];
   private nameDisplay!: Phaser.GameObjects.Text;
   private characterBtns: { skinId: string; btn: Phaser.GameObjects.Image }[] = [];
+  private killerPickerUI:      Phaser.GameObjects.GameObject[] = [];
+  private killerCharacterBtns: { skinId: string; btn: Phaser.GameObjects.Image }[] = [];
+  private chosenKillerSkinId   = 'boi';
+  private pickerKillerSkinId   = 'boi';
   private kbListener:   ((e: KeyboardEvent) => void) | null = null;
   private cursorTimer?: Phaser.Time.TimerEvent;
   private cursorOn     = false;
@@ -89,6 +100,13 @@ export class LobbyScene extends Phaser.Scene {
     this.roomSelectionUI  = [];
     this.inRoomBgUI       = [];
     this.inRoomUI         = [];
+    this.killerPickerUI      = [];
+    this.killerCharacterBtns = [];
+    this.chosenKillerSkinId  = 'boi';
+    this.pickerKillerSkinId  = 'boi';
+    this.roomButtons    = [];
+    this.roomCountTexts = [];
+    this.inRoomUI       = [];
     this.selectedRoomIdx  = 0;
     this.padPrevDown    = false;
     this.padPrevUp      = false;
@@ -99,6 +117,11 @@ export class LobbyScene extends Phaser.Scene {
   preload() {
     SURVIVOR_SKINS.forEach(({ iconKey, iconPath }) => {
       if (!this.textures.exists(iconKey)) {
+        this.load.image(iconKey, iconPath);
+      }
+    });
+    KILLER_SKINS.forEach(({ iconKey, iconPath }) => {
+      if (iconKey && iconPath && !this.textures.exists(iconKey)) {
         this.load.image(iconKey, iconPath);
       }
     });
@@ -119,6 +142,7 @@ export class LobbyScene extends Phaser.Scene {
     this.buildRoomButtons();
     this.buildInRoomUI();
     this.buildPickerUI();
+    this.buildKillerPickerUI();
     this.showRoomSelection();
 
     this.socket.on('roomList', (summary: RoomSummary) => {
@@ -131,7 +155,7 @@ export class LobbyScene extends Phaser.Scene {
         if (role === 'survivor') {
           this.showPickerUI();
         } else {
-          this.showInRoomUI();
+          this.showKillerPickerUI();
         }
       }
       this.refreshActionLabel();
@@ -153,7 +177,8 @@ export class LobbyScene extends Phaser.Scene {
     this.socket.on('gamePhase', (phase: string) => {
       if (phase === 'playing') {
         this.stopKeyboardInput();
-        this.scene.start('GameScene', { socket: this.socket, roomName: this.currentRoom, skinId: this.chosenSkinId });
+        const skinId = this.myRole === 'professor' ? this.chosenKillerSkinId : this.chosenSkinId;
+        this.scene.start('GameScene', { socket: this.socket, roomName: this.currentRoom, skinId });
       }
     });
 
@@ -342,7 +367,11 @@ export class LobbyScene extends Phaser.Scene {
       this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
       this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
       this.backToPickerBtn.setVisible(false);
-      this.showPickerUI();
+      if (this.myRole === 'professor') {
+        this.showKillerPickerUI();
+      } else {
+        this.showPickerUI();
+      }
     });
 
     this.inRoomUI = [this.countText, this.statusText, hint, padHint, this.actionText, controls];
@@ -448,6 +477,101 @@ export class LobbyScene extends Phaser.Scene {
     this.drawSkinRings();
   }
 
+  private buildKillerPickerUI() {
+    const W = 800, H = 600, cx = W / 2;
+
+    const bg = this.add.sprite(cx, H / 2, 'characterScreen');
+    bg.setScale(Math.max(W / 1150, H / 640));
+    bg.play('charScreen');
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.35);
+    overlay.fillRect(0, 0, W, H);
+
+    const title = this.add.text(cx, 68, 'ESCOLHA SEU PERSONAGEM', {
+      fontSize: '15px', color: '#e94560', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const COLS = [175, 400, 625];
+    const ROWS = [210, 345];
+    const BTN_SCALE = 1.05;
+    const BTN_H = 77 * BTN_SCALE;
+    const ICON_SIZE = 90;
+
+    KILLER_SKINS.forEach(({ skinId, iconKey, label }, i) => {
+      const bx = COLS[i % 3];
+      const by = ROWS[Math.floor(i / 3)];
+
+      const charBtn = this.add.image(bx, by, 'botaoCharacter', 0)
+        .setScale(BTN_SCALE)
+        .setInteractive({ useHandCursor: true });
+
+      this.killerCharacterBtns.push({ skinId, btn: charBtn });
+
+      charBtn.on('pointerover', () => { if (skinId !== this.pickerKillerSkinId) charBtn.setFrame(1); });
+      charBtn.on('pointerout',  () => this.drawKillerSkinRings());
+      charBtn.on('pointerdown', () => this.selectKillerSkin(skinId));
+
+      const nameLabel = this.add.text(bx, by + BTN_H / 2 + 3, label, {
+        fontSize: '10px', color: '#e0e0e0', stroke: '#000', strokeThickness: 2,
+      }).setOrigin(0.5, 0);
+
+      this.killerPickerUI.push(charBtn, nameLabel);
+
+      if (iconKey) {
+        const icon = this.add.image(bx, by - 4, iconKey)
+          .setDisplaySize(ICON_SIZE, ICON_SIZE)
+          .setInteractive({ useHandCursor: true });
+        icon.on('pointerover',  () => { if (skinId !== this.pickerKillerSkinId) charBtn.setFrame(1); });
+        icon.on('pointerout',   () => this.drawKillerSkinRings());
+        icon.on('pointerdown',  () => this.selectKillerSkin(skinId));
+        this.killerPickerUI.push(icon);
+      }
+    });
+
+    const confirmBtn = this.add.text(cx, 432, 'Confirmar', {
+      fontSize: '15px', color: '#ffffff', backgroundColor: '#1565c0',
+      padding: { x: 16, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    confirmBtn.on('pointerdown', () => this.confirmKillerCharacter());
+    confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
+    confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
+
+    this.killerPickerUI.push(bg, overlay, title, confirmBtn);
+    this.killerPickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+    this.drawKillerSkinRings();
+  }
+
+  private drawKillerSkinRings() {
+    this.killerCharacterBtns.forEach(({ skinId, btn }) => {
+      btn.setFrame(skinId === this.pickerKillerSkinId ? 1 : 0);
+    });
+  }
+
+  private selectKillerSkin(skinId: string) {
+    this.pickerKillerSkinId = skinId;
+    this.drawKillerSkinRings();
+  }
+
+  private showKillerPickerUI() {
+    this.killerPickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
+    this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
+    this.drawKillerSkinRings();
+  }
+
+  private hideKillerPickerUI() {
+    this.killerPickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+  }
+
+  private confirmKillerCharacter() {
+    const skinLabel = KILLER_SKINS.find((s) => s.skinId === this.pickerKillerSkinId)?.label ?? this.pickerKillerSkinId;
+    this.chosenKillerSkinId = this.pickerKillerSkinId;
+    this.socket.emit('setCharacter', { name: skinLabel, skinId: this.pickerKillerSkinId });
+    this.hideKillerPickerUI();
+    this.showInRoomUI();
+  }
+
   private drawSkinRings() {
     this.characterBtns.forEach(({ skinId, btn }) => {
       btn.setFrame(skinId === this.pickerSkinId ? 1 : 0);
@@ -527,7 +651,7 @@ export class LobbyScene extends Phaser.Scene {
     this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(true));
-    this.backToPickerBtn.setVisible(this.myRole === 'survivor');
+    this.backToPickerBtn.setVisible(this.myRole === 'survivor' || this.myRole === 'professor');
     this.refreshActionLabel();
   }
 

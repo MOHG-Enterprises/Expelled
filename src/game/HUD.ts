@@ -53,7 +53,8 @@ export class HUD {
   private professorCountdownText:  Phaser.GameObjects.Text | null = null;
   private professorCountdownTimer: Phaser.Time.TimerEvent | null = null;
 
-  private damageVignette!: Phaser.GameObjects.Graphics;
+  private damageVignette!: Phaser.GameObjects.Image;
+  private vignetteBuilt    = false;
   private vignetteTween:   Phaser.Tweens.Tween | null = null;
   private vignetteAlpha    = 0;
 
@@ -162,12 +163,7 @@ export class HUD {
 
     this.arrowGraphics = this.scene.add.graphics().setScrollFactor(0).setDepth(32);
 
-    this.damageVignette = this.scene.add.graphics().setScrollFactor(0).setDepth(45).setAlpha(0);
-    this.damageVignette.fillStyle(0xff0000, 1);
-    this.damageVignette.fillTriangle(0, 0, w / 4, 0, 0, h / 3);
-    this.damageVignette.fillTriangle(w, 0, w * 0.75, 0, w, h / 3);
-    this.damageVignette.fillTriangle(0, h, w / 4, h, 0, h * 0.67);
-    this.damageVignette.fillTriangle(w, h, w * 0.75, h, w, h * 0.67);
+    this._buildVignetteTexture(w, h);
 
     this._buildSurvivorCards(isTouchDevice);
 
@@ -208,13 +204,43 @@ export class HUD {
       this.hudTerminals.setPosition(startX + iconSize + gap, 14);
     }
 
-    this.damageVignette.clear();
-    this.damageVignette.fillStyle(0xff0000, 1);
-    this.damageVignette.fillTriangle(0, 0, w / 4, 0, 0, h / 3);
-    this.damageVignette.fillTriangle(w, 0, w * 0.75, 0, w, h / 3);
-    this.damageVignette.fillTriangle(0, h, w / 4, h, 0, h * 0.67);
-    this.damageVignette.fillTriangle(w, h, w * 0.75, h, w, h * 0.67);
+    this._buildVignetteTexture(w, h);
     this.refreshHint();
+  }
+
+  private _buildVignetteTexture(w: number, h: number): void {
+    const key = '__dmg_vignette__';
+    if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+
+    const radius = Math.max(w, h) * 0.58;
+    const corners = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: 0, y: h }, { x: w, y: h }];
+    for (const { x, y } of corners) {
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      grad.addColorStop(0,    'rgba(210, 0, 0, 0.88)');
+      grad.addColorStop(0.38, 'rgba(180, 0, 0, 0.28)');
+      grad.addColorStop(1,    'rgba(160, 0, 0, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    this.scene.textures.addCanvas(key, canvas);
+
+    if (!this.vignetteBuilt) {
+      this.damageVignette = this.scene.add
+        .image(0, 0, key)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(45)
+        .setAlpha(0);
+      this.vignetteBuilt = true;
+    } else {
+      this.damageVignette.setTexture(key);
+    }
   }
 
   private _buildSurvivorCards(compact: boolean) {

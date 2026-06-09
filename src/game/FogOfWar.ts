@@ -11,10 +11,14 @@ import type { Role } from '../types';
 const EPS = 0.0001;
 const ARC_STEP = Phaser.Math.DegToRad(3);
 
+const EDGE_FADE_KEY = '__fov_edge_fade__';
+
 export class FogOfWar {
   private scene: Phaser.Scene;
   private overlay: Phaser.GameObjects.Rectangle | null = null;
   private maskGraphics: Phaser.GameObjects.Graphics | null = null;
+  private edgeFade: Phaser.GameObjects.Image | null = null;
+  private shadowEdge: Phaser.GameObjects.Graphics | null = null;
   private role: Role = 'survivor';
   private fovRadius = FOV_SURVIVOR;
 
@@ -32,6 +36,8 @@ export class FogOfWar {
 
     this.overlay?.destroy();
     this.maskGraphics?.destroy();
+    this.edgeFade?.destroy();
+    this.shadowEdge?.destroy();
 
     this.overlay = this.scene.add
       .rectangle(0, 0, 8000, 8000, 0x000000)
@@ -49,6 +55,32 @@ export class FogOfWar {
     mask.invertAlpha = true;
     this.overlay.setMask(mask);
 
+    if (!this.scene.textures.exists(EDGE_FADE_KEY)) {
+      const sz = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = sz;
+      canvas.height = sz;
+      const ctx = canvas.getContext('2d')!;
+      const c = sz / 2;
+      const grad = ctx.createRadialGradient(c, c, sz * 0.36, c, c, c);
+      grad.addColorStop(0,   'rgba(0,0,0,0)');
+      grad.addColorStop(0.6, 'rgba(0,0,0,0.10)');
+      grad.addColorStop(1,   'rgba(0,0,0,0.94)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, sz, sz);
+      this.scene.textures.addCanvas(EDGE_FADE_KEY, canvas);
+    }
+
+    this.edgeFade = this.scene.add
+      .image(0, 0, EDGE_FADE_KEY)
+      .setScrollFactor(0)
+      .setDepth(26);
+
+    this.shadowEdge = this.scene.add
+      .graphics()
+      .setScrollFactor(0)
+      .setDepth(27);
+
     this.buildSolidGrid(map);
   }
 
@@ -58,6 +90,8 @@ export class FogOfWar {
 
   setFullReveal(enabled: boolean) {
     this.overlay?.setVisible(!enabled);
+    this.edgeFade?.setVisible(!enabled);
+    this.shadowEdge?.setVisible(!enabled);
   }
 
   private buildSolidGrid(map: Phaser.Tilemaps.Tilemap) {
@@ -205,6 +239,12 @@ export class FogOfWar {
     const cam = this.scene.cameras.main;
     const sx = (player.x - cam.scrollX) * cam.zoom;
     const sy = (player.y - cam.scrollY) * cam.zoom;
+
+    if (this.edgeFade) {
+      const screenR = this.fovRadius * cam.zoom;
+      this.edgeFade.setPosition(sx, sy).setDisplaySize(screenR * 2, screenR * 2);
+    }
+
     const g = this.maskGraphics;
 
     g.clear();
@@ -229,6 +269,24 @@ export class FogOfWar {
 
     if (this.role === 'professor') {
       g.fillCircle(sx, sy, 36);
+    }
+
+    if (this.shadowEdge && points.length > 2) {
+      const se = this.shadowEdge;
+      se.clear();
+      const edgePoints = this.role === 'professor' ? points.slice(1) : points;
+      const closePath  = this.role !== 'professor';
+      const passes: Array<{ w: number; a: number }> = [
+        { w: 26, a: 0.04 },
+        { w: 17, a: 0.08 },
+        { w: 10, a: 0.14 },
+        { w: 5,  a: 0.20 },
+        { w: 2,  a: 0.26 },
+      ];
+      for (const { w, a } of passes) {
+        se.lineStyle(w, 0x000000, a);
+        se.strokePoints(edgePoints, closePath);
+      }
     }
   }
 }

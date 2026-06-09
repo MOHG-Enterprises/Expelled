@@ -34,6 +34,7 @@ export const COLLISION_LAYERS = new Set([
   'PORTAO',
   'ARVORES',
   'PORTAOBOI',
+  'GRADE',
 ]);
 
 export function preloadMapAssets(scene: Phaser.Scene) {
@@ -46,11 +47,13 @@ export function buildTilemap(scene: Phaser.Scene): Phaser.Tilemaps.Tilemap {
     .map((t) => map.addTilesetImage(t.name, t.key, t.tileWidth, t.tileHeight))
     .filter((t): t is Phaser.Tilemaps.Tileset => !!t);
 
+  const abovePlayer = new Set(['pilares', 'TOPO ARVORE']); // nao lembro se é pilares ou topo arvore kkkk botar os 2
+
   map.layers.forEach((layerData) => {
     const layer = map.createLayer(layerData.name, tilesets, 0, 0);
     if (!layer) return;
     layer.setScale(MAP_SCALE);
-    layer.setDepth(1);
+    layer.setDepth(abovePlayer.has(layerData.name) ? 6 : 1);
     if (COLLISION_LAYERS.has(layerData.name)) {
       layer.setCollisionByExclusion([-1], true);
     }
