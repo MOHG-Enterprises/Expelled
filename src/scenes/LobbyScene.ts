@@ -51,6 +51,8 @@ export class LobbyScene extends Phaser.Scene {
 
   private roomButtons: Phaser.GameObjects.Text[] = [];
   private roomCountTexts: Phaser.GameObjects.Text[] = [];
+  private roomSelectionUI: Phaser.GameObjects.GameObject[] = [];
+  private inRoomBgUI: Phaser.GameObjects.GameObject[] = [];
   private inRoomUI: Phaser.GameObjects.GameObject[] = [];
   private errorText!: Phaser.GameObjects.Text;
 
@@ -82,9 +84,11 @@ export class LobbyScene extends Phaser.Scene {
     this.pickerName     = '';
     this.pickerUI       = [];
     this.characterBtns  = [];
-    this.roomButtons    = [];
-    this.roomCountTexts = [];
-    this.inRoomUI       = [];
+    this.roomButtons      = [];
+    this.roomCountTexts   = [];
+    this.roomSelectionUI  = [];
+    this.inRoomBgUI       = [];
+    this.inRoomUI         = [];
     this.selectedRoomIdx  = 0;
     this.padPrevDown    = false;
     this.padPrevUp      = false;
@@ -111,14 +115,6 @@ export class LobbyScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this.cameras.main.centerOn(400, 300);
-
-    this.add.text(400, 60, 'EXPELLED', {
-      fontSize: '48px', color: '#e94560', stroke: '#000', strokeThickness: 6,
-    }).setOrigin(0.5);
-
-    this.add.text(400, 120, 'Escolha uma sala para entrar', {
-      fontSize: '16px', color: '#888',
-    }).setOrigin(0.5);
 
     this.buildRoomButtons();
     this.buildInRoomUI();
@@ -220,7 +216,7 @@ export class LobbyScene extends Phaser.Scene {
     if (!name || this.currentRoom) return;
     this.currentRoom = name;
     this.socket.emit('joinRoom', { roomName: name });
-    this.roomButtons.forEach((b) => b.setVisible(false));
+    this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
   }
 
   private triggerAction() {
@@ -233,15 +229,45 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private buildRoomButtons() {
-    const startY = 190;
-    const gap    = 90;
+    const W = 800, H = 600, cx = W / 2;
+
+    if (!this.anims.exists('charScreen')) {
+      this.anims.create({
+        key: 'charScreen',
+        frames: this.anims.generateFrameNumbers('characterScreen', { start: 0, end: 15 }),
+        frameRate: 8,
+        repeat: -1,
+      });
+    }
+
+    const bg = this.add.sprite(cx, H / 2, 'characterScreen');
+    bg.setScale(Math.max(W / 1150, H / 640));
+    bg.play('charScreen');
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.35);
+    overlay.fillRect(0, 0, W, H);
+
+    const headerBar = this.add.graphics();
+    headerBar.fillStyle(0x000000, 0.72);
+    headerBar.fillRect(cx - 140, 105, 280, 52);
+
+    const title = this.add.text(cx, 134, 'EXPELLED', {
+      fontSize: '48px', color: '#e94560', stroke: '#000', strokeThickness: 6,
+    }).setOrigin(0.5);
+
+    this.roomSelectionUI.push(bg, overlay, headerBar, title);
+
+    const COLS = [220, 580];
+    const ROWS = [215, 305];
 
     ROOM_NAMES.forEach((name, i) => {
-      const y = startY + i * gap;
+      const x = COLS[i % 2];
+      const y = ROWS[Math.floor(i / 2)];
 
-      const btn = this.add.text(400, y, this.roomLabel(name, 0, 'lobby'), {
-        fontSize: '20px', color: '#ffffff', backgroundColor: '#1e3a5f',
-        padding: { x: 20, y: 10 },
+      const btn = this.add.text(x, y, this.roomLabel(name, 0, 'lobby'), {
+        fontSize: '16px', color: '#ffffff', backgroundColor: '#1e3a5f',
+        padding: { x: 14, y: 10 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
       btn.on('pointerover', () => { if (!this.currentRoom) btn.setBackgroundColor('#2a5080'); });
@@ -250,6 +276,7 @@ export class LobbyScene extends Phaser.Scene {
 
       this.roomButtons.push(btn);
       this.roomCountTexts.push(btn);
+      this.roomSelectionUI.push(btn);
     });
   }
 
@@ -265,46 +292,61 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private buildInRoomUI() {
-    this.countText = this.add.text(400, 300, '', {
+    const W = 800, H = 600, cx = W / 2;
+
+    const bg = this.add.sprite(cx, H / 2, 'characterScreen');
+    bg.setScale(Math.max(W / 1150, H / 640));
+    bg.play('charScreen');
+
+    this.inRoomBgUI.push(bg);
+
+    this.countText = this.add.text(400, 150, '', {
       fontSize: '22px', color: '#fff',
+      backgroundColor: 'rgba(0,0,0,0.55)', padding: { x: 12, y: 6 },
     }).setOrigin(0.5);
 
-    this.statusText = this.add.text(400, 340, '', {
+    this.statusText = this.add.text(400, 190, '', {
       fontSize: '14px', color: '#cfcfcf', align: 'center',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 10, y: 4 },
     }).setOrigin(0.5);
 
-    const hint = this.add.text(400, 390, 'Alunos: clique para marcar PRONTO.\nProfessor: inicia quando todos estiverem prontos.', {
-      fontSize: '12px', color: '#666', align: 'center',
+    const hint = this.add.text(400, 240, 'Alunos: clique para marcar PRONTO.\nProfessor: inicia quando todos estiverem prontos.', {
+      fontSize: '12px', color: '#aaa', align: 'center',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 10, y: 5 },
     }).setOrigin(0.5);
 
-    const padHint = this.add.text(400, 430, 'Controle: A = pronto / iniciar', {
-      fontSize: '11px', color: '#444', align: 'center',
+    const padHint = this.add.text(400, 280, 'Controle: A = pronto / iniciar', {
+      fontSize: '11px', color: '#888', align: 'center',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
 
-    this.actionText = this.add.text(400, 470, 'Aguardando role...', {
+    this.actionText = this.add.text(400, 340, 'Aguardando role...', {
       fontSize: '18px', color: '#ffffff', backgroundColor: '#333333',
       padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    const controls = this.add.text(400, 550, 'WASD / Setas — mover  |  E — hackear / fugir  |  SHIFT — correr (alunos)  |  SPACE — atacar (professor)', {
+    const controls = this.add.text(400, 380, 'WASD / Setas — mover  |  E — hackear / fugir  |  SHIFT — correr (alunos)  |  SPACE — atacar (professor)', {
       fontSize: '11px', color: '#aaa', align: 'center',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
 
     this.actionText.on('pointerdown', () => this.triggerAction());
 
-    this.backToPickerBtn = this.add.text(400, 510, '← Trocar personagem', {
+    this.backToPickerBtn = this.add.text(400, 430, '← Trocar personagem', {
       fontSize: '13px', color: '#aaaaaa',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
 
     this.backToPickerBtn.on('pointerover', () => this.backToPickerBtn.setColor('#ffffff'));
     this.backToPickerBtn.on('pointerout',  () => this.backToPickerBtn.setColor('#aaaaaa'));
     this.backToPickerBtn.on('pointerdown', () => {
+      this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
       this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
       this.backToPickerBtn.setVisible(false);
       this.showPickerUI();
     });
 
     this.inRoomUI = [this.countText, this.statusText, hint, padHint, this.actionText, controls];
+    this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
 
     this.errorText = this.add.text(400, 560, '', {
       fontSize: '16px', color: '#e94560', align: 'center',
@@ -475,13 +517,15 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showRoomSelection() {
-    this.roomButtons.forEach((b) => b.setVisible(true));
+    this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
+    this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
     this.backToPickerBtn.setVisible(false);
   }
 
   private showInRoomUI() {
-    this.roomButtons.forEach((b) => b.setVisible(false));
+    this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+    this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(true));
     this.backToPickerBtn.setVisible(this.myRole === 'survivor');
     this.refreshActionLabel();
