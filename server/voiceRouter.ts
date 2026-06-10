@@ -37,11 +37,7 @@ const LISTEN_IP = process.env['RTC_ANNOUNCED_IP'] ?? '127.0.0.1';
 
 export async function initVoiceWorker(): Promise<void> {
   worker = await mediasoup.createWorker({ rtcMinPort: 49152, rtcMaxPort: 65535 });
-  worker.on('died', () => {
-    console.error('mediasoup worker morreu — encerrando');
-    setTimeout(() => process.exit(1), 2000);
-  });
-  console.log(`mediasoup worker pid ${worker.pid}`);
+  worker.on('died', () => setTimeout(() => process.exit(1), 2000));
 }
 
 async function getOrCreateVoiceRouter(roomName: string): Promise<Router> {
@@ -147,9 +143,7 @@ export function registerVoiceSocket(
       if (entry) await entry.transport.connect({ dtlsParameters });
       callback?.();
     } catch (err) {
-      if (!(err instanceof Error && err.message.includes('connect() already called'))) {
-        console.error('voice-transport-connect error:', err);
-      }
+      void err;
     }
   });
 
@@ -180,9 +174,7 @@ export function registerVoiceSocket(
       const entry = transports.find((t) => t.consumer && t.transport.id === serverConsumerTransportId);
       if (entry) await entry.transport.connect({ dtlsParameters });
     } catch (err) {
-      if (!(err instanceof Error && err.message.includes('connect() already called'))) {
-        console.error('voice-transport-recv-connect error:', err);
-      }
+      void err;
     }
   });
 

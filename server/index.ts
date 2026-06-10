@@ -107,7 +107,6 @@ setInterval(() => {
 }, 500);
 
 io.on('connection', (socket) => {
-  console.log(`Jogador conectou: ${socket.id}`);
   socket.emit('roomList', getRoomSummary());
 
   socket.on('joinRoom', ({ roomName }: { roomName: string }) => {
@@ -461,7 +460,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`Jogador desconectou: ${socket.id}`);
     const room = getRoomForSocket(socket.id);
     if (room) {
       const { roomName, state } = room;
@@ -509,8 +507,5 @@ io.on('connection', (socket) => {
 const PORT = 3000;
 
 initVoiceWorker().then(() => {
-  server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando em http://0.0.0.0:${PORT}`));
-}).catch((err) => {
-  console.error('Falha ao inicializar mediasoup:', err);
-  process.exit(1);
-});
+  server.listen(PORT, '0.0.0.0');
+}).catch(() => process.exit(1));

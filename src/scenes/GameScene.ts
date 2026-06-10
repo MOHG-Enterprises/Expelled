@@ -141,7 +141,6 @@ export class GameScene extends Phaser.Scene {
 
   private toggleCollisionDebug() {
     if (!this.mapRef) return;
-    console.log(this.player.x, this.player.y);
     this.collisionDebugEnabled = !this.collisionDebugEnabled;
     if (this.collisionDebugEnabled) {
       if (!this.collisionDebugGraphics) {
@@ -178,7 +177,6 @@ export class GameScene extends Phaser.Scene {
     const last = this.lastCollisionLogAt[layerName] ?? -Infinity;
     if (now - last < 350) return;
     this.lastCollisionLogAt[layerName] = now;
-    console.log(`[collision] layer=${layerName} tile=(${tile.x},${tile.y}) index=${tile.index}`);
   }
 
   // ── HUD helpers ────────────────────────────────────────────────────────────
@@ -349,14 +347,12 @@ export class GameScene extends Phaser.Scene {
     this.events.on('prerender',  () => { _renderT = performance.now(); });
     this.events.on('postrender', () => {
       const dt = performance.now() - _renderT;
-      if (dt > 30) console.warn(`[render-slow] ${dt.toFixed(1)}ms`);
     });
 
     let _hbLast = performance.now();
     setInterval(() => {
       const now = performance.now();
       const gap = now - _hbLast;
-      if (gap > 300) console.warn(`[hb-miss] ${gap.toFixed(0)}ms @ ${now.toFixed(0)}ms`);
       _hbLast = now;
     }, 100);
 
@@ -575,7 +571,6 @@ export class GameScene extends Phaser.Scene {
 
   private _bindWorldState(s: Socket) {
     s.on('terminalUpdate', ({ id, progress }: { id: string; progress: number }) => {
-      console.log(`[hack] terminalUpdate id=${id} progress=${progress.toFixed(2)} @ ${performance.now().toFixed(0)}ms`);
       this.terminals.setProgress(id, progress);
       this.refreshTerminalHUD();
       if (this.hacking.activeHackingTerminal === id) {
@@ -825,7 +820,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (delta > 50) console.warn(`[spike] frame=${Math.round(delta)}ms @ t=${Math.round(_time)}ms`);
     const _dbgT0 = performance.now();
     this.skillCheck.update(delta);
     this.terminals.update(delta);
@@ -982,8 +976,6 @@ export class GameScene extends Phaser.Scene {
     const _dbgFog = performance.now() - _dbgT0 - _dbgPreFog;
     this.players.update(this.time.now, this._busySurvivorIds());
     const _dbgPlayers = performance.now() - _dbgT0 - _dbgPreFog - _dbgFog;
-    if (_dbgPreFog > 8 || _dbgFog > 8 || _dbgPlayers > 4)
-      console.warn(`[slow] preFog=${_dbgPreFog.toFixed(1)} fog=${_dbgFog.toFixed(1)} players=${_dbgPlayers.toFixed(1)}`);
 
     if (this.voiceManager && this.myRole) {
       this.voiceManager.updateSpatialAudio(
@@ -1014,7 +1006,6 @@ export class GameScene extends Phaser.Scene {
           this.myHealPct, this.escaped, this.survivorInfo,
         );
         const _dbgHackDt = performance.now() - _dbgHackT;
-        if (_dbgHackDt > 4) console.warn(`[slow:hack] ${_dbgHackDt.toFixed(1)}ms`);
       }
       for (const [id, info] of this.survivorInfo) {
         if (id === this.socket.id) continue;
