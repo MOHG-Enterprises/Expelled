@@ -26,7 +26,7 @@
   "dependencies": {
     "@types/socket.io": "^3.0.1",
     "@types/socket.io-client": "^1.4.36",
-    "axios": "^1.16.1",
+    "axios": "^1.17.0",
     "express": "^5.2.1",
     "mediasoup": "^3.19.22",
     "mediasoup-client": "^3.20.0",
