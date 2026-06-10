@@ -54,7 +54,23 @@
       "Bash(npm show *)",
       "Bash(tsc *)",
       "Bash(grep -v \"^.*//.*$\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(gh issue *)",
+      "Bash(sed -n 1,40p server/gameState.ts)",
+      "Bash(sed -n 90,125p server/gameState.ts)",
+      "Bash(sed -n 1,40p src/constants.ts)",
+      "Bash(sed -n 570,585p src/scenes/GameScene.ts)",
+      "Bash(sed -n 820,835p src/scenes/GameScene.ts)",
+      "Bash(sed -n 975,1025p src/scenes/GameScene.ts)",
+      "Bash(npx tsx *)",
+      "Bash(sed -n 25,40p server/systems/hacking.ts)",
+      "Bash(sed -n 64,72p server/systems/hacking.ts)",
+      "Bash(sed -n 108,118p server/systems/hacking.ts)",
+      "Bash(sed -n 128,155p server/systems/hacking.ts)",
+      "Bash(sed -n 1,12p src/types.ts)",
+      "Bash(sed -n 25,32p src/types.ts)",
+      "Bash(sed -n 1,10p server/types.ts)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

@@ -87,12 +87,16 @@ export class TerminalManager {
 
   update(_delta: number) {}
 
-  sync(terminals: Record<string, { progress: number }>, positions: Record<string, Vec2>) {
-    this.positions = positions as Record<TerminalId, Vec2>;
+  sync(
+    terminals: Partial<Record<TerminalId, { progress: number }>>,
+    positions: Partial<Record<TerminalId, Vec2>>,
+  ) {
+    this.positions = positions;
 
     (Object.keys(terminals) as TerminalId[]).forEach((id) => {
       const pos = this.positions[id];
-      if (!pos) return;
+      const t   = terminals[id];
+      if (!pos || !t) return;
 
       if (!this.objects[id]) {
         const sprite = this.scene.add
@@ -112,7 +116,7 @@ export class TerminalManager {
         this.objects[id] = { sprite, bar };
       }
 
-      this.setProgress(id, terminals[id].progress);
+      this.setProgress(id, t.progress);
     });
   }
 

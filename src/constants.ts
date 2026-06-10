@@ -27,6 +27,7 @@ export {
   HEAL_AMOUNT_MAX,
   HEAL_SELF_CAP,
   MAX_PLAYERS_PER_ROOM,
+  MIN_SURVIVORS_TO_START,
 } from '../shared/gameRules';
 
 //  mundo 

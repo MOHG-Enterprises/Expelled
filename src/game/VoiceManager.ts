@@ -26,7 +26,6 @@ export class VoiceManager {
   private consumingProducers = new Set<string>();
 
   async init(socket: Socket): Promise<void> {
-    console.log(`[voice] init start @ ${performance.now().toFixed(0)}ms`);
     this.socket = socket;
 
     const stream     = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -57,7 +56,6 @@ export class VoiceManager {
     });
 
     this.initialized = true;
-    console.log(`[voice] init complete @ ${performance.now().toFixed(0)}ms`);
   }
 
   private async createSendTransport(socket: Socket, audioTrack: MediaStreamTrack): Promise<void> {
@@ -159,13 +157,11 @@ export class VoiceManager {
       rtpParameters: consumerParams.rtpParameters,
     });
 
-    const audioT0 = performance.now();
     const audio    = new Audio();
     audio.srcObject = new MediaStream([consumer.track]);
     audio.autoplay  = true;
     audio.volume    = 0;
     document.body.appendChild(audio);
-    console.log(`[voice] audio appended for ${socketId}, took ${(performance.now() - audioT0).toFixed(1)}ms @ ${performance.now().toFixed(0)}ms`);
 
     this.consumers.set(remoteProducerId, { socketId, transport: recvTransport, consumer, audio });
 

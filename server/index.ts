@@ -6,6 +6,7 @@ import {
   freshGameState,
   getOrCreateRoom,
   getRoomSummary,
+  rollTerminals,
   rooms,
   ROOM_NAMES,
   GATE_TICK_AMOUNT,
@@ -17,6 +18,7 @@ import {
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
   MAX_PLAYERS_PER_ROOM,
+  MIN_SURVIVORS_TO_START,
   PROFESSOR_LOCK_DURATION_MS,
   checkWinConditions,
 } from './gameState';
@@ -194,7 +196,8 @@ io.on('connection', (socket) => {
     const p = state.players[socket.id];
     if (!p || p.role !== 'professor' || state.phase !== 'lobby') return;
     const survivors = Object.values(state.players).filter((pl) => pl.role === 'survivor');
-    if (survivors.length < 1 || !survivors.every((pl) => pl.ready)) return;
+    if (survivors.length < MIN_SURVIVORS_TO_START || !survivors.every((pl) => pl.ready)) return;
+    rollTerminals(state, survivors.length);
     state.phase = 'playing';
     io.to(roomName).emit('gamePhase', 'playing');
     state.professorLockedEndsAt = Date.now() + PROFESSOR_LOCK_DURATION_MS;

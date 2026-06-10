@@ -29,20 +29,50 @@ import {
   HEAL_SELF_CAP,
   HEAL_EFFICIENCY_PENALTY,
   MAX_PLAYERS_PER_ROOM,
+  MIN_SURVIVORS_TO_START,
   PROFESSOR_LOCK_DURATION_MS,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
 export type  RoomName   = typeof ROOM_NAMES[number];
 
-// posicao fixa dos terminais no mapa
-export const TERMINAL_POSITIONS: Record<TerminalId, Vec2> = {
-  t1: { x: 2140, y: 2520 },
-  t2: { x: 785,  y: 86  },
-  t3: { x: 848,  y: 1830 },
-  t4: { x: 780,  y: 3720  },
-  t5: { x: 1510,  y: 1430  },
-};
+// pool de posicoes validas; 5 sao sorteadas por partida
+export const TERMINAL_SPAWN_POOL: Vec2[] = [
+  { x: 2140, y: 2520 },
+  { x: 785,  y: 86   },
+  { x: 848,  y: 1830 },
+  { x: 780,  y: 3720 },
+  { x: 1510, y: 1430 },
+  { x: 2960, y: 208  },
+  { x: 3376, y: 1680 },
+  { x: 2928, y: 3760 },
+  { x: 1872, y: 272  },
+  { x: 1872, y: 3696 },
+  { x: 1136, y: 2800 },
+  { x: 2480, y: 1296 },
+];
+
+export const ALL_TERMINAL_IDS: TerminalId[] = ['t1', 't2', 't3', 't4', 't5', 't6', 't7'];
+
+export function randomTerminalPositions(count: number): Partial<Record<TerminalId, Vec2>> {
+  const pool = [...TERMINAL_SPAWN_POOL];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const n = Math.min(count, ALL_TERMINAL_IDS.length, pool.length);
+  const result: Partial<Record<TerminalId, Vec2>> = {};
+  for (let i = 0; i < n; i++) result[ALL_TERMINAL_IDS[i]] = pool[i];
+  return result;
+}
+
+export function rollTerminals(state: GameStateRecord, survivorCount: number): void {
+  state.terminalPositions = randomTerminalPositions(survivorCount + 3);
+  state.terminals = {};
+  (Object.keys(state.terminalPositions) as TerminalId[]).forEach((id) => {
+    state.terminals[id] = { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 };
+  });
+}
 
 export const GATE_POSITIONS: Record<GateId, Vec2> = {
   g1: { x: 464, y: 2222 },
@@ -120,19 +150,14 @@ export { HEAL_AMOUNT_MAX };
 export { HEAL_SELF_CAP };
 export { HEAL_EFFICIENCY_PENALTY };
 export { MAX_PLAYERS_PER_ROOM };
+export { MIN_SURVIVORS_TO_START };
 
 // partida nova resetada
 export function freshGameState(): GameStateRecord {
   return {
     players:           {},
-    terminals: {
-      t1: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
-      t2: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
-      t3: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
-      t4: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
-      t5: { progress: 0, regressing: false, regressionEvents: 0, failLockUntil: 0 },
-    },
-    terminalPositions: TERMINAL_POSITIONS,
+    terminals:         {},
+    terminalPositions: {},
     hackedCount:       0,
     gates:             { g1: 0, g2: 0 },
     gatesOpen:         { g1: false, g2: false },

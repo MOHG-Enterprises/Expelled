@@ -31,7 +31,7 @@ export function tickTerminalRegression(
 ): void {
   (Object.keys(state.terminals) as TerminalId[]).forEach((id) => {
     const t = state.terminals[id];
-    if (!t.regressing) return;
+    if (!t || !t.regressing) return;
 
     if (getRepairerCount(roomName, id) > 0) {
       t.regressing = false;
@@ -62,10 +62,10 @@ export function processHackProgress(
   const p = state.players[actorId];
   if (!p || p.role !== 'survivor' || p.downed || p.expelled) return;
   if (p.beingHealed) return;
-  if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
   if (typeof amount !== 'number' || amount < 0 || amount > HACK_AMOUNT_MAX) return;
 
   const t = state.terminals[terminalId];
+  if (!t) return;
   if (t.progress >= 100) return;
   if (Date.now() < t.failLockUntil) return;
   if (state.endgameStartedAt !== null) return;
@@ -128,9 +128,8 @@ export function processSkillCheckFailed(
 ): void {
   const p = state.players[actorId];
   if (!p || p.role !== 'survivor') return;
-  if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
-
   const t = state.terminals[terminalId];
+  if (!t) return;
   t.failLockUntil = Date.now() + HACK_FAIL_LOCK_MS;
   t.progress = Math.max(0, t.progress - HACK_FAIL_REGRESSION);
 
@@ -146,9 +145,8 @@ export function processReinforceTerminal(
 ): void {
   const p = state.players[actorId];
   if (!p || p.role !== 'professor') return;
-  if (!Object.prototype.hasOwnProperty.call(state.terminals, terminalId)) return;
-
   const t = state.terminals[terminalId];
+  if (!t) return;
   if (t.progress >= 100 || t.progress <= 0) return;
   if (t.regressionEvents >= HACK_REGRESSION_EVENTS_MAX) return;
   if (t.regressing) return;
