@@ -26,10 +26,9 @@ const SURVIVOR_SKINS = [
 ] as const;
 
 const KILLER_SKINS: Array<{ skinId: string; iconKey: string | null; iconPath: string | null; label: string }> = [
-  { skinId: 'boi',        iconKey: 'boi-icon',      iconPath: './personagens/killers/professor/icon/Boi_Icon.png',          label: 'Boi'       },
-  { skinId: 'clayrton',   iconKey: 'clayrton-icon', iconPath: './personagens/killers/clayrton/icon/Clayrton_Icon.png',      label: 'Clayrton'  },
-  { skinId: 'fernanda',   iconKey: 'fernanda-icon', iconPath: './personagens/killers/fernanda/icon/Fernanda_Icon.png',      label: 'Fernanda'  },
-  { skinId: 'aquarioguy', iconKey: null,            iconPath: null,                                                         label: 'AquarioGuy' },
+  { skinId: 'boi',      iconKey: 'boi-icon',      iconPath: './personagens/killers/professor/icon/Boi_Icon.png',      label: 'Boi'      },
+  { skinId: 'clayrton', iconKey: 'clayrton-icon', iconPath: './personagens/killers/clayrton/icon/Clayrton_Icon.png',  label: 'Clayrton' },
+  { skinId: 'fernanda', iconKey: 'fernanda-icon', iconPath: './personagens/killers/fernanda/icon/Fernanda_Icon.png',  label: 'Fernanda' },
 ];
 
 export class LobbyScene extends Phaser.Scene {
