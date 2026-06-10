@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { INTERACT_RADIUS, GATE_POSITIONS, GATE_TILE_RANGES, TILE_WORLD_SIZE } from '../constants';
+import { GATE_INTERACT_RADIUS, GATE_POSITIONS, GATE_TILE_RANGES, TILE_WORLD_SIZE } from '../constants';
 import type { GateId } from '../types';
 
 interface GateObj {
@@ -8,7 +8,7 @@ interface GateObj {
   progress: number;
   powered:  boolean;
   open:     boolean;
-  marker:   Phaser.GameObjects.Rectangle;
+  marker:   Phaser.GameObjects.Sprite;
   barBg:    Phaser.GameObjects.Rectangle;
   bar:      Phaser.GameObjects.Rectangle;
   lights:   Phaser.GameObjects.Rectangle[];
@@ -16,6 +16,7 @@ interface GateObj {
 }
 
 const GATE_IDS: GateId[] = ['g1', 'g2'];
+const TOTAL_FRAMES = 18;
 
 export class ExitGateManager {
   private scene: Phaser.Scene;
@@ -31,13 +32,9 @@ export class ExitGateManager {
     const { x, y } = GATE_POSITIONS[id];
 
     const marker = this.scene.add
-      .rectangle(x, y, 16, 16, 0x555555)
+      .sprite(x, y, 'botaoSaida', 0)
+      .setScale(2)
       .setDepth(2);
-
-    this.scene.add
-      .text(x, y - 20, 'SAÍDA', { fontSize: '10px', color: '#888' })
-      .setOrigin(0.5)
-      .setDepth(3);
 
     const barBg = this.scene.add
       .rectangle(x - 24, y - 32, 48, 6, 0x333333)
@@ -81,7 +78,6 @@ export class ExitGateManager {
   setPowered(id: GateId) {
     const g = this.gates[id];
     g.powered = true;
-    g.marker.setFillStyle(0x00aa44);
   }
 
   setProgress(id: GateId, pct: number) {
@@ -91,13 +87,15 @@ export class ExitGateManager {
     [25, 50, 75].forEach((threshold, i) => {
       g.lights[i].setFillStyle(pct >= threshold ? 0x00e676 : 0x444444);
     });
+    const frame = Math.min(TOTAL_FRAMES - 1, Math.floor((pct / 100) * TOTAL_FRAMES));
+    g.marker.setFrame(frame);
   }
 
   setOpen(id: GateId, map: Phaser.Tilemaps.Tilemap) {
     const g = this.gates[id];
     if (g.open) return;
     g.open = true;
-    g.marker.setFillStyle(0x00ff88);
+    g.marker.setFrame(TOTAL_FRAMES - 1);
     g.bar.width = 48;
     g.lights.forEach((l) => l.setFillStyle(0x00e676));
 
@@ -121,14 +119,14 @@ export class ExitGateManager {
 
   isNearSwitch(id: GateId, x: number, y: number): boolean {
     const g = this.gates[id];
-    return Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < INTERACT_RADIUS;
+    return Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < GATE_INTERACT_RADIUS;
   }
 
   getNearestActiveSwitch(x: number, y: number): { x: number; y: number } | null {
     for (const id of GATE_IDS) {
       const g = this.gates[id];
       if (!g.powered || g.open) continue;
-      if (Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < INTERACT_RADIUS) {
+      if (Phaser.Math.Distance.Between(x, y, g.switchX, g.switchY) < GATE_INTERACT_RADIUS) {
         return { x: g.switchX, y: g.switchY };
       }
     }
@@ -141,6 +139,12 @@ export class ExitGateManager {
       if (g.open && Phaser.Geom.Rectangle.Contains(g.exitZone, x, y)) return id;
     }
     return null;
+  }
+
+  setFailed(id: GateId) {
+    const g = this.gates[id];
+    g.marker.setTint(0xff2222);
+    this.scene.time.delayedCall(1100, () => g.marker.clearTint());
   }
 
   setAuraMode(on: boolean) {

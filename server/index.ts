@@ -9,6 +9,7 @@ import {
   rooms,
   ROOM_NAMES,
   GATE_TICK_AMOUNT,
+  HACK_FAIL_REGRESSION,
   ENDGAME_DURATION_MS,
   HEAL_AMOUNT_MAX,
   HEAL_FAIL_LOCK_MS,
@@ -442,6 +443,21 @@ io.on('connection', (socket) => {
         startEndgameInterval(roomName);
       }
     }
+  });
+
+  socket.on('gateSkillCheckFailed', ({ gateId }: { gateId: GateId }) => {
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (!p || p.role !== 'survivor' || p.downed || p.expelled || p.escaped) return;
+    if (!state.gatesPowered) return;
+    if (gateId !== 'g1' && gateId !== 'g2') return;
+    if (state.gatesOpen[gateId]) return;
+
+    state.gates[gateId] = Math.max(0, state.gates[gateId] - HACK_FAIL_REGRESSION);
+    io.to(roomName).emit('gateProgress', { gateId, progress: state.gates[gateId] });
+    io.to(roomName).emit('gateFailFlash', { gateId });
   });
 
   socket.on('disconnect', () => {
