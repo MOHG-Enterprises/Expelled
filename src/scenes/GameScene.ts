@@ -522,7 +522,7 @@ export class GameScene extends Phaser.Scene {
       const msg   = payload.winner === 'survivors' ? 'ALUNOS ESCAPARAM!' : 'PROFESSOR VENCEU!';
       const color = payload.winner === 'survivors' ? 0x00e676 : 0xff1744;
       this.hud.flash(msg, color, 4500);
-      this.time.delayedCall(5000, () => this.scene.start('PostGameScene'));
+      this.time.delayedCall(5000, () => this.scene.start('EndScreenScene'));
     });
 
     s.on('gameReset', () => {
