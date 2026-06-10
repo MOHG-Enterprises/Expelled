@@ -1,5 +1,5 @@
 export type Role      = 'professor' | 'survivor';
-export type TerminalId = 't1' | 't2' | 't3' | 't4' | 't5';
+export type TerminalId = 't1' | 't2' | 't3' | 't4' | 't5' | 't6' | 't7';
 export type GateId = 'g1' | 'g2';
 export type GamePhase = 'lobby' | 'playing' | 'ended';
 
@@ -46,8 +46,8 @@ export interface PlayerRecord {
 
 export interface GameStateRecord {
   players:           Record<string, PlayerRecord>;
-  terminals:         Record<TerminalId, TerminalRecord>;
-  terminalPositions: Record<TerminalId, Vec2>;
+  terminals:         Partial<Record<TerminalId, TerminalRecord>>;
+  terminalPositions: Partial<Record<TerminalId, Vec2>>;
   hackedCount:       number;
   gates:             Record<string, number>;
   gatesOpen:         Record<string, boolean>;

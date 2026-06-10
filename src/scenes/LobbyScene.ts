@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { io } from '../socketClient';
 import type { Socket } from '../socketClient';
-import { ROOM_NAMES, MAX_PLAYERS_PER_ROOM } from '../constants';
+import { ROOM_NAMES, MAX_PLAYERS_PER_ROOM, MIN_SURVIVORS_TO_START } from '../constants';
 
 type LobbyRole = 'professor' | 'survivor';
 
@@ -667,7 +667,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private canProfessorStart(): boolean {
-    return this.totalSurvivors > 0 && this.readySurvivors === this.totalSurvivors;
+    return this.totalSurvivors >= MIN_SURVIVORS_TO_START && this.readySurvivors === this.totalSurvivors;
   }
 
   private refreshActionLabel() {
@@ -681,7 +681,10 @@ export class LobbyScene extends Phaser.Scene {
 
     if (this.myRole === 'professor') {
       const canStart = this.canProfessorStart();
-      this.actionText.setText(canStart ? 'Iniciar partida  [ A ]' : 'Esperando alunos ficarem prontos...');
+      const waitingLabel = this.totalSurvivors < MIN_SURVIVORS_TO_START
+        ? `Esperando alunos... (${this.totalSurvivors}/${MIN_SURVIVORS_TO_START})`
+        : 'Esperando alunos ficarem prontos...';
+      this.actionText.setText(canStart ? 'Iniciar partida  [ A ]' : waitingLabel);
       this.actionText.setBackgroundColor(canStart ? '#1565c0' : '#333333');
       return;
     }
