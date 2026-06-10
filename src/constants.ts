@@ -44,7 +44,8 @@ export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
 
 //  interacoes 
-export const INTERACT_RADIUS    = 48;   // px
+export const INTERACT_RADIUS      = 48;   // px
+export const GATE_INTERACT_RADIUS = 96;   // px — botão fica na parede, player não chega perto
 export const SKILL_CHECK_WINDOW = 0.15; // parte do circulo q conta como acerto
 export const STAGGER_MS         = 1500; // tempo que o professor fica parado depois de atacar
 export const MOVE_EMIT_RATE_MS  = 33;   // ~30 update de rede por segundo
@@ -116,8 +117,8 @@ export const SURVIVOR_SPAWN_POINTS: ReadonlyArray<{ x: number; y: number }> = [
 
 //  gates
 export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {
-  g1: { x: 464, y: 2222 },
-  g2: { x: 464, y: 1722 },
+  g1: { x: 14 * 32 + 16, y: 46 * 32 + 16 },
+  g2: { x: 93 * 32 + 16, y: 94 * 32 + 16 },
 };
 
 export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; rowEnd: number }> = {

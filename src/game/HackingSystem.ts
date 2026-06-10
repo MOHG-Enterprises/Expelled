@@ -51,8 +51,11 @@ export class HackingSystem {
   private healNextThreshold   = 0;
   private healLockUntil       = 0;
 
-  private openingGate:   GateId | null = null;
-  private gateOpenTimer  = 0;
+  private openingGate:              GateId | null = null;
+  private gateOpenTimer             = 0;
+  private gateSkillCheckTimer       = 0;
+  private gateNextSkillCheckThreshold = 0;
+  private gateLockUntil             = 0;
 
   constructor(
     scene:          Phaser.Scene,
@@ -74,12 +77,14 @@ export class HackingSystem {
     this.hud            = hud;
     this.skillCheck     = skillCheck;
     this.promptManager  = promptManager;
-    this.hackNextThreshold = Phaser.Math.Between(6667, 11667);
-    this.healNextThreshold = Phaser.Math.Between(833, 1667);
+    this.hackNextThreshold            = Phaser.Math.Between(6667, 11667);
+    this.healNextThreshold            = Phaser.Math.Between(833, 1667);
+    this.gateNextSkillCheckThreshold  = Phaser.Math.Between(2500, 5000);
   }
 
   get activeHackingTerminal(): TerminalId | null { return this.hackingTerminal; }
   get activeHealingTarget():   string | null     { return this.healingTarget; }
+  get activeOpeningGate():     GateId | null     { return this.openingGate; }
 
   reset() {
     this.hackingTerminal       = null;
@@ -96,13 +101,20 @@ export class HackingSystem {
     this.healHoldTimer         = 0;
     this.healNextThreshold     = Phaser.Math.Between(833, 1667);
     this.healLockUntil         = 0;
-    this.openingGate           = null;
-    this.gateOpenTimer         = 0;
+    this.openingGate                  = null;
+    this.gateOpenTimer                = 0;
+    this.gateSkillCheckTimer          = 0;
+    this.gateNextSkillCheckThreshold  = Phaser.Math.Between(2500, 5000);
+    this.gateLockUntil                = 0;
     this.promptManager.hide();
   }
 
   onHackLockApplied() {
     this.hackLockUntil = this.scene.time.now + HACK_FAIL_LOCK_MS;
+  }
+
+  onGateLockApplied() {
+    this.gateLockUntil = this.scene.time.now + HACK_FAIL_LOCK_MS;
   }
 
   onHealLockApplied() {
@@ -264,25 +276,36 @@ export class HackingSystem {
       nearAnyGate = true;
 
       if (this.openingGate !== id) {
-        this.openingGate   = id;
-        this.gateOpenTimer = 0;
+        this.openingGate                 = id;
+        this.gateOpenTimer               = 0;
+        this.gateSkillCheckTimer         = 0;
+        this.gateNextSkillCheckThreshold = Phaser.Math.Between(2500, 5000);
       }
 
-      if (this.interactionActive) {
+      if (this.interactionActive && this.scene.time.now >= this.gateLockUntil) {
         this.gateOpenTimer += delta;
         while (this.gateOpenTimer >= GATE_TICK_MS) {
           this.gateOpenTimer -= GATE_TICK_MS;
           this.socket.emit('gateOpenTick', { gateId: id });
         }
-      } else {
-        this.gateOpenTimer = 0;
+
+        this.gateSkillCheckTimer += delta;
+        if (this.gateSkillCheckTimer >= this.gateNextSkillCheckThreshold) {
+          this.gateSkillCheckTimer         = 0;
+          this.gateNextSkillCheckThreshold = Phaser.Math.Between(2500, 5000);
+          if (!this.skillCheck.active) this._runGateSkillCheck(id);
+        }
+      } else if (!this.interactionActive) {
+        this.gateOpenTimer       = 0;
+        this.gateSkillCheckTimer = 0;
       }
       break;
     }
 
     if (!nearAnyGate && this.openingGate !== null) {
-      this.openingGate   = null;
-      this.gateOpenTimer = 0;
+      this.openingGate         = null;
+      this.gateOpenTimer       = 0;
+      this.gateSkillCheckTimer = 0;
     }
 
     const exitGate = this.gates.getOpenGateForExit(this.player.x, this.player.y);
@@ -330,6 +353,17 @@ export class HackingSystem {
       },
       () => {
         this.socket.emit('skillCheckFailed', { terminalId });
+      },
+    );
+  }
+
+  private _runGateSkillCheck(gateId: GateId) {
+    this.skillCheck.show(
+      (isGreat) => {
+        if (isGreat) this.socket.emit('gateOpenTick', { gateId });
+      },
+      () => {
+        this.socket.emit('gateSkillCheckFailed', { gateId });
       },
     );
   }

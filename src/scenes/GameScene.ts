@@ -259,6 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('computer-terminal-sheet', './Computer Room Spritesheet 1 (1).png', {
       frameWidth: 32, frameHeight: 32,
     });
+    this.load.spritesheet('botaoSaida', './botaoSaida.png', { frameWidth: 16, frameHeight: 16 });
     preloadMapAssets(this);
     preloadPlayerSkins(this);
     ScratchMarkManager.preload(this);
@@ -623,6 +624,13 @@ export class GameScene extends Phaser.Scene {
     s.on('gateOpened', ({ gateId }: { gateId: GateId }) => {
       if (this.mapRef) this.gates.setOpen(gateId, this.mapRef);
       this.hud.flash('Portão aberto! Fuja agora!', 0x00e676, 4000);
+    });
+
+    s.on('gateFailFlash', ({ gateId }: { gateId: GateId }) => {
+      this.gates.setFailed(gateId);
+      if (this.hacking.activeOpeningGate === gateId) {
+        this.hacking.onGateLockApplied();
+      }
     });
   }
 
