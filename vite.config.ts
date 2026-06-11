@@ -3,7 +3,7 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
   plugins: [basicSsl()],
-  base: './',
+  base: '/expelled/socket.io',
   server: {
     port: 5173,
     host: true,
