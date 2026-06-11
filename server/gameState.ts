@@ -31,26 +31,13 @@ import {
   MAX_PLAYERS_PER_ROOM,
   MIN_SURVIVORS_TO_START,
   PROFESSOR_LOCK_DURATION_MS,
+  TERMINAL_SPAWN_POOL,
 } from '../shared/gameRules';
 
 export const ROOM_NAMES = ['sala1', 'sala2', 'sala3', 'sala4'] as const;
 export type  RoomName   = typeof ROOM_NAMES[number];
 
-// pool de posicoes validas; 5 sao sorteadas por partida
-export const TERMINAL_SPAWN_POOL: Vec2[] = [
-  { x: 2140, y: 2520 },
-  { x: 785,  y: 86   },
-  { x: 848,  y: 1830 },
-  { x: 780,  y: 3720 },
-  { x: 1510, y: 1430 },
-  { x: 2960, y: 208  },
-  { x: 3376, y: 1680 },
-  { x: 2928, y: 2992 },
-  { x: 1872, y: 272  },
-  { x: 1872, y: 3696 },
-  { x: 1136, y: 2800 },
-  { x: 2352, y: 1616 },
-];
+export { TERMINAL_SPAWN_POOL };
 
 export const ALL_TERMINAL_IDS: TerminalId[] = ['t1', 't2', 't3', 't4', 't5', 't6', 't7'];
 
