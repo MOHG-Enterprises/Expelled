@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { StartScene }    from './scenes/StartScene';
+import { TutorialScene } from './scenes/TutorialScene';
 import { LobbyScene }    from './scenes/LobbyScene';
 import { GameScene }     from './scenes/GameScene';
 import { PostGameScene }  from './scenes/PostGameScene';
@@ -17,7 +18,7 @@ const config: Phaser.Types.Core.GameConfig = {
   },
   physics: { default: 'arcade', arcade: { debug: false } },
   input: { gamepad: true },
-  scene: [StartScene, LobbyScene, GameScene, PostGameScene, EndScreenScene],
+  scene: [StartScene, TutorialScene, LobbyScene, GameScene, PostGameScene, EndScreenScene],
 };
 
 new Phaser.Game(config);

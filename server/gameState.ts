@@ -45,11 +45,11 @@ export const TERMINAL_SPAWN_POOL: Vec2[] = [
   { x: 1510, y: 1430 },
   { x: 2960, y: 208  },
   { x: 3376, y: 1680 },
-  { x: 2928, y: 3760 },
+  { x: 2928, y: 2992 },
   { x: 1872, y: 272  },
   { x: 1872, y: 3696 },
   { x: 1136, y: 2800 },
-  { x: 2480, y: 1296 },
+  { x: 2352, y: 1616 },
 ];
 
 export const ALL_TERMINAL_IDS: TerminalId[] = ['t1', 't2', 't3', 't4', 't5', 't6', 't7'];

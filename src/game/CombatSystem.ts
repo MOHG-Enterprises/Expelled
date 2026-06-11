@@ -117,7 +117,7 @@ export class CombatSystem {
     nearestTerminal: { id: TerminalId; pos: { x: number; y: number } } | null,
   ) {
     if (nearestTerminal && !this._isKicking && !this._isSwinging) {
-      this.promptManager.show(nearestTerminal.pos.x, nearestTerminal.pos.y, 64, 64, 'Chutar', input.usingGamepad, 0xff6600);
+      this.promptManager.show(nearestTerminal.pos.x, nearestTerminal.pos.y, 64, 64, 'Chutar', input, 0xff6600);
     } else {
       this.promptManager.hide();
     }

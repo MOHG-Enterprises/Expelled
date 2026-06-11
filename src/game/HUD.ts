@@ -134,7 +134,7 @@ export class HUD {
     this.hudGamepad = this.scene.add
       .text(w - 8, 26, 'Controle inativo — pressione um botao para ativar', { fontSize: '10px', color: '#555' })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(30)
-      .setVisible(!this.usingGamepad);
+      .setVisible(!this.usingGamepad && !isTouchDevice);
 
     this.terrorHeart = this.scene.add
       .text(w / 2, h - 52, '♥', { fontSize: '30px', color: '#ff2244', stroke: '#000', strokeThickness: 4 })
@@ -390,7 +390,7 @@ export class HUD {
 
 
   setGamepadConnected(connected: boolean) {
-    this.hudGamepad.setVisible(!connected);
+    this.hudGamepad.setVisible(!connected && !this.isTouchDevice);
     if (this.usingGamepad !== connected) {
       this.usingGamepad = connected;
       this.refreshHint();

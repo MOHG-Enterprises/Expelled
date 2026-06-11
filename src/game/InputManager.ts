@@ -22,6 +22,7 @@ export interface InputState {
 
 export interface TouchInputState {
   active:       boolean;
+  engaged:      boolean;
   vx:           number;
   vy:           number;
   analogScale:  number;
@@ -52,7 +53,7 @@ export class InputManager {
   private mouseAttackJust:   boolean = false;
   private mouseAttackJustUp: boolean = false;
 
-  constructor(scene: Phaser.Scene, isTouchDevice = false) {
+  constructor(scene: Phaser.Scene) {
     this.cursors  = scene.input.keyboard!.createCursorKeys();
     this.wasd     = scene.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.spaceKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
@@ -60,14 +61,12 @@ export class InputManager {
     this.shiftKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
     this.f5Key    = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F5);
 
-    if (!isTouchDevice) {
-      scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-        if (pointer.button === 0) this.mouseAttackJust = true;
-      });
-      scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-        if (pointer.button === 0) this.mouseAttackJustUp = true;
-      });
-    }
+    scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.wasTouch && pointer.button === 0) this.mouseAttackJust = true;
+    });
+    scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.wasTouch && pointer.button === 0) this.mouseAttackJustUp = true;
+    });
   }
 
   read(pad: Phaser.Input.Gamepad.Gamepad | null, touchState?: TouchInputState): InputState {
@@ -112,7 +111,20 @@ export class InputManager {
       }
     }
 
-    if (touchState?.active) {
+    const keyboardHeld =
+      this.cursors.left.isDown || this.cursors.right.isDown ||
+      this.cursors.up.isDown   || this.cursors.down.isDown  ||
+      this.wasd['A'].isDown || this.wasd['D'].isDown ||
+      this.wasd['W'].isDown || this.wasd['S'].isDown ||
+      this.eKey.isDown || this.spaceKey.isDown || this.shiftKey.isDown;
+    const padHeld = pad !== null && (
+      padActionNow || padAttackNow || sprintHeld ||
+      Math.hypot(pad.leftStick.x, pad.leftStick.y) > PAD_DEADZONE ||
+      Math.hypot(pad.rightStick.x, pad.rightStick.y) > PAD_DEADZONE
+    );
+    const physicalActivity = keyboardHeld || padHeld || mouseAJ || mouseAJU;
+
+    if (touchState?.active && (touchState.engaged || !physicalActivity)) {
       return {
         vx:             touchState.vx,
         vy:             touchState.vy,

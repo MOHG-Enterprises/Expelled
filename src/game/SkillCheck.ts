@@ -15,6 +15,8 @@ export class SkillCheck {
   private zoneStart = 0;
   private container: Phaser.GameObjects.Container | null = null;
   private graphics: Phaser.GameObjects.Graphics | null = null;
+  private label: Phaser.GameObjects.Text | null = null;
+  private promptText = 'SPACE !';
   private onSuccess: ((isGreat: boolean) => void) | null = null;
   private onFail: (() => void) | null = null;
 
@@ -41,11 +43,11 @@ export class SkillCheck {
       this.graphics = this.scene.add.graphics();
       this.container.add(this.graphics);
 
-      const label = this.scene.add
-        .text(0, -70, 'SPACE !', { fontSize: '14px', color: '#fff', align: 'center' })
+      this.label = this.scene.add
+        .text(0, -70, this.promptText, { fontSize: '14px', color: '#fff', align: 'center' })
         .setOrigin(0.5)
         .setScrollFactor(0);
-      this.container.add(label);
+      this.container.add(this.label);
     }
 
     this.container.setVisible(true);
@@ -54,6 +56,12 @@ export class SkillCheck {
   hide() {
     this.active = false;
     this.container?.setVisible(false);
+  }
+
+  setPromptText(text: string) {
+    if (text === this.promptText) return;
+    this.promptText = text;
+    this.label?.setText(text);
   }
 
   tryHit() {
