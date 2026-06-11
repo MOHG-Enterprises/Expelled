@@ -42,7 +42,7 @@ export const PROFESSOR_SPEED       = 208;   // 110% of survivor run (DBD 4.4 m/s
 export const ON_HIT_SPRINT_SPEED   = 312;   // 165% of survivor run (DBD on-hit sprint)
 export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 
-export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
+export const SCRATCH_MARKS_SELF_VISIBLE = false; // false = DBD-authentic (survivor can't see own marks)
 
 //  interacoes 
 export const INTERACT_RADIUS      = 48;   // px
@@ -65,7 +65,7 @@ export const CRAWL_SPEED_FACTOR    = 0.28;
 export const GHOST_SPEED_FACTOR    = 1.8;
 
 //  terror radius (professor)
-export const TERROR_RADIUS = 450; // px — raio do terror do professor
+export const TERROR_RADIUS = 767; // px — raio do terror do professor
 
 //  visao (fov)
 export const FOV_PROFESSOR = 380;
