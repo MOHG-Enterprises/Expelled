@@ -323,7 +323,7 @@ export class TutorialScene extends Phaser.Scene {
       ],
       gamepad: [
         'Analógico esquerdo — mover',
-        'X — atacar (tem cooldown)',
+        'RT — atacar (tem cooldown)',
       ],
       touch: [
         'Joystick — mover · analógico da direita — mirar',

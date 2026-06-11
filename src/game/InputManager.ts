@@ -71,7 +71,7 @@ export class InputManager {
 
   read(pad: Phaser.Input.Gamepad.Gamepad | null, touchState?: TouchInputState): InputState {
     const padActionNow = pad?.buttons[0].pressed ?? false;
-    const padAttackNow = pad?.buttons[2].pressed ?? false;
+    const padAttackNow = (pad?.buttons[7]?.pressed ?? false) || (pad?.buttons[7]?.value ?? 0) > 0.5;
 
     const actionHeld  = padActionNow;
     const attackHeld  = padAttackNow;
