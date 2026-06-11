@@ -79,6 +79,7 @@ export class PostGameScene extends Phaser.Scene {
   private _clearContent(): void {
     this.input.keyboard?.off('keydown-ENTER');
     this.input.keyboard?.off('keydown-SPACE');
+    this.input.gamepad?.off('down');
     this.contentObjects.forEach(o => o.destroy());
     this.contentObjects = [];
   }
@@ -261,6 +262,7 @@ export class PostGameScene extends Phaser.Scene {
 
     this.input.keyboard?.on('keydown-ENTER', goToLobby);
     this.input.keyboard?.on('keydown-SPACE', goToLobby);
+    this.input.gamepad?.on('down', goToLobby);
 
     this.contentObjects.push(btn);
   }

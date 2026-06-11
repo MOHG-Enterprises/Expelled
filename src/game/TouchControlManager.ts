@@ -48,7 +48,7 @@ export class TouchControlManager {
   private skillCheckActive: boolean     = false;
 
   private state: TouchInputState = {
-    active: true, vx: 0, vy: 0, analogScale: 1, sprinting: false,
+    active: true, engaged: false, vx: 0, vy: 0, analogScale: 1, sprinting: false,
     actionHeld: false, actionJust: false,
     attackHeld: false, attackJust: false, attackJustUp: false,
     lookVx: 1, lookVy: 0, hasLookInput: false,
@@ -110,11 +110,22 @@ export class TouchControlManager {
   }
 
   readAndClear(): TouchInputState {
-    const snap = { ...this.state };
+    const snap = { ...this.state, engaged: this._anyPointerEngaged() };
     this.state.actionJust   = false;
     this.state.attackJust   = false;
     this.state.attackJustUp = false;
     return snap;
+  }
+
+  deactivate(): void {
+    this.state.active = false;
+  }
+
+  private _anyPointerEngaged(): boolean {
+    return this.joystickPointerId !== null
+      || this.btn1PointerId !== null
+      || this.btn2PointerId !== null
+      || this.lookPointerId !== null;
   }
 
   setSkillCheckActive(active: boolean): void {
@@ -231,7 +242,7 @@ export class TouchControlManager {
       this.btn1Gfx.fillCircle(this.btn1Center.x, this.btn1Center.y, BTN_RADIUS - 8);
       this.btn1Gfx.lineStyle(2, 0x4caf50, 0.9);
       this.btn1Gfx.strokeCircle(this.btn1Center.x, this.btn1Center.y, BTN_RADIUS - 8);
-      this.btn1Label.setPosition(this.btn1Center.x, this.btn1Center.y).setText('REFORÇAR').setAlpha(1);
+      this.btn1Label.setPosition(this.btn1Center.x, this.btn1Center.y).setText('CHUTAR').setAlpha(1);
       this._drawLookBase(true);
       this._drawLookKnob(0, 0, true);
     } else if (!this.currentDowned) {
@@ -257,6 +268,7 @@ export class TouchControlManager {
   }
 
   private _onDown(p: Phaser.Input.Pointer): void {
+    if (!p.wasTouch) return;
     const { x, y } = p;
 
     if (
@@ -264,6 +276,7 @@ export class TouchControlManager {
       Phaser.Math.Distance.Between(x, y, this.baseCenter.x, this.baseCenter.y) <= BASE_RADIUS + 24
     ) {
       this.joystickPointerId = p.id;
+      this.state.active      = true;
       this._moveKnob(x, y);
       return;
     }
@@ -274,6 +287,7 @@ export class TouchControlManager {
       Phaser.Math.Distance.Between(x, y, this.lookCenter.x, this.lookCenter.y) <= LOOK_BASE_R
     ) {
       this.lookPointerId      = p.id;
+      this.state.active       = true;
       this.state.hasLookInput = true;
       this._moveLookKnob(x, y);
       return;
@@ -284,6 +298,7 @@ export class TouchControlManager {
       Phaser.Math.Distance.Between(x, y, this.btn1Center.x, this.btn1Center.y) <= BTN_RADIUS - 8
     ) {
       this.btn1PointerId = p.id;
+      this.state.active  = true;
       if (this.currentRole === 'professor') {
         this.state.actionHeld = true;
         this.state.actionJust = true;
@@ -300,6 +315,7 @@ export class TouchControlManager {
       Phaser.Math.Distance.Between(x, y, this.btn2Center.x, this.btn2Center.y) <= BTN_RADIUS
     ) {
       this.btn2PointerId = p.id;
+      this.state.active  = true;
       if (this.currentRole === 'professor') {
         this.state.attackHeld = true;
         this.state.attackJust = true;
@@ -329,7 +345,7 @@ export class TouchControlManager {
       this._drawLookKnob(0, 0, this.currentRole === 'professor');
     }
     if (p.id === this.btn1PointerId) {
-      this.btn1PointerId = p.id;
+      this.btn1PointerId = null;
       if (this.currentRole === 'professor') {
         this.state.actionHeld = false;
       }

@@ -10,7 +10,7 @@ Mudança 100% server-side em `server/gameState.ts`:
 
 1. **`TERMINAL_SPAWN_POOL: Vec2[]`** substitui o `TERMINAL_POSITIONS: Record<TerminalId, Vec2>` fixo. Pool com 12 posições em coordenadas de mundo:
    - As 5 atuais: `(2140, 2520)`, `(785, 86)`, `(848, 1830)`, `(780, 3720)`, `(1510, 1430)`
-   - 7 novas, extraídas por análise do tilemap (tile de chão livre, encostado em parede/mobília, com bloco 2×2 andável adjacente, espalhadas por max-min distance): `(2960, 208)`, `(3376, 1680)`, `(2928, 3760)`, `(1872, 272)`, `(1872, 3696)`, `(1136, 2800)`, `(2480, 1296)`
+   - 7 novas, extraídas por análise do tilemap (tile de chão livre, encostado em parede/mobília, com bloco 2×2 andável adjacente, alcançável por flood-fill a partir do interior da escola com os portões fechados, espalhadas por max-min distance): `(2960, 208)`, `(3376, 1680)`, `(2928, 2992)`, `(1872, 272)`, `(1872, 3696)`, `(1136, 2800)`, `(2352, 1616)`
 2. **`randomTerminalPositions(): Record<TerminalId, Vec2>`** — embaralha uma cópia do pool com Fisher-Yates e mapeia os 5 primeiros para `t1`–`t5`. Sem restrição de espaçamento: o pool é esparso por construção (qualquer par fica a ≥ ~800 px), então qualquer subconjunto de 5 já sai espalhado.
 3. **`freshGameState()`** passa a usar `terminalPositions: randomTerminalPositions()`. Como `freshGameState()` roda na criação da sala e em cada reset (`server/index.ts:494`), cada partida ganha um sorteio novo.
 

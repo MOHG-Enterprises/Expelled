@@ -80,7 +80,8 @@ export class StartScene extends Phaser.Scene {
         kb.off('keydown-SPACE', startGame);
         kb.off('keydown-ENTER', startGame);
       }
-      this.scene.start('LobbyScene');
+      this.input.gamepad?.off('down', startGame);
+      this.scene.start('TutorialScene');
     };
 
     button.on('pointerdown', startGame);
@@ -93,6 +94,7 @@ export class StartScene extends Phaser.Scene {
       kb.on('keydown-SPACE', startGame);
       kb.on('keydown-ENTER', startGame);
     }
+    this.input.gamepad?.on('down', startGame);
 
     const onResize = (gameSize: Phaser.Structs.Size) => {
       const { width: w, height: h } = gameSize;

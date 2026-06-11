@@ -162,12 +162,12 @@ export class HackingSystem {
 
     if (healableNearby) {
       const pos = this.players.getPosition(healableNearby)!;
-      this.promptManager.show(pos.x, pos.y + 2, 32, 48, 'Curar', input.usingGamepad);
+      this.promptManager.show(pos.x, pos.y + 2, 32, 48, 'Curar', input);
     } else if (nearT) {
       const pos = this.terminals.getPositions()[nearT]!;
-      this.promptManager.show(pos.x, pos.y, 64, 64, 'Hackear', input.usingGamepad);
+      this.promptManager.show(pos.x, pos.y, 64, 64, 'Hackear', input);
     } else if (nearS) {
-      this.promptManager.show(nearS.x, nearS.y, 16, 16, 'Abrir Portão', input.usingGamepad);
+      this.promptManager.show(nearS.x, nearS.y, 16, 16, 'Abrir Portão', input);
     } else {
       this.promptManager.hide();
     }

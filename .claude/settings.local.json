@@ -70,7 +70,8 @@
       "Bash(sed -n 1,12p src/types.ts)",
       "Bash(sed -n 25,32p src/types.ts)",
       "Bash(sed -n 1,10p server/types.ts)",
-      "Bash(grep -v \"^$\")"
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -E \"\\\\.ts$\")"
     ]
   }
 }

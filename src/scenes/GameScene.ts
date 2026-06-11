@@ -299,7 +299,7 @@ export class GameScene extends Phaser.Scene {
 
     this.promptManager  = new InteractionPromptManager(this);
     this.isTouchDevice  = navigator.maxTouchPoints > 0;
-    this.inputManager   = new InputManager(this, this.isTouchDevice);
+    this.inputManager   = new InputManager(this);
     this.movement      = new MovementSystem(this.player);
     this.combat        = new CombatSystem(this, this.player, this.socket, this.promptManager, this.mySkinId);
     this.hacking       = new HackingSystem(
@@ -807,6 +807,11 @@ export class GameScene extends Phaser.Scene {
 
     const touchState = this.touchControls?.readAndClear();
     const input      = this.inputManager.read(pad, touchState);
+    if (touchState?.active && !input.isTouchInput) this.touchControls?.deactivate();
+
+    this.skillCheck.setPromptText(
+      input.isTouchInput ? 'TAP !' : input.usingGamepad ? 'A / X !' : 'SPACE !',
+    );
 
     if (input.cJustDown) this.toggleCollisionDebug();
     

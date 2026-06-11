@@ -67,11 +67,21 @@ export class LobbyScene extends Phaser.Scene {
   private errorText!: Phaser.GameObjects.Text;
 
   // gamepad nav
+  private padUiMode: 'rooms' | 'picker' | 'killerPicker' | 'inRoom' = 'rooms';
   private selectedRoomIdx = 0;
   private padPrevDown  = false;
   private padPrevUp    = false;
+  private padPrevLeft  = false;
+  private padPrevRight = false;
   private padPrevA     = false;
+  private padPrevB     = false;
   private padPrevStart = false;
+
+  private nameInputEl: HTMLInputElement | null = null;
+
+  private pickerPadHint!: Phaser.GameObjects.Text;
+  private killerPadHint!: Phaser.GameObjects.Text;
+  private inRoomPadHint!: Phaser.GameObjects.Text;
 
   constructor() { super('LobbyScene'); }
 
@@ -106,11 +116,16 @@ export class LobbyScene extends Phaser.Scene {
     this.roomButtons    = [];
     this.roomCountTexts = [];
     this.inRoomUI       = [];
+    this.padUiMode      = 'rooms';
     this.selectedRoomIdx  = 0;
     this.padPrevDown    = false;
     this.padPrevUp      = false;
+    this.padPrevLeft    = false;
+    this.padPrevRight   = false;
     this.padPrevA       = false;
+    this.padPrevB       = false;
     this.padPrevStart   = false;
+    this.closeNameInput();
   }
 
   preload() {
@@ -192,6 +207,10 @@ export class LobbyScene extends Phaser.Scene {
 
     this.updateRoomSelection();
 
+    const gpPlugin = this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin;
+    gpPlugin?.on('connected',    () => this.syncPadHints());
+    gpPlugin?.on('disconnected', () => this.syncPadHints());
+
     const onResize = () => this.cameras.main.centerOn(400, 300);
     this.scale.on('resize', onResize);
     this.events.once('shutdown', () => this.scale.off('resize', onResize));
@@ -202,42 +221,93 @@ export class LobbyScene extends Phaser.Scene {
     if (!pad) return;
 
     const DEAD = 0.5;
+    const axisX    = pad.axes[0]?.getValue() ?? 0;
     const axisY    = pad.axes[1]?.getValue() ?? 0;
     const downNow  = pad.buttons[13]?.pressed || axisY > DEAD;
     const upNow    = pad.buttons[12]?.pressed || axisY < -DEAD;
+    const leftNow  = pad.buttons[14]?.pressed || axisX < -DEAD;
+    const rightNow = pad.buttons[15]?.pressed || axisX > DEAD;
     const aNow     = pad.buttons[0]?.pressed ?? false;
+    const bNow     = pad.buttons[1]?.pressed ?? false;
     const startNow = pad.buttons[9]?.pressed ?? false;
 
-    if (!this.currentRoom) {
-      if (downNow && !this.padPrevDown) {
-        this.selectedRoomIdx = (this.selectedRoomIdx + 1) % ROOM_NAMES.length;
-        this.updateRoomSelection();
-      }
-      if (upNow && !this.padPrevUp) {
-        this.selectedRoomIdx = (this.selectedRoomIdx - 1 + ROOM_NAMES.length) % ROOM_NAMES.length;
-        this.updateRoomSelection();
-      }
-      if (aNow && !this.padPrevA) {
-        this.joinRoom(this.selectedRoomIdx);
-      }
-    } else {
-      if (aNow && !this.padPrevA) {
-        this.triggerAction();
-      }
-      if (startNow && !this.padPrevStart) {
-        this.triggerAction();
-      }
-    }
+    const downJust  = downNow && !this.padPrevDown;
+    const upJust    = upNow && !this.padPrevUp;
+    const leftJust  = leftNow && !this.padPrevLeft;
+    const rightJust = rightNow && !this.padPrevRight;
+    const aJust     = aNow && !this.padPrevA;
+    const bJust     = bNow && !this.padPrevB;
+    const startJust = startNow && !this.padPrevStart;
 
     this.padPrevDown  = downNow;
     this.padPrevUp    = upNow;
+    this.padPrevLeft  = leftNow;
+    this.padPrevRight = rightNow;
     this.padPrevA     = aNow;
+    this.padPrevB     = bNow;
     this.padPrevStart = startNow;
+
+    if (this.padUiMode === 'rooms') {
+      if (downJust) {
+        this.selectedRoomIdx = (this.selectedRoomIdx + 1) % ROOM_NAMES.length;
+        this.updateRoomSelection();
+      }
+      if (upJust) {
+        this.selectedRoomIdx = (this.selectedRoomIdx - 1 + ROOM_NAMES.length) % ROOM_NAMES.length;
+        this.updateRoomSelection();
+      }
+      if (aJust) this.joinRoom(this.selectedRoomIdx);
+      return;
+    }
+
+    if (this.padUiMode === 'picker') {
+      const ids: string[] = SURVIVOR_SKINS.map((s) => s.skinId);
+      const cur = Math.max(0, ids.indexOf(this.pickerSkinId));
+      if (rightJust) this.selectSkin(ids[(cur + 1) % ids.length]);
+      if (leftJust)  this.selectSkin(ids[(cur - 1 + ids.length) % ids.length]);
+      if (aJust || startJust) this.confirmCharacter();
+      return;
+    }
+
+    if (this.padUiMode === 'killerPicker') {
+      const ids = KILLER_SKINS.map((s) => s.skinId);
+      const cur = Math.max(0, ids.indexOf(this.pickerKillerSkinId));
+      if (rightJust) this.selectKillerSkin(ids[(cur + 1) % ids.length]);
+      if (leftJust)  this.selectKillerSkin(ids[(cur - 1 + ids.length) % ids.length]);
+      if (aJust || startJust) this.confirmKillerCharacter();
+      return;
+    }
+
+    if (aJust || startJust) this.triggerAction();
+    if (bJust && (this.myRole === 'survivor' || this.myRole === 'professor')) this.goBackToPicker();
+  }
+
+  private hasGamepad(): boolean {
+    return ((this.input.gamepad as Phaser.Input.Gamepad.GamepadPlugin)?.total ?? 0) > 0;
+  }
+
+  private syncPadHints() {
+    const has = this.hasGamepad();
+    this.pickerPadHint.setVisible(has && this.padUiMode === 'picker');
+    this.killerPadHint.setVisible(has && this.padUiMode === 'killerPicker');
+    this.inRoomPadHint.setVisible(has && this.padUiMode === 'inRoom');
+  }
+
+  private goBackToPicker() {
+    this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
+    this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
+    this.backToPickerBtn.setVisible(false);
+    if (this.myRole === 'professor') {
+      this.showKillerPickerUI();
+    } else {
+      this.showPickerUI();
+    }
   }
 
   private joinRoom(idx: number) {
     const name = ROOM_NAMES[idx];
     if (!name || this.currentRoom) return;
+    this.padUiMode   = 'inRoom';
     this.currentRoom = name;
     this.socket.emit('joinRoom', { roomName: name });
     this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
@@ -339,7 +409,7 @@ export class LobbyScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 10, y: 5 },
     }).setOrigin(0.5);
 
-    const padHint = this.add.text(400, 280, 'Controle: A = pronto / iniciar', {
+    this.inRoomPadHint = this.add.text(400, 280, 'Controle: A = pronto / iniciar', {
       fontSize: '11px', color: '#888', align: 'center',
       backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
@@ -362,18 +432,9 @@ export class LobbyScene extends Phaser.Scene {
 
     this.backToPickerBtn.on('pointerover', () => this.backToPickerBtn.setColor('#ffffff'));
     this.backToPickerBtn.on('pointerout',  () => this.backToPickerBtn.setColor('#aaaaaa'));
-    this.backToPickerBtn.on('pointerdown', () => {
-      this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
-      this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
-      this.backToPickerBtn.setVisible(false);
-      if (this.myRole === 'professor') {
-        this.showKillerPickerUI();
-      } else {
-        this.showPickerUI();
-      }
-    });
+    this.backToPickerBtn.on('pointerdown', () => this.goBackToPicker());
 
-    this.inRoomUI = [this.countText, this.statusText, hint, padHint, this.actionText, controls];
+    this.inRoomUI = [this.countText, this.statusText, hint, this.inRoomPadHint, this.actionText, controls];
     this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
 
     this.errorText = this.add.text(400, 560, '', {
@@ -409,7 +470,7 @@ export class LobbyScene extends Phaser.Scene {
       fontSize: '15px', color: '#e94560', stroke: '#000', strokeThickness: 3,
     }).setOrigin(0.5);
 
-    const nameLabelText = this.add.text(cx, 92, 'Seu nome (max 12 caracteres):', {
+    const nameLabelText = this.add.text(cx, 92, 'Seu nome (max 12) — toque na caixa para digitar:', {
       fontSize: '11px', color: '#aaa', fontStyle: 'bold',
     }).setOrigin(0.5);
 
@@ -422,6 +483,13 @@ export class LobbyScene extends Phaser.Scene {
     this.nameDisplay = this.add.text(cx, 117, ' ', {
       fontSize: '13px', color: '#ffffff', fontStyle: 'bold',
     }).setOrigin(0.5);
+
+    const nameZone = this.add.zone(cx, 117, 190, 28)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    nameZone.on('pointerup', () => {
+      if (this.nameDisplay.visible) this.openNameInput();
+    });
 
     const COLS = [175, 400, 625];
     const ROWS = [210, 345];
@@ -471,7 +539,12 @@ export class LobbyScene extends Phaser.Scene {
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 
-    this.pickerUI.push(bg, overlay, headerBar, title, nameLabelText, nameBox, this.nameDisplay, confirmBtn);
+    this.pickerPadHint = this.add.text(cx, 468, 'Controle: ◀/▶ — escolher  ·  A — confirmar', {
+      fontSize: '11px', color: '#888',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5);
+
+    this.pickerUI.push(bg, overlay, headerBar, title, nameLabelText, nameBox, this.nameDisplay, nameZone, confirmBtn, this.pickerPadHint);
     this.pickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.drawSkinRings();
   }
@@ -537,7 +610,12 @@ export class LobbyScene extends Phaser.Scene {
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 
-    this.killerPickerUI.push(bg, overlay, title, confirmBtn);
+    this.killerPadHint = this.add.text(cx, 468, 'Controle: ◀/▶ — escolher  ·  A — confirmar', {
+      fontSize: '11px', color: '#888',
+      backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5);
+
+    this.killerPickerUI.push(bg, overlay, title, confirmBtn, this.killerPadHint);
     this.killerPickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.drawKillerSkinRings();
   }
@@ -554,9 +632,11 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showKillerPickerUI() {
+    this.padUiMode = 'killerPicker';
     this.killerPickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
     this.drawKillerSkinRings();
+    this.syncPadHints();
   }
 
   private hideKillerPickerUI() {
@@ -583,10 +663,12 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showPickerUI() {
+    this.padUiMode = 'picker';
     this.pickerUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
     this.drawSkinRings();
     this.startKeyboardInput();
+    this.syncPadHints();
   }
 
   private hidePickerUI() {
@@ -610,6 +692,7 @@ export class LobbyScene extends Phaser.Scene {
       },
     });
     this.kbListener = (e: KeyboardEvent) => {
+      if (this.nameInputEl) return;
       if (e.key === 'Backspace') {
         this.pickerName = this.pickerName.slice(0, -1);
       } else if (e.key.length === 1 && this.pickerName.length < 12) {
@@ -628,6 +711,47 @@ export class LobbyScene extends Phaser.Scene {
       window.removeEventListener('keydown', this.kbListener);
       this.kbListener = null;
     }
+    this.closeNameInput();
+  }
+
+  private openNameInput() {
+    if (this.nameInputEl) {
+      this.nameInputEl.focus();
+      return;
+    }
+    const el = document.createElement('input');
+    el.type        = 'text';
+    el.maxLength   = 12;
+    el.value       = this.pickerName;
+    el.placeholder = 'Seu nome';
+    el.style.cssText = [
+      'position: fixed', 'top: 18%', 'left: 50%', 'transform: translateX(-50%)',
+      'z-index: 1000', 'width: 200px', 'padding: 8px 12px',
+      'font-size: 16px', 'font-weight: bold', 'text-align: center',
+      'color: #ffffff', 'background: #111122', 'border: 1px solid #4285f4',
+      'border-radius: 4px', 'outline: none',
+    ].join(';');
+    const parent = (document.fullscreenElement as HTMLElement | null) ?? document.body;
+    parent.appendChild(el);
+    this.nameInputEl = el;
+
+    el.addEventListener('input', () => {
+      this.pickerName = el.value.slice(0, 12);
+      this.refreshNameDisplay();
+    });
+    el.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') el.blur();
+    });
+    el.addEventListener('blur', () => this.closeNameInput());
+    el.focus();
+  }
+
+  private closeNameInput() {
+    if (!this.nameInputEl) return;
+    const el = this.nameInputEl;
+    this.nameInputEl = null;
+    el.remove();
   }
 
   private confirmCharacter() {
@@ -640,6 +764,7 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showRoomSelection() {
+    this.padUiMode = 'rooms';
     this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(false));
@@ -647,11 +772,13 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private showInRoomUI() {
+    this.padUiMode = 'inRoom';
     this.roomSelectionUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
     this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(true));
     this.inRoomUI.forEach((o) => (o as Phaser.GameObjects.Text).setVisible(true));
     this.backToPickerBtn.setVisible(this.myRole === 'survivor' || this.myRole === 'professor');
     this.refreshActionLabel();
+    this.syncPadHints();
   }
 
   private roomLabel(name: string, count: number, phase: string): string {
