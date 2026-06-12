@@ -146,7 +146,10 @@ export class LobbyScene extends Phaser.Scene {
     if (!this.textures.exists('botaoCharacter')) {
       this.load.spritesheet('botaoCharacter', 'screen/botaoCharacter.png', { frameWidth: 74, frameHeight: 77 });
     }
+    this.load.audio('buttonClick', './audio/buttonClick.wav');
   }
+
+  private _click() { this.sound.play('buttonClick', { volume: 0.5 }); }
 
   create() {
     this.socket = io({ path: '/expelled/socket.io' });
@@ -368,7 +371,7 @@ export class LobbyScene extends Phaser.Scene {
 
       btn.on('pointerover', () => { if (!this.currentRoom && this.isRoomJoinable(name)) btn.setBackgroundColor('#2a5080'); });
       btn.on('pointerout',  () => { if (!this.currentRoom) this.restoreRoomButtonColor(i); });
-      btn.on('pointerdown', () => { this.joinRoom(i); });
+      btn.on('pointerdown', () => { this._click(); this.joinRoom(i); });
 
       this.roomButtons.push(btn);
       this.roomCountTexts.push(btn);
@@ -431,7 +434,7 @@ export class LobbyScene extends Phaser.Scene {
       backgroundColor: 'rgba(0,0,0,0.52)', padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
 
-    this.actionText.on('pointerdown', () => this.triggerAction());
+    this.actionText.on('pointerdown', () => { this._click(); this.triggerAction(); });
 
     this.backToPickerBtn = this.add.text(400, 430, '← Trocar personagem', {
       fontSize: '13px', color: '#aaaaaa',
@@ -439,7 +442,7 @@ export class LobbyScene extends Phaser.Scene {
 
     this.backToPickerBtn.on('pointerover', () => this.backToPickerBtn.setColor('#ffffff'));
     this.backToPickerBtn.on('pointerout',  () => this.backToPickerBtn.setColor('#aaaaaa'));
-    this.backToPickerBtn.on('pointerdown', () => this.goBackToPicker());
+    this.backToPickerBtn.on('pointerdown', () => { this._click(); this.goBackToPicker(); });
 
     this.inRoomUI = [this.countText, this.statusText, hint, this.inRoomPadHint, this.actionText, controls];
     this.inRoomBgUI.forEach((o) => (o as unknown as Phaser.GameObjects.Components.Visible).setVisible(false));
@@ -495,7 +498,7 @@ export class LobbyScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     nameZone.on('pointerup', () => {
-      if (this.nameDisplay.visible) this.openNameInput();
+      if (this.nameDisplay.visible) { this._click(); this.openNameInput(); }
     });
 
     const COLS = [175, 400, 625];
@@ -529,10 +532,10 @@ export class LobbyScene extends Phaser.Scene {
 
       charBtn.on('pointerover', () => { if (skinId !== this.pickerSkinId) charBtn.setFrame(1); });
       charBtn.on('pointerout',  () => this.drawSkinRings());
-      charBtn.on('pointerdown', () => this.selectSkin(skinId));
+      charBtn.on('pointerdown', () => { this._click(); this.selectSkin(skinId); });
       icon.on('pointerover',    () => { if (skinId !== this.pickerSkinId) charBtn.setFrame(1); });
       icon.on('pointerout',     () => this.drawSkinRings());
-      icon.on('pointerdown',    () => this.selectSkin(skinId));
+      icon.on('pointerdown',    () => { this._click(); this.selectSkin(skinId); });
 
       this.pickerUI.push(charBtn, icon, nameHeaderBar, nameLabel);
     });
@@ -542,7 +545,7 @@ export class LobbyScene extends Phaser.Scene {
       padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    confirmBtn.on('pointerdown', () => this.confirmCharacter());
+    confirmBtn.on('pointerdown', () => { this._click(); this.confirmCharacter(); });
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 
@@ -589,7 +592,7 @@ export class LobbyScene extends Phaser.Scene {
 
       charBtn.on('pointerover', () => { if (skinId !== this.pickerKillerSkinId) charBtn.setFrame(1); });
       charBtn.on('pointerout',  () => this.drawKillerSkinRings());
-      charBtn.on('pointerdown', () => this.selectKillerSkin(skinId));
+      charBtn.on('pointerdown', () => { this._click(); this.selectKillerSkin(skinId); });
 
       const nameLabel = this.add.text(bx, by + BTN_H / 2 + 3, label, {
         fontSize: '10px', color: '#e0e0e0', stroke: '#000', strokeThickness: 2,
@@ -603,7 +606,7 @@ export class LobbyScene extends Phaser.Scene {
           .setInteractive({ useHandCursor: true });
         icon.on('pointerover',  () => { if (skinId !== this.pickerKillerSkinId) charBtn.setFrame(1); });
         icon.on('pointerout',   () => this.drawKillerSkinRings());
-        icon.on('pointerdown',  () => this.selectKillerSkin(skinId));
+        icon.on('pointerdown',  () => { this._click(); this.selectKillerSkin(skinId); });
         this.killerPickerUI.push(icon);
       }
     });
@@ -613,7 +616,7 @@ export class LobbyScene extends Phaser.Scene {
       padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    confirmBtn.on('pointerdown', () => this.confirmKillerCharacter());
+    confirmBtn.on('pointerdown', () => { this._click(); this.confirmKillerCharacter(); });
     confirmBtn.on('pointerover', () => confirmBtn.setBackgroundColor('#1976d2'));
     confirmBtn.on('pointerout',  () => confirmBtn.setBackgroundColor('#1565c0'));
 

@@ -39,7 +39,7 @@ export const HEAL_SELF_CAP         = 95;
 export const HEAL_EFFICIENCY_PENALTY = 15;
 
 export const MAX_PLAYERS_PER_ROOM = 5;
-export const MIN_SURVIVORS_TO_START = 3;
+export const MIN_SURVIVORS_TO_START = 2;
 
 export const TERMINAL_SPAWN_POOL: Vec2[] = [
   { x: 2140, y: 2520 },

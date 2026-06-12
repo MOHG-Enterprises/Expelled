@@ -13,6 +13,7 @@ import {
   FOV_PROFESSOR,
   FOV_PROFESSOR_CONE_DEG,
   SURVIVOR_SPAWN_POINTS,
+  GATE_POSITIONS,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { buildTilemap, preloadMapAssets, COLLISION_LAYERS } from '../mapConfig';
@@ -43,6 +44,8 @@ import {
   playHurtFallById,
   preloadPlayerSkins,
 } from '../game/playerSkins';
+
+const GRASS_GIDS = new Set([37, 38, 62, 63]);
 
 interface PostGameStats {
   [socketId: string]: {
@@ -114,6 +117,19 @@ export class GameScene extends Phaser.Scene {
 
   private endgameReceivedAt: number | null = null;
   private endgameBellsRung = new Set<number>();
+
+  private sfxBacksound:   Phaser.Sound.BaseSound | null = null;
+  private sfxClockTime:   Phaser.Sound.BaseSound | null = null;
+  private sfxChase:       Phaser.Sound.BaseSound | null = null;
+  private chaseActive     = false;
+  private firstGateOpened = false;
+  private chaoLayer:        Phaser.Tilemaps.TilemapLayer | null = null;
+  private footstepTimer     = 0;
+  private professorReleaseTimer: Phaser.Time.TimerEvent | null = null;
+  private professorReleaseDone   = false;
+  private matchAudioPending      = false;
+  private sfxFootstep:      Phaser.Sound.BaseSound | null = null;
+  private sfxFootstepKey    = '';
 
   private skillCheck!:  SkillCheck;
   private fog!:         FogOfWar;
@@ -235,11 +251,27 @@ export class GameScene extends Phaser.Scene {
     this.endgameReceivedAt = null;
     this.portaoboiLayer    = null;
     this.portaoboiCollider = null;
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = null;
+    this.professorReleaseDone  = false;
     this.endgameBellsRung.clear();
     this.survivorOrder = [];
     this.survivorInfo.clear();
     this.survivorMeta.clear();
     this.survivorBleedMs.clear();
+    this._stopGameSounds();
+    this.firstGateOpened = false;
+  }
+
+  private _stopGameSounds() {
+    this.matchAudioPending = false;
+    this.sfxBacksound?.stop();
+    this.sfxBacksound = null;
+    this.sfxClockTime?.stop();
+    this.sfxClockTime = null;
+    this.sfxChase?.stop();
+    this.sfxChase = null;
+    this.chaseActive = false;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -250,6 +282,18 @@ export class GameScene extends Phaser.Scene {
       frameWidth: 32, frameHeight: 32,
     });
     this.load.spritesheet('botaoSaida', './botaoSaida.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.audio('skillCheckGood',  './audio/skillCheck_good.wav');
+    this.load.audio('skillCheckBad',   './audio/skillCheck_bad.wav');
+    this.load.audio('keyboarding',     './audio/keyboarding.ogg');
+    this.load.audio('footstepBrick',   './audio/footstepBrick.wav');
+    this.load.audio('footstepGrass',   './audio/footstepGrass.ogg');
+    for (let i = 1; i <= 5; i++) {
+      this.load.audio(`hurtSound${i}`, `./audio/hurt_sound${i}.wav`);
+    }
+    this.load.audio('chaseKiller',       './audio/chaseKiller.mp3');
+    this.load.audio('ringbellStartgame', './audio/ringbellStartgame.ogg');
+    this.load.audio('soundTension',      './audio/soundTension.flac');
+    this.load.audio('clockTime',         './audio/clockTime.wav');
     preloadMapAssets(this);
     preloadPlayerSkins(this);
     ScratchMarkManager.preload(this);
@@ -261,7 +305,8 @@ export class GameScene extends Phaser.Scene {
     this.resetLocalState();
 
     const map = buildTilemap(this);
-    this.mapRef = map;
+    this.mapRef  = map;
+    this.chaoLayer = map.getLayer('Chão')?.tilemapLayer ?? null;
     this.mapWorldWidth  = map.widthInPixels  * MAP_SCALE;
     this.mapWorldHeight = map.heightInPixels * MAP_SCALE;
     this.physics.world.setBounds(0, 0, this.mapWorldWidth, this.mapWorldHeight);
@@ -332,6 +377,14 @@ export class GameScene extends Phaser.Scene {
     this.setupSocketEvents();
     this.socket.emit('requestSync');
 
+    if (!this.cache.audio.exists('backsound')) {
+      this.load.audio('backsound', './audio/backsound.ogg');
+      this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+        if (this.matchAudioPending) this._startMatchAudio();
+      });
+      this.load.start();
+    }
+
     // TEMP: desabilitado para diagnóstico de lag
     // this.voiceManager = new VoiceManager();
     // this.voiceManager.init(this.socket)
@@ -361,6 +414,37 @@ export class GameScene extends Phaser.Scene {
     this.portaoboiLayer    = null;
     this.hud.stopProfessorCountdown();
     if (!silent) this.hud.flash('O professor foi liberado!', 0xff4444, 3000);
+  }
+
+  private _onProfessorLocked(endsAt: number): void {
+    this.hud.startProfessorCountdown(endsAt);
+    this._startMatchAudio();
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = this.time.delayedCall(
+      Math.max(0, endsAt - Date.now()),
+      () => this._onProfessorReleased(),
+    );
+  }
+
+  private _onProfessorReleased(silent = false): void {
+    if (this.professorReleaseDone) return;
+    this.professorReleaseDone = true;
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = null;
+    this._releaseProfessor(silent);
+    if (!silent) this.sound.play('ringbellStartgame', { volume: 1.0 });
+  }
+
+  private _startMatchAudio(): void {
+    if (this.sfxBacksound) return;
+    if (!this.cache.audio.exists('backsound')) {
+      this.matchAudioPending = true;
+      return;
+    }
+    this.matchAudioPending = false;
+    this.sfxBacksound = this.sound.add('backsound', { loop: true, volume: 0.4 });
+    this.sfxBacksound.play();
+    this.sound.play('soundTension', { volume: 0.8 });
   }
 
   // ── Socket event setup ─────────────────────────────────────────────────────
@@ -401,11 +485,11 @@ export class GameScene extends Phaser.Scene {
     });
 
     s.on('professorLocked', ({ endsAt }: { endsAt: number }) => {
-      this.hud.startProfessorCountdown(endsAt);
+      this._onProfessorLocked(endsAt);
     });
 
     s.on('professorReleased', () => {
-      this._releaseProfessor();
+      this._onProfessorReleased();
     });
 
     s.on('gameState', (state: GameState) => {
@@ -446,6 +530,7 @@ export class GameScene extends Phaser.Scene {
       if (state.gatesPowered) {
         this.gates.setPowered('g1');
         this.gates.setPowered('g2');
+        this.terminals.hideIncomplete();
       }
       for (const id of ['g1', 'g2'] as GateId[]) {
         if (state.gates[id] > 0) this.gates.setProgress(id, state.gates[id]);
@@ -459,12 +544,11 @@ export class GameScene extends Phaser.Scene {
         this.hud.setEndgameTimer(Math.max(0, ENDGAME_DURATION_MS - elapsed));
       }
       this.refreshSurvivorHUD();
-      if (state.professorLockedEndsAt !== null) {
-        if (state.professorLockedEndsAt > Date.now()) {
-          this.hud.startProfessorCountdown(state.professorLockedEndsAt);
-        } else {
-          this._releaseProfessor(true);
-        }
+      if (state.professorLockedEndsAt !== null && state.professorLockedEndsAt > Date.now()) {
+        this._onProfessorLocked(state.professorLockedEndsAt);
+      } else if (state.phase === 'playing') {
+        this._onProfessorReleased(true);
+        this._startMatchAudio();
       }
     });
 
@@ -475,6 +559,15 @@ export class GameScene extends Phaser.Scene {
     s.on('bloodlustUpdate', ({ tier, chaseActive }: { tier: 0|1|2|3; chaseActive: boolean }) => {
       this.bloodlustTier = tier;
       this.hud.setChaseState(chaseActive, tier);
+      if (this.myRole === 'survivor') {
+        if (chaseActive && !this.chaseActive) {
+          if (!this.sfxChase) this.sfxChase = this.sound.add('chaseKiller', { loop: true, volume: 1 });
+          this.sfxChase.play();
+        } else if (!chaseActive && this.chaseActive) {
+          this.sfxChase?.stop();
+        }
+      }
+      this.chaseActive = chaseActive;
     });
 
     s.on('endgameStarted', () => {
@@ -485,6 +578,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     s.on('gameOver', (payload: { winner: string; stats: PostGameStats }) => {
+      this._stopGameSounds();
       this.inputFrozen = true;
       this.registry.set('postGameData', {
         winner: payload.winner,
@@ -500,6 +594,7 @@ export class GameScene extends Phaser.Scene {
 
     s.on('gameReset', () => {
       if (!this.scene.isActive()) return;
+      this._stopGameSounds();
       this.scratchMarks?.clear();
       this.voiceManager?.destroy();
       this.voiceManager = null;
@@ -585,6 +680,7 @@ export class GameScene extends Phaser.Scene {
     s.on('gatesPowered', () => {
       this.gates.setPowered('g1');
       this.gates.setPowered('g2');
+      this.terminals.hideIncomplete();
       this.hud.flash('Portões de saída disponíveis!', 0x00e676);
     });
 
@@ -595,6 +691,12 @@ export class GameScene extends Phaser.Scene {
     s.on('gateOpened', ({ gateId }: { gateId: GateId }) => {
       if (this.mapRef) this.gates.setOpen(gateId, this.mapRef);
       this.hud.flash('Portão aberto! Fuja agora!', 0x00e676, 4000);
+      if (!this.firstGateOpened) {
+        this.firstGateOpened = true;
+        this.sound.play('soundTension', { volume: 0.8 });
+        this.sfxClockTime = this.sound.add('clockTime', { loop: true, volume: 0.5 });
+        this.sfxClockTime.play();
+      }
     });
 
     s.on('gateFailFlash', ({ gateId }: { gateId: GateId }) => {
@@ -614,6 +716,8 @@ export class GameScene extends Phaser.Scene {
         this.hud.setDamageVignette(hp, false);
         this.hud.flashDamageVignette();
         if (!this.downed) this.onHitSprintTimer = ON_HIT_SPRINT_MS;
+        const n = Phaser.Math.Between(1, 5);
+        this.sound.play(`hurtSound${n}`, { volume: 0.9 });
       }
       const info = this.survivorInfo.get(targetId);
       if (info) { this.survivorInfo.set(targetId, { ...info, hp }); this.refreshSurvivorHUD(); }
@@ -782,6 +886,20 @@ export class GameScene extends Phaser.Scene {
 
   // ── Update ─────────────────────────────────────────────────────────────────
 
+  private _getGateArrowPositions(): Record<string, { x: number; y: number }> {
+    const out: Record<string, { x: number; y: number }> = {};
+    (Object.keys(GATE_POSITIONS) as GateId[]).forEach((id) => {
+      if (this.gates.isPowered(id) && !this.gates.isOpen(id)) out[id] = GATE_POSITIONS[id];
+    });
+    return out;
+  }
+
+  private _isPlayerOnGrass(): boolean {
+    if (!this.chaoLayer) return false;
+    const tile = this.chaoLayer.getTileAtWorldXY(this.player.x, this.player.y);
+    return tile !== null && GRASS_GIDS.has(tile.index);
+  }
+
   private _updateTerrorRadius() {
     if (this.myRole !== 'survivor') { this.hud.setTerrorLevel(0); return; }
     const profPos = this.players.getProfessorPosition();
@@ -890,6 +1008,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.updateTerminalArrows(
           this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
+          this._getGateArrowPositions(),
         );
       }
       if (this.myRole === 'survivor') {
@@ -897,6 +1016,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.updateDownedArrows(
           this._getDownedArrowPositions(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
+          this._getGateArrowPositions(),
         );
       }
       this.players.update(this.time.now, this._busySurvivorIds());
@@ -922,6 +1042,24 @@ export class GameScene extends Phaser.Scene {
     const { vx, vy, intendedToMove } = this.movement.update(input, movCtx, pad, delta);
     this.movement.applyVelocity(vx, vy);
     this.movement.applyAnimation(movCtx, intendedToMove);
+
+    if (this.myRole && !this.downed && !this.ghost && (vx !== 0 || vy !== 0)) {
+      this.footstepTimer -= delta;
+      if (this.footstepTimer <= 0) {
+        const key = this._isPlayerOnGrass() ? 'footstepGrass' : 'footstepBrick';
+        if (this.sfxFootstepKey !== key) {
+          this.sfxFootstep?.stop();
+          this.sfxFootstep = this.sound.add(key, { volume: 0.4 });
+          this.sfxFootstepKey = key;
+        }
+        this.sfxFootstep!.stop();
+        this.sfxFootstep!.play();
+        this.footstepTimer = this.sprinting ? 270 : 400;
+      }
+    } else {
+      this.footstepTimer = 0;
+      this.sfxFootstep?.stop();
+    }
 
     this.lastMoveEmit += delta;
     if ((vx !== 0 || vy !== 0) && this.lastMoveEmit > MOVE_EMIT_RATE_MS) {
@@ -953,6 +1091,16 @@ export class GameScene extends Phaser.Scene {
 
     if (!this.ghost) this.fog.update(this.player, this.movement.lookAngle);
     this.players.update(this.time.now, this._busySurvivorIds());
+
+    if (this.chaseActive && this.myRole === 'survivor' && this.sfxChase) {
+      const profPos = this.players.getProfessorPosition();
+      if (profPos) {
+        const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, profPos.x, profPos.y);
+        (this.sfxChase as Phaser.Sound.WebAudioSound | Phaser.Sound.HTML5AudioSound).setVolume(
+          Math.max(0, 1 - dist / TERROR_RADIUS)
+        );
+      }
+    }
 
     if (this.voiceManager && this.myRole) {
       this.voiceManager.updateSpatialAudio(
@@ -1001,10 +1149,11 @@ export class GameScene extends Phaser.Scene {
         this.movement.lookAngle,
         nearTermInfo,
       );
-const cam = this.cameras.main;
+      const cam = this.cameras.main;
       this.hud.updateTerminalArrows(
         this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
         cam.scrollX, cam.scrollY, cam.width, cam.height,
+        this._getGateArrowPositions(),
       );
     }
 
@@ -1013,6 +1162,7 @@ const cam = this.cameras.main;
       this.hud.updateDownedArrows(
         this._getDownedArrowPositions(),
         cam.scrollX, cam.scrollY, cam.width, cam.height,
+        this._getGateArrowPositions(),
       );
     }
 

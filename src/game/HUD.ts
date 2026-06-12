@@ -534,6 +534,7 @@ export class HUD {
     camY: number,
     screenW: number,
     screenH: number,
+    gatePositions: Record<string, { x: number; y: number }> = {},
   ) {
     this.arrowGraphics.clear();
     const now = Date.now();
@@ -605,22 +606,9 @@ export class HUD {
       const flash = Math.floor(now / 200) % 2 === 0;
       this._drawHealAlertArrow(ex, ey, angle, flash ? 1.0 : 0.3);
     });
-  }
 
-  updateDownedArrows(
-    positions: Record<string, { x: number; y: number }>,
-    camX: number,
-    camY: number,
-    screenW: number,
-    screenH: number,
-  ): void {
-    this.arrowGraphics.clear();
-    const cx     = screenW / 2;
-    const cy     = screenH / 2;
-    const margin = 18;
-
-    (Object.keys(positions) as string[]).forEach((id) => {
-      const pos = positions[id];
+    const gateFlash = Math.floor(now / 350) % 2 === 0;
+    Object.values(gatePositions).forEach((pos) => {
       if (!pos) return;
       const sx = pos.x - camX;
       const sy = pos.y - camY;
@@ -634,9 +622,50 @@ export class HUD {
       const tX    = dx !== 0 ? (dx > 0 ? maxX - cx : margin - cx) / dx : Infinity;
       const tY    = dy !== 0 ? (dy > 0 ? maxY - cy : margin - cy) / dy : Infinity;
       const t     = Math.min(Math.abs(tX), Math.abs(tY));
-      const ex    = cx + dx * t;
-      const ey    = cy + dy * t;
-      this._drawArrowTriangle(ex, ey, angle, 0xff6600, 0.85);
+      this._drawArrowTriangle(cx + dx * t, cy + dy * t, angle, 0x00e676, gateFlash ? 0.95 : 0.35);
+    });
+  }
+
+  updateDownedArrows(
+    positions: Record<string, { x: number; y: number }>,
+    camX: number,
+    camY: number,
+    screenW: number,
+    screenH: number,
+    gatePositions: Record<string, { x: number; y: number }> = {},
+  ): void {
+    this.arrowGraphics.clear();
+    const cx     = screenW / 2;
+    const cy     = screenH / 2;
+    const margin = 18;
+
+    const edgePoint = (pos: { x: number; y: number }) => {
+      const sx = pos.x - camX;
+      const sy = pos.y - camY;
+      if (sx >= 0 && sx <= screenW && sy >= 0 && sy <= screenH) return null;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      if (dx === 0 && dy === 0) return null;
+      const angle = Math.atan2(dy, dx);
+      const maxX  = screenW - margin;
+      const maxY  = screenH - margin;
+      const tX    = dx !== 0 ? (dx > 0 ? maxX - cx : margin - cx) / dx : Infinity;
+      const tY    = dy !== 0 ? (dy > 0 ? maxY - cy : margin - cy) / dy : Infinity;
+      const t     = Math.min(Math.abs(tX), Math.abs(tY));
+      return { ex: cx + dx * t, ey: cy + dy * t, angle };
+    };
+
+    Object.values(positions).forEach((pos) => {
+      if (!pos) return;
+      const p = edgePoint(pos);
+      if (p) this._drawArrowTriangle(p.ex, p.ey, p.angle, 0xff6600, 0.85);
+    });
+
+    const flash = Math.floor(Date.now() / 350) % 2 === 0;
+    Object.values(gatePositions).forEach((pos) => {
+      if (!pos) return;
+      const p = edgePoint(pos);
+      if (p) this._drawArrowTriangle(p.ex, p.ey, p.angle, 0x00e676, flash ? 0.95 : 0.35);
     });
   }
 

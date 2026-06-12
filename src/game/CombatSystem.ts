@@ -7,7 +7,7 @@ import {
 } from '../constants';
 import type { TerminalId } from '../types';
 import type { InputState } from './InputManager';
-import { getSkinById, type MoveDirection } from './playerSkins';
+import { getSkinById, PLAYER_SKINS, type MoveDirection } from './playerSkins';
 import type { InteractionPromptManager } from './InteractionPromptManager';
 
 export class CombatSystem {
@@ -46,29 +46,30 @@ export class CombatSystem {
   get attackHoldActive(): boolean { return this._attackHoldStart !== null && !this._isSwinging; }
 
   createSlashAnimations() {
-    const skin = getSkinById(this.skinId);
-    if (!skin.slash) return;
-    const slashTexKey = skin.slash.key;
     const dirs: [MoveDirection, number][] = [['up', 0], ['left', 1], ['down', 2], ['right', 3]];
-    dirs.forEach(([dir, row]) => {
-      const slashAnimKey = `${slashTexKey}:${dir}`;
-      if (!this.scene.anims.exists(slashAnimKey)) {
-        this.scene.anims.create({
-          key:       slashAnimKey,
-          frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
-          frameRate: 12,
-          repeat:    0,
-        });
-      }
-      const kickAnimKey = `${slashTexKey}:kick:${dir}`;
-      if (!this.scene.anims.exists(kickAnimKey)) {
-        this.scene.anims.create({
-          key:       kickAnimKey,
-          frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
-          frameRate: 5,
-          repeat:    1,
-        });
-      }
+    Object.values(PLAYER_SKINS).forEach((skin) => {
+      if (!skin.slash || !this.scene.textures.exists(skin.slash.key)) return;
+      const slashTexKey = skin.slash.key;
+      dirs.forEach(([dir, row]) => {
+        const slashAnimKey = `${slashTexKey}:${dir}`;
+        if (!this.scene.anims.exists(slashAnimKey)) {
+          this.scene.anims.create({
+            key:       slashAnimKey,
+            frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
+            frameRate: 12,
+            repeat:    0,
+          });
+        }
+        const kickAnimKey = `${slashTexKey}:kick:${dir}`;
+        if (!this.scene.anims.exists(kickAnimKey)) {
+          this.scene.anims.create({
+            key:       kickAnimKey,
+            frames:    this.scene.anims.generateFrameNumbers(slashTexKey, { start: row * 6, end: row * 6 + 5 }),
+            frameRate: 5,
+            repeat:    1,
+          });
+        }
+      });
     });
   }
 

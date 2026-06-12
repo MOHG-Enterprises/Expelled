@@ -148,6 +148,7 @@ export class PlayerManager {
     const p = this.others[id];
     if (!p) return;
     const slashTexKey = getSkinById(p.skinId).slash?.key ?? 'boi-slash';
+    if (!this.scene.anims.exists(`${slashTexKey}:${dir}`)) return;
     p.sprite.setVisible(false);
     const slash = this.scene.add.sprite(x, y, slashTexKey)
       .setDepth(6)
@@ -172,6 +173,7 @@ export class PlayerManager {
     const p = this.others[id];
     if (!p) return;
     const slashTexKey = getSkinById(p.skinId).slash?.key ?? 'boi-slash';
+    if (!this.scene.anims.exists(`${slashTexKey}:kick:${dir}`)) return;
     p.sprite.setVisible(false);
     const kick = this.scene.add.sprite(x, y, slashTexKey)
       .setDepth(6)

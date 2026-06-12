@@ -56,10 +56,13 @@ export class ExitGateManager {
     }
 
     const range      = GATE_TILE_RANGES[id];
-    const gateLeft   = range.col * TILE_WORLD_SIZE;
-    const zoneTop    = range.rowStart * TILE_WORLD_SIZE;
-    const zoneHeight = (range.rowEnd - range.rowStart + 1) * TILE_WORLD_SIZE;
-    const exitZone   = new Phaser.Geom.Rectangle(gateLeft - 96, zoneTop, 96, zoneHeight);
+    const gateLeft   = range.colStart * TILE_WORLD_SIZE;
+    const gateTop    = range.rowStart * TILE_WORLD_SIZE;
+    const gateWidth  = (range.colEnd - range.colStart + 1) * TILE_WORLD_SIZE;
+    const gateHeight = (range.rowEnd - range.rowStart + 1) * TILE_WORLD_SIZE;
+    const exitZone   = range.exit === 'left'
+      ? new Phaser.Geom.Rectangle(gateLeft - 96, gateTop, 96, gateHeight)
+      : new Phaser.Geom.Rectangle(gateLeft, gateTop + gateHeight, gateWidth, 96);
 
     this.gates[id] = {
       switchX: x,
@@ -101,10 +104,12 @@ export class ExitGateManager {
 
     const range = GATE_TILE_RANGES[id];
     for (let row = range.rowStart; row <= range.rowEnd; row++) {
-      const tile = map.getTileAt(range.col, row, false, 'PORTAO');
-      if (tile) {
-        tile.setCollision(false);
-        tile.setVisible(false);
+      for (let col = range.colStart; col <= range.colEnd; col++) {
+        const tile = map.getTileAt(col, row, false, 'PORTAO');
+        if (tile) {
+          tile.setCollision(false);
+          tile.setVisible(false);
+        }
       }
     }
   }

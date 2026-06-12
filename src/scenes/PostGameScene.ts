@@ -54,6 +54,10 @@ export class PostGameScene extends Phaser.Scene {
     super('PostGameScene');
   }
 
+  preload() {
+    this.load.audio('buttonClick', './audio/buttonClick.wav');
+  }
+
   create() {
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this._data = this.registry.get('postGameData') as PostGameData;
@@ -245,6 +249,7 @@ export class PostGameScene extends Phaser.Scene {
 
   private _renderButton(width: number, y: number, socket: Socket): void {
     const goToLobby = () => {
+      this.sound.play('buttonClick', { volume: 0.5 });
       socket.disconnect();
       this.scene.start('LobbyScene');
     };

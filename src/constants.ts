@@ -43,7 +43,7 @@ export const PROFESSOR_SPEED       = 208;   // 110% of survivor run (DBD 4.4 m/s
 export const ON_HIT_SPRINT_SPEED   = 312;   // 165% of survivor run (DBD on-hit sprint)
 export const ON_HIT_SPRINT_MS      = 1800;  // duration of on-hit speed boost
 
-export const SCRATCH_MARKS_SELF_VISIBLE = true; // false = DBD-authentic (survivor can't see own marks)
+export const SCRATCH_MARKS_SELF_VISIBLE = false; // false = DBD-authentic (survivor can't see own marks)
 
 //  interacoes 
 export const INTERACT_RADIUS      = 48;   // px
@@ -66,7 +66,7 @@ export const CRAWL_SPEED_FACTOR    = 0.28;
 export const GHOST_SPEED_FACTOR    = 1.8;
 
 //  terror radius (professor)
-export const TERROR_RADIUS = 450; // px — raio do terror do professor
+export const TERROR_RADIUS = 767; // px — raio do terror do professor
 
 //  visao (fov)
 export const FOV_PROFESSOR = 380;
@@ -125,9 +125,13 @@ export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {
   g2: { x: 93 * 32 + 16, y: 94 * 32 + 16 },
 };
 
-export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; rowEnd: number }> = {
-  g1: { col: 12, rowStart: 70, rowEnd: 75 },
-  g2: { col: 12, rowStart: 47, rowEnd: 52 },
+export const GATE_TILE_RANGES: Record<GateId, {
+  colStart: number; colEnd: number;
+  rowStart: number; rowEnd: number;
+  exit: 'left' | 'down';
+}> = {
+  g1: { colStart: 12, colEnd: 12, rowStart: 46, rowEnd: 53, exit: 'left' },
+  g2: { colStart: 87, colEnd: 92, rowStart: 97, rowEnd: 99, exit: 'down' },
 };
 
 export const FEIRA_PRODUCT_ID  = 0;
