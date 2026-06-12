@@ -122,8 +122,13 @@ export class GameScene extends Phaser.Scene {
   private sfxChase:       Phaser.Sound.BaseSound | null = null;
   private chaseActive     = false;
   private firstGateOpened = false;
-  private chaoLayer:      Phaser.Tilemaps.TilemapLayer | null = null;
-  private footstepTimer   = 0;
+  private chaoLayer:        Phaser.Tilemaps.TilemapLayer | null = null;
+  private footstepTimer     = 0;
+  private professorReleaseTimer: Phaser.Time.TimerEvent | null = null;
+  private professorReleaseDone   = false;
+  private matchAudioPending      = false;
+  private sfxFootstep:      Phaser.Sound.BaseSound | null = null;
+  private sfxFootstepKey    = '';
 
   private skillCheck!:  SkillCheck;
   private fog!:         FogOfWar;
@@ -245,6 +250,9 @@ export class GameScene extends Phaser.Scene {
     this.endgameReceivedAt = null;
     this.portaoboiLayer    = null;
     this.portaoboiCollider = null;
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = null;
+    this.professorReleaseDone  = false;
     this.endgameBellsRung.clear();
     this.survivorOrder = [];
     this.survivorInfo.clear();
@@ -255,6 +263,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private _stopGameSounds() {
+    this.matchAudioPending = false;
     this.sfxBacksound?.stop();
     this.sfxBacksound = null;
     this.sfxClockTime?.stop();
@@ -274,15 +283,14 @@ export class GameScene extends Phaser.Scene {
     this.load.spritesheet('botaoSaida', './botaoSaida.png', { frameWidth: 16, frameHeight: 16 });
     this.load.audio('skillCheckGood',  './audio/skillCheck_good.wav');
     this.load.audio('skillCheckBad',   './audio/skillCheck_bad.wav');
-    this.load.audio('keyboarding',     './audio/keyboarding.wav');
+    this.load.audio('keyboarding',     './audio/keyboarding.ogg');
     this.load.audio('footstepBrick',   './audio/footstepBrick.wav');
-    this.load.audio('footstepGrass',   './audio/footstepGrass.wav');
+    this.load.audio('footstepGrass',   './audio/footstepGrass.ogg');
     for (let i = 1; i <= 5; i++) {
       this.load.audio(`hurtSound${i}`, `./audio/hurt_sound${i}.wav`);
     }
     this.load.audio('chaseKiller',       './audio/chaseKiller.mp3');
-    this.load.audio('backsound',         './audio/backsound.flac');
-    this.load.audio('ringbellStartgame', './audio/ringbellStartgame.wav');
+    this.load.audio('ringbellStartgame', './audio/ringbellStartgame.ogg');
     this.load.audio('soundTension',      './audio/soundTension.flac');
     this.load.audio('clockTime',         './audio/clockTime.wav');
     preloadMapAssets(this);
@@ -368,6 +376,14 @@ export class GameScene extends Phaser.Scene {
     this.setupSocketEvents();
     this.socket.emit('requestSync');
 
+    if (!this.cache.audio.exists('backsound')) {
+      this.load.audio('backsound', './audio/backsound.ogg');
+      this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+        if (this.matchAudioPending) this._startMatchAudio();
+      });
+      this.load.start();
+    }
+
     // TEMP: desabilitado para diagnóstico de lag
     // this.voiceManager = new VoiceManager();
     // this.voiceManager.init(this.socket)
@@ -397,6 +413,37 @@ export class GameScene extends Phaser.Scene {
     this.portaoboiLayer    = null;
     this.hud.stopProfessorCountdown();
     if (!silent) this.hud.flash('O professor foi liberado!', 0xff4444, 3000);
+  }
+
+  private _onProfessorLocked(endsAt: number): void {
+    this.hud.startProfessorCountdown(endsAt);
+    this._startMatchAudio();
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = this.time.delayedCall(
+      Math.max(0, endsAt - Date.now()),
+      () => this._onProfessorReleased(),
+    );
+  }
+
+  private _onProfessorReleased(silent = false): void {
+    if (this.professorReleaseDone) return;
+    this.professorReleaseDone = true;
+    this.professorReleaseTimer?.remove(false);
+    this.professorReleaseTimer = null;
+    this._releaseProfessor(silent);
+    if (!silent) this.sound.play('ringbellStartgame', { volume: 1.0 });
+  }
+
+  private _startMatchAudio(): void {
+    if (this.sfxBacksound) return;
+    if (!this.cache.audio.exists('backsound')) {
+      this.matchAudioPending = true;
+      return;
+    }
+    this.matchAudioPending = false;
+    this.sfxBacksound = this.sound.add('backsound', { loop: true, volume: 0.4 });
+    this.sfxBacksound.play();
+    this.sound.play('soundTension', { volume: 0.8 });
   }
 
   // ── Socket event setup ─────────────────────────────────────────────────────
@@ -437,15 +484,11 @@ export class GameScene extends Phaser.Scene {
     });
 
     s.on('professorLocked', ({ endsAt }: { endsAt: number }) => {
-      this.hud.startProfessorCountdown(endsAt);
-      this.sfxBacksound = this.sound.add('backsound', { loop: true, volume: 0.4 });
-      this.sfxBacksound.play();
-      this.sound.play('soundTension', { volume: 0.8 });
+      this._onProfessorLocked(endsAt);
     });
 
     s.on('professorReleased', () => {
-      this._releaseProfessor();
-      this.sound.play('ringbellStartgame', { volume: 1.0 });
+      this._onProfessorReleased();
     });
 
     s.on('gameState', (state: GameState) => {
@@ -499,12 +542,11 @@ export class GameScene extends Phaser.Scene {
         this.hud.setEndgameTimer(Math.max(0, ENDGAME_DURATION_MS - elapsed));
       }
       this.refreshSurvivorHUD();
-      if (state.professorLockedEndsAt !== null) {
-        if (state.professorLockedEndsAt > Date.now()) {
-          this.hud.startProfessorCountdown(state.professorLockedEndsAt);
-        } else {
-          this._releaseProfessor(true);
-        }
+      if (state.professorLockedEndsAt !== null && state.professorLockedEndsAt > Date.now()) {
+        this._onProfessorLocked(state.professorLockedEndsAt);
+      } else if (state.phase === 'playing') {
+        this._onProfessorReleased(true);
+        this._startMatchAudio();
       }
     });
 
@@ -991,12 +1033,19 @@ export class GameScene extends Phaser.Scene {
     if (this.myRole && !this.downed && !this.ghost && (vx !== 0 || vy !== 0)) {
       this.footstepTimer -= delta;
       if (this.footstepTimer <= 0) {
-        const onGrass = this._isPlayerOnGrass();
-        this.sound.play(onGrass ? 'footstepGrass' : 'footstepBrick', { volume: 0.4 });
+        const key = this._isPlayerOnGrass() ? 'footstepGrass' : 'footstepBrick';
+        if (this.sfxFootstepKey !== key) {
+          this.sfxFootstep?.stop();
+          this.sfxFootstep = this.sound.add(key, { volume: 0.4 });
+          this.sfxFootstepKey = key;
+        }
+        this.sfxFootstep!.stop();
+        this.sfxFootstep!.play();
         this.footstepTimer = this.sprinting ? 270 : 400;
       }
     } else {
       this.footstepTimer = 0;
+      this.sfxFootstep?.stop();
     }
 
     this.lastMoveEmit += delta;

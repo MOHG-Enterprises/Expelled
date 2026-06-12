@@ -37,4 +37,4 @@ export const HEAL_SELF_CAP         = 95;
 export const HEAL_EFFICIENCY_PENALTY = 15;
 
 export const MAX_PLAYERS_PER_ROOM = 5;
-export const MIN_SURVIVORS_TO_START = 3;
+export const MIN_SURVIVORS_TO_START = 1;
