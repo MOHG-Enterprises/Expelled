@@ -117,6 +117,10 @@ io.on('connection', (socket) => {
     if (socketToRoom.has(socket.id)) return;
 
     const existing = rooms[roomName];
+    if (existing && existing.phase !== 'lobby' && Object.keys(existing.players).length > 0) {
+      socket.emit('joinRejected', { reason: 'inProgress' });
+      return;
+    }
     if (existing && Object.keys(existing.players).length >= MAX_PLAYERS_PER_ROOM) {
       socket.emit('joinRejected', { reason: 'full' });
       return;

@@ -45,7 +45,7 @@ export class InputManager {
   private spaceKey: Phaser.Input.Keyboard.Key;
   private eKey:     Phaser.Input.Keyboard.Key;
   private shiftKey: Phaser.Input.Keyboard.Key;
-  private f5Key:    Phaser.Input.Keyboard.Key;
+  private f6Key:    Phaser.Input.Keyboard.Key;
 
   private padPrevAction = false;
   private padPrevAttack = false;
@@ -59,7 +59,7 @@ export class InputManager {
     this.spaceKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.eKey     = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.E);
     this.shiftKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
-    this.f5Key    = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.F5);
+    this.f6Key    = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.f6);
 
     scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (!pointer.wasTouch && pointer.button === 0) this.mouseAttackJust = true;
@@ -71,7 +71,7 @@ export class InputManager {
 
   read(pad: Phaser.Input.Gamepad.Gamepad | null, touchState?: TouchInputState): InputState {
     const padActionNow = pad?.buttons[0].pressed ?? false;
-    const padAttackNow = pad?.buttons[2].pressed ?? false;
+    const padAttackNow = (pad?.buttons[7]?.pressed ?? false) || (pad?.buttons[7]?.value ?? 0) > 0.5;
 
     const actionHeld  = padActionNow;
     const attackHeld  = padAttackNow;
@@ -86,7 +86,7 @@ export class InputManager {
     const spaceJustDown = Phaser.Input.Keyboard.JustDown(this.spaceKey);
     const spaceJustUp   = Phaser.Input.Keyboard.JustUp(this.spaceKey);
     const eJustDown     = Phaser.Input.Keyboard.JustDown(this.eKey);
-    const cJustDown     = this.shiftKey.isDown && Phaser.Input.Keyboard.JustDown(this.f5Key);
+    const cJustDown     = this.shiftKey.isDown && Phaser.Input.Keyboard.JustDown(this.f6Key);
     const mouseAJ       = this.mouseAttackJust;
     const mouseAJU      = this.mouseAttackJustUp;
     this.mouseAttackJust    = false;

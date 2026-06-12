@@ -28,6 +28,7 @@ export {
   HEAL_SELF_CAP,
   MAX_PLAYERS_PER_ROOM,
   MIN_SURVIVORS_TO_START,
+  TERMINAL_SPAWN_POOL,
 } from '../shared/gameRules';
 
 //  mundo 
@@ -94,26 +95,28 @@ export const COLOR_TERMINAL_DONE  = 0x00e676;
 //  spawn points dos sobreviventes
 export const SURVIVOR_SPAWN_POINTS: ReadonlyArray<{ x: number; y: number }> = [
   // Ala superior-esquerda
-  { x: 640,  y: 384  },
   { x: 992,  y: 256  },
-  { x: 1120, y: 640  },
   { x: 1312, y: 448  },
   // Corredor esquerdo
-  { x: 672,  y: 1440 },
   { x: 672,  y: 2208 },
   { x: 672,  y: 2560 },
   { x: 1056, y: 2208 },
   // Ala inferior-esquerda
   { x: 672,  y: 3200 },
-  { x: 1056, y: 3456 },
-  { x: 1024, y: 4064 },
+  { x: 1360, y: 3696 },
   // Ala superior-centro
   { x: 1760, y: 800  },
   { x: 1216, y: 1120 },
   { x: 1760, y: 1760 },
+  // Centro
+  { x: 1840, y: 2800 },
+  // Ala inferior
+  { x: 2224, y: 3728 },
   // Ala direita
+  { x: 2928, y: 208  },
   { x: 2656, y: 1504 },
   { x: 2880, y: 2208 },
+  { x: 2928, y: 3056 },
 ];
 
 //  gates

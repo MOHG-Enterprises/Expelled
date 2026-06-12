@@ -371,7 +371,7 @@ export class GameScene extends Phaser.Scene {
       this.touchControls.build();
     }
     this.hud.build(this.isTouchDevice);
-    this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). Shift+F5 = debug', 0xffcc00, 2600);
+    this.hud.flash('Colisao ativa em TODOS os layers (edite COLLISION_LAYERS). Shift+F6 = debug', 0xffcc00, 2600);
 
     this.socket.removeAllListeners();
     this.setupSocketEvents();

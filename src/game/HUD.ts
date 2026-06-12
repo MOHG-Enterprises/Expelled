@@ -818,7 +818,7 @@ export class HUD {
       ];
     } else if (this.currentRole === 'professor') {
       lines = [
-        gp ? '[X] Atacar'   : '[SPACE] Atacar',
+        gp ? '[RT] Atacar'   : '[SPACE] Atacar',
         gp ? '[A] Reforçar' : '[E] Reforçar',
       ];
     }

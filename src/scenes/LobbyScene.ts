@@ -60,6 +60,7 @@ export class LobbyScene extends Phaser.Scene {
   private backToPickerBtn!: Phaser.GameObjects.Text;
 
   private roomButtons: Phaser.GameObjects.Text[] = [];
+  private roomPhases: Record<string, string> = {};
   private roomCountTexts: Phaser.GameObjects.Text[] = [];
   private roomSelectionUI: Phaser.GameObjects.GameObject[] = [];
   private inRoomBgUI: Phaser.GameObjects.GameObject[] = [];
@@ -200,12 +201,9 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     this.socket.on('joinRejected', ({ reason }: { reason: string }) => {
-      if (reason === 'full') {
-        this.currentRoom = null;
-        this.showRoomSelection();
-        this.errorText.setText('Sala cheia! Escolha outra.').setVisible(true);
-        this.time.delayedCall(2000, () => this.errorText.setVisible(false));
-      }
+      this.currentRoom = null;
+      this.showRoomSelection();
+      this.showJoinError(reason === 'inProgress' ? 'Sala em andamento! Escolha outra.' : 'Sala cheia! Escolha outra.');
     });
 
     this.updateRoomSelection();
@@ -310,6 +308,10 @@ export class LobbyScene extends Phaser.Scene {
   private joinRoom(idx: number) {
     const name = ROOM_NAMES[idx];
     if (!name || this.currentRoom) return;
+    if (!this.isRoomJoinable(name)) {
+      this.showJoinError('Sala em andamento! Escolha outra.');
+      return;
+    }
     this.padUiMode   = 'inRoom';
     this.currentRoom = name;
     this.socket.emit('joinRoom', { roomName: name });
@@ -367,7 +369,7 @@ export class LobbyScene extends Phaser.Scene {
         padding: { x: 14, y: 10 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-      btn.on('pointerover', () => { if (!this.currentRoom) btn.setBackgroundColor('#2a5080'); });
+      btn.on('pointerover', () => { if (!this.currentRoom && this.isRoomJoinable(name)) btn.setBackgroundColor('#2a5080'); });
       btn.on('pointerout',  () => { if (!this.currentRoom) this.restoreRoomButtonColor(i); });
       btn.on('pointerdown', () => { this._click(); this.joinRoom(i); });
 
@@ -378,14 +380,19 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private restoreRoomButtonColor(idx: number) {
-    const isSelected = idx === this.selectedRoomIdx;
-    this.roomButtons[idx]?.setBackgroundColor(isSelected ? '#2a5080' : '#1e3a5f');
+    const btn = this.roomButtons[idx];
+    if (!btn) return;
+    const name = ROOM_NAMES[idx];
+    if (name && !this.isRoomJoinable(name)) {
+      btn.setBackgroundColor('#3a3a4a').setAlpha(0.55);
+      return;
+    }
+    btn.setAlpha(1);
+    btn.setBackgroundColor(idx === this.selectedRoomIdx ? '#2a5080' : '#1e3a5f');
   }
 
   private updateRoomSelection() {
-    this.roomButtons.forEach((btn, i) => {
-      btn.setBackgroundColor(i === this.selectedRoomIdx ? '#2a5080' : '#1e3a5f');
-    });
+    this.roomButtons.forEach((_, i) => this.restoreRoomButtonColor(i));
   }
 
   private buildInRoomUI() {
@@ -792,8 +799,19 @@ export class LobbyScene extends Phaser.Scene {
   private updateRoomButtons(summary: RoomSummary) {
     ROOM_NAMES.forEach((name, i) => {
       const info = summary[name] ?? { playerCount: 0, phase: 'lobby' };
+      this.roomPhases[name] = info.phase;
       this.roomButtons[i]?.setText(this.roomLabel(name, info.playerCount, info.phase));
+      this.restoreRoomButtonColor(i);
     });
+  }
+
+  private isRoomJoinable(name: string): boolean {
+    return (this.roomPhases[name] ?? 'lobby') === 'lobby';
+  }
+
+  private showJoinError(msg: string) {
+    this.errorText.setText(msg).setVisible(true);
+    this.time.delayedCall(2000, () => this.errorText.setVisible(false));
   }
 
   private canProfessorStart(): boolean {
