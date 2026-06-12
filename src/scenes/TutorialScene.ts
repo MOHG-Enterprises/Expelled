@@ -32,6 +32,7 @@ export class TutorialScene extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
+    this.load.audio('buttonClick', './audio/buttonClick.wav');
   }
 
   create() {
@@ -88,7 +89,7 @@ export class TutorialScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     btn.on('pointerover', () => btn.setBackgroundColor('#4a4a77'));
     btn.on('pointerout', () => btn.setBackgroundColor('#333355'));
-    btn.on('pointerdown', onClick);
+    btn.on('pointerdown', () => { this.sound.play('buttonClick', { volume: 0.5 }); onClick(); });
     return btn;
   }
 

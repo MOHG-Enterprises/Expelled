@@ -57,6 +57,9 @@ export class HackingSystem {
   private gateNextSkillCheckThreshold = 0;
   private gateLockUntil             = 0;
 
+  private sfxKeyboarding: Phaser.Sound.BaseSound | null = null;
+  private keyboadingPlaying = false;
+
   constructor(
     scene:          Phaser.Scene,
     player:         Phaser.Physics.Arcade.Sprite,
@@ -106,7 +109,21 @@ export class HackingSystem {
     this.gateSkillCheckTimer          = 0;
     this.gateNextSkillCheckThreshold  = Phaser.Math.Between(2500, 5000);
     this.gateLockUntil                = 0;
+    this._setKeyboarding(false);
     this.promptManager.hide();
+  }
+
+  private _setKeyboarding(active: boolean) {
+    if (active === this.keyboadingPlaying) return;
+    this.keyboadingPlaying = active;
+    if (active) {
+      if (!this.sfxKeyboarding) {
+        this.sfxKeyboarding = this.scene.sound.add('keyboarding', { loop: true, volume: 0.5 });
+      }
+      this.sfxKeyboarding.play();
+    } else {
+      this.sfxKeyboarding?.stop();
+    }
   }
 
   onHackLockApplied() {
@@ -255,6 +272,7 @@ export class HackingSystem {
           this._runHackSkillCheck(nearTerminal);
         }
       }
+      this._setKeyboarding(true);
       return;
     }
 
@@ -267,6 +285,7 @@ export class HackingSystem {
     this.hackHoldTimer    = 0;
     this.terminals.setWorking(null);
     this.hud.setHackProgress(null);
+    this._setKeyboarding(false);
 
     // ── Gate ─────────────────────────────────────────────────────────────────
     let nearAnyGate = false;
@@ -283,6 +302,7 @@ export class HackingSystem {
       }
 
       if (this.interactionActive && this.scene.time.now >= this.gateLockUntil) {
+        this._setKeyboarding(true);
         this.gateOpenTimer += delta;
         while (this.gateOpenTimer >= GATE_TICK_MS) {
           this.gateOpenTimer -= GATE_TICK_MS;
@@ -296,16 +316,20 @@ export class HackingSystem {
           if (!this.skillCheck.active) this._runGateSkillCheck(id);
         }
       } else if (!this.interactionActive) {
+        this._setKeyboarding(false);
         this.gateOpenTimer       = 0;
         this.gateSkillCheckTimer = 0;
       }
       break;
     }
 
-    if (!nearAnyGate && this.openingGate !== null) {
-      this.openingGate         = null;
-      this.gateOpenTimer       = 0;
-      this.gateSkillCheckTimer = 0;
+    if (!nearAnyGate) {
+      if (this.openingGate !== null) {
+        this.openingGate         = null;
+        this.gateOpenTimer       = 0;
+        this.gateSkillCheckTimer = 0;
+      }
+      this._setKeyboarding(false);
     }
 
     const exitGate = this.gates.getOpenGateForExit(this.player.x, this.player.y);

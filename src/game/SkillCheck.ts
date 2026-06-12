@@ -78,8 +78,13 @@ export class SkillCheck {
     if (inGreat) this.showGreatFeedback();
     this.hide();
 
-    if (inSuccess) this.onSuccess?.(inGreat);
-    else           this.onFail?.();
+    if (inSuccess) {
+      this.scene.sound.play('skillCheckGood', { volume: 0.8 });
+      this.onSuccess?.(inGreat);
+    } else {
+      this.scene.sound.play('skillCheckBad', { volume: 0.8 });
+      this.onFail?.();
+    }
   }
 
   private showGreatFeedback() {
@@ -115,6 +120,7 @@ export class SkillCheck {
   cancel() {
     if (!this.active) return;
     this.hide();
+    this.scene.sound.play('skillCheckBad', { volume: 0.8 });
     this.onFail?.();
   }
 
@@ -129,6 +135,7 @@ export class SkillCheck {
 
     if (this.totalRotation >= 1.0) {
       this.hide();
+      this.scene.sound.play('skillCheckBad', { volume: 0.8 });
       this.onFail?.();
       return;
     }

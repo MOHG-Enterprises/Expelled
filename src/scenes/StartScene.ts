@@ -43,6 +43,7 @@ export class StartScene extends Phaser.Scene {
       frameWidth: 120,
       frameHeight: 50,
     });
+    this.load.audio('buttonClick', './audio/buttonClick.wav');
   }
 
   create() {
@@ -72,6 +73,7 @@ export class StartScene extends Phaser.Scene {
 
     const startGame = () => {
       (this.sound as { context?: AudioContext }).context?.resume();
+      this.sound.play('buttonClick', { volume: 0.5 });
       if (this.scale.isFullscreen === false) {
         this.scale.startFullscreen();
       }
