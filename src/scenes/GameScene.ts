@@ -1008,6 +1008,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.updateTerminalArrows(
           this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
+          this._getGateArrowPositions(),
         );
       }
       if (this.myRole === 'survivor') {
@@ -1148,10 +1149,11 @@ export class GameScene extends Phaser.Scene {
         this.movement.lookAngle,
         nearTermInfo,
       );
-const cam = this.cameras.main;
+      const cam = this.cameras.main;
       this.hud.updateTerminalArrows(
         this._terminalPositionsOutsideFov(), this.terminals.getCompleted(),
         cam.scrollX, cam.scrollY, cam.width, cam.height,
+        this._getGateArrowPositions(),
       );
     }
 

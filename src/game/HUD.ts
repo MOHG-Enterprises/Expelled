@@ -534,6 +534,7 @@ export class HUD {
     camY: number,
     screenW: number,
     screenH: number,
+    gatePositions: Record<string, { x: number; y: number }> = {},
   ) {
     this.arrowGraphics.clear();
     const now = Date.now();
@@ -604,6 +605,24 @@ export class HUD {
       const ey    = cy + dy * t;
       const flash = Math.floor(now / 200) % 2 === 0;
       this._drawHealAlertArrow(ex, ey, angle, flash ? 1.0 : 0.3);
+    });
+
+    const gateFlash = Math.floor(now / 350) % 2 === 0;
+    Object.values(gatePositions).forEach((pos) => {
+      if (!pos) return;
+      const sx = pos.x - camX;
+      const sy = pos.y - camY;
+      if (sx >= 0 && sx <= screenW && sy >= 0 && sy <= screenH) return;
+      const dx = sx - cx;
+      const dy = sy - cy;
+      if (dx === 0 && dy === 0) return;
+      const angle = Math.atan2(dy, dx);
+      const maxX  = screenW - margin;
+      const maxY  = screenH - margin;
+      const tX    = dx !== 0 ? (dx > 0 ? maxX - cx : margin - cx) / dx : Infinity;
+      const tY    = dy !== 0 ? (dy > 0 ? maxY - cy : margin - cy) / dy : Infinity;
+      const t     = Math.min(Math.abs(tX), Math.abs(tY));
+      this._drawArrowTriangle(cx + dx * t, cy + dy * t, angle, 0x00e676, gateFlash ? 0.95 : 0.35);
     });
   }
 
