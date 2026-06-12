@@ -4,7 +4,8 @@ import type { TerminalId, Vec2 } from '../types';
 
 interface TerminalObj {
   sprite: Phaser.GameObjects.Sprite;
-  bar:  Phaser.GameObjects.Rectangle;
+  bar:    Phaser.GameObjects.Rectangle;
+  label:  Phaser.GameObjects.Text;
 }
 
 export class TerminalManager {
@@ -24,6 +25,7 @@ export class TerminalManager {
   private completed        = new Set<TerminalId>();
   private failingTerminals = new Set<TerminalId>();
   private regressingTerminals = new Set<TerminalId>();
+  private hiddenTerminals  = new Set<TerminalId>();
 
   private auraGraphics: Phaser.GameObjects.Graphics | null = null;
   private auraTween:    Phaser.Tweens.Tween | null = null;
@@ -109,11 +111,11 @@ export class TerminalManager {
           .rectangle(pos.x - 16, pos.y + 20, 0, 5, 0x00e676)
           .setDepth(3)
           .setOrigin(0, 0.5);
-        this.scene.add
+        const label = this.scene.add
           .text(pos.x, pos.y - 24, id, { fontSize: '10px', color: '#ccc' })
           .setOrigin(0.5)
           .setDepth(3);
-        this.objects[id] = { sprite, bar };
+        this.objects[id] = { sprite, bar, label };
       }
 
       this.setProgress(id, t.progress);
@@ -152,11 +154,18 @@ export class TerminalManager {
   }
 
   getCount(): { done: number; total: number } {
-    return { done: this.completed.size, total: Object.keys(this.objects).length };
+    const total = (Object.keys(this.objects) as TerminalId[])
+      .filter((id) => !this.hiddenTerminals.has(id)).length;
+    return { done: this.completed.size, total };
   }
 
   getPositions(): Readonly<Partial<Record<TerminalId, Vec2>>> {
-    return this.positions;
+    if (this.hiddenTerminals.size === 0) return this.positions;
+    const out: Partial<Record<TerminalId, Vec2>> = {};
+    (Object.keys(this.positions) as TerminalId[]).forEach((id) => {
+      if (!this.hiddenTerminals.has(id)) out[id] = this.positions[id];
+    });
+    return out;
   }
 
   getCompleted(): ReadonlySet<TerminalId> {
@@ -171,7 +180,7 @@ export class TerminalManager {
     let best: TerminalId | null = null;
     let bestDist = Infinity;
     (Object.keys(this.objects) as TerminalId[]).forEach((id) => {
-      if (this.completed.has(id)) return;
+      if (this.completed.has(id) || this.hiddenTerminals.has(id)) return;
       const pos = this.positions[id];
       if (!pos) return;
       const d = Phaser.Math.Distance.Between(x, y, pos.x, pos.y);
@@ -210,7 +219,7 @@ export class TerminalManager {
     this.auraGraphics.clear();
     this.auraGraphics.lineStyle(3, 0xffcc00, 1);
     (Object.keys(this.positions) as TerminalId[]).forEach((id) => {
-      if (this.completed.has(id)) return;
+      if (this.completed.has(id) || this.hiddenTerminals.has(id)) return;
       const pos = this.positions[id];
       if (!pos) return;
       this.auraGraphics!.strokeCircle(pos.x, pos.y, TerminalManager.AURA_RADIUS);
@@ -231,5 +240,17 @@ export class TerminalManager {
       t.bar.setFillStyle(0x333333);
       t.sprite.setTint(0x555555);
     });
+  }
+
+  hideIncomplete() {
+    (Object.keys(this.objects) as TerminalId[]).forEach((id) => {
+      const t = this.objects[id];
+      if (!t || this.completed.has(id)) return;
+      this.hiddenTerminals.add(id);
+      t.sprite.setVisible(false);
+      t.bar.setVisible(false);
+      t.label.setVisible(false);
+    });
+    if (this.auraActive) this._redrawAura();
   }
 }

@@ -4,7 +4,8 @@ export const HACK_FAIL_LOCK_MS = 3000;
 export const HACK_AMOUNT_MAX = 2;
 export const HACK_EFFICIENCY_PENALTY = 15;
 export const HACK_KICK_REGRESSION = 5;
-export const HACK_REGRESSION_RATE_PCT_S = 0.278;
+// export const HACK_REGRESSION_RATE_PCT_S = 0.278;
+export const HACK_REGRESSION_RATE_PCT_S = 2
 export const HACK_REGRESSION_EVENTS_MAX = 8;
 
 export const ATTACK_STAGGER_HIT_MS = 2700;

@@ -13,6 +13,7 @@ import {
   FOV_PROFESSOR,
   FOV_PROFESSOR_CONE_DEG,
   SURVIVOR_SPAWN_POINTS,
+  GATE_POSITIONS,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { buildTilemap, preloadMapAssets, COLLISION_LAYERS } from '../mapConfig';
@@ -529,6 +530,7 @@ export class GameScene extends Phaser.Scene {
       if (state.gatesPowered) {
         this.gates.setPowered('g1');
         this.gates.setPowered('g2');
+        this.terminals.hideIncomplete();
       }
       for (const id of ['g1', 'g2'] as GateId[]) {
         if (state.gates[id] > 0) this.gates.setProgress(id, state.gates[id]);
@@ -678,6 +680,7 @@ export class GameScene extends Phaser.Scene {
     s.on('gatesPowered', () => {
       this.gates.setPowered('g1');
       this.gates.setPowered('g2');
+      this.terminals.hideIncomplete();
       this.hud.flash('Portões de saída disponíveis!', 0x00e676);
     });
 
@@ -883,6 +886,14 @@ export class GameScene extends Phaser.Scene {
 
   // ── Update ─────────────────────────────────────────────────────────────────
 
+  private _getGateArrowPositions(): Record<string, { x: number; y: number }> {
+    const out: Record<string, { x: number; y: number }> = {};
+    (Object.keys(GATE_POSITIONS) as GateId[]).forEach((id) => {
+      if (this.gates.isPowered(id) && !this.gates.isOpen(id)) out[id] = GATE_POSITIONS[id];
+    });
+    return out;
+  }
+
   private _isPlayerOnGrass(): boolean {
     if (!this.chaoLayer) return false;
     const tile = this.chaoLayer.getTileAtWorldXY(this.player.x, this.player.y);
@@ -1004,6 +1015,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.updateDownedArrows(
           this._getDownedArrowPositions(),
           cam.scrollX, cam.scrollY, cam.width, cam.height,
+          this._getGateArrowPositions(),
         );
       }
       this.players.update(this.time.now, this._busySurvivorIds());
@@ -1148,6 +1160,7 @@ const cam = this.cameras.main;
       this.hud.updateDownedArrows(
         this._getDownedArrowPositions(),
         cam.scrollX, cam.scrollY, cam.width, cam.height,
+        this._getGateArrowPositions(),
       );
     }
 

@@ -122,9 +122,13 @@ export const GATE_POSITIONS: Record<GateId, { x: number; y: number }> = {
   g2: { x: 93 * 32 + 16, y: 94 * 32 + 16 },
 };
 
-export const GATE_TILE_RANGES: Record<GateId, { col: number; rowStart: number; rowEnd: number }> = {
-  g1: { col: 12, rowStart: 70, rowEnd: 75 },
-  g2: { col: 12, rowStart: 47, rowEnd: 52 },
+export const GATE_TILE_RANGES: Record<GateId, {
+  colStart: number; colEnd: number;
+  rowStart: number; rowEnd: number;
+  exit: 'left' | 'down';
+}> = {
+  g1: { colStart: 12, colEnd: 12, rowStart: 46, rowEnd: 53, exit: 'left' },
+  g2: { colStart: 87, colEnd: 92, rowStart: 97, rowEnd: 99, exit: 'down' },
 };
 
 export const FEIRA_PRODUCT_ID  = 0;
