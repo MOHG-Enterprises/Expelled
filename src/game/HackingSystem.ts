@@ -184,7 +184,7 @@ export class HackingSystem {
       const pos = this.terminals.getPositions()[nearT]!;
       this.promptManager.show(pos.x, pos.y, 64, 64, 'Hackear', input);
     } else if (nearS) {
-      this.promptManager.show(nearS.x, nearS.y, 16, 16, 'Abrir Portão', input);
+      this.promptManager.show(nearS.x, nearS.y, 32, 32, 'Abrir Portão', input);
     } else {
       this.promptManager.hide();
     }
