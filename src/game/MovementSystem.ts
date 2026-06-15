@@ -22,6 +22,7 @@ export interface MovementContext {
   isSwinging:        boolean;
   skinId:            string;
   ghost:             boolean;
+  powerSpeedBonus:   number;
 }
 
 export class MovementSystem {
@@ -57,7 +58,7 @@ export class MovementSystem {
 
     let speed: number;
     if (ctx.role === 'professor') {
-      speed = PROFESSOR_SPEED + BLOODLUST_SPEED_BONUS_PX_S[ctx.bloodlustTier];
+      speed = PROFESSOR_SPEED + BLOODLUST_SPEED_BONUS_PX_S[ctx.bloodlustTier] + ctx.powerSpeedBonus;
       if (ctx.attackHoldActive && !ctx.isSwinging) speed *= 1.5;
     } else {
       if (ctx.ghost) {

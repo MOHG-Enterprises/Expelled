@@ -22,6 +22,7 @@ import {
   PROFESSOR_LOCK_DURATION_MS,
   checkWinConditions,
 } from './gameState';
+import { KILLER_POWERS } from '../shared/gameRules';
 import { initVoiceWorker, registerVoiceSocket } from './voiceRouter';
 import type { EmitContext, GameStateRecord, GateId, TerminalId } from './types';
 import {
@@ -39,7 +40,7 @@ import { processEscape, tickBleedOut } from './systems/detention';
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new Server(server, { path: '/expelled/socket.io' });
+const io     = new Server(server);
 
 app.use(express.static(path.join(__dirname, '../')));
 
@@ -141,6 +142,7 @@ io.on('connection', (socket) => {
       expelled:           false,
       escaped:            false,
       lastAttackTime:     0,
+      lastPowerTime:      0,
       lookAngle:          0,
       downCount:          0,
       healPct:            0,
@@ -223,6 +225,20 @@ io.on('connection', (socket) => {
     socket.emit('roleAssigned', p.role);
     socket.emit('gameState', state);
     socket.emit('gamePhase', state.phase);
+  });
+
+  socket.on('useKillerPower', () => {
+    const room = getRoomForSocket(socket.id);
+    if (!room) return;
+    const { roomName, state } = room;
+    const p = state.players[socket.id];
+    if (!p || p.role !== 'professor' || state.phase !== 'playing') return;
+    const cfg = KILLER_POWERS[p.skinId];
+    if (!cfg) return;
+    const now = Date.now();
+    if (now - p.lastPowerTime < cfg.cooldownMs) return;
+    p.lastPowerTime = now;
+    io.to(roomName).emit('killerPowerUsed', { id: socket.id });
   });
 
   socket.on('move', (data: { x: number; y: number; angle?: number; sprinting?: boolean; dir?: string }) => {

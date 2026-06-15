@@ -14,6 +14,7 @@ import {
   FOV_PROFESSOR_CONE_DEG,
   SURVIVOR_SPAWN_POINTS,
   GATE_POSITIONS,
+  KILLER_POWERS,
 } from '../constants';
 import type { Role, GamePhase, GameState, TerminalId, GateId } from '../types';
 import { buildTilemap, preloadMapAssets, COLLISION_LAYERS } from '../mapConfig';
@@ -46,6 +47,11 @@ import {
 } from '../game/playerSkins';
 
 const GRASS_GIDS = new Set([37, 38, 62, 63]);
+
+// Ícone do super poder por skinId de killer (carregado no preload).
+const KILLER_POWER_ICONS: Record<string, { key: string; path: string }> = {
+  boi: { key: 'power-boi', path: './personagens/killers/professor/icon/Icon_Power_Boi.png' },
+};
 
 interface PostGameStats {
   [socketId: string]: {
@@ -128,6 +134,8 @@ export class GameScene extends Phaser.Scene {
   private professorReleaseTimer: Phaser.Time.TimerEvent | null = null;
   private professorReleaseDone   = false;
   private matchAudioPending      = false;
+  private powerActiveUntil       = 0;
+  private powerCooldownUntil     = 0;
   private sfxFootstep:      Phaser.Sound.BaseSound | null = null;
   private sfxFootstepKey    = '';
 
@@ -254,6 +262,8 @@ export class GameScene extends Phaser.Scene {
     this.professorReleaseTimer?.remove(false);
     this.professorReleaseTimer = null;
     this.professorReleaseDone  = false;
+    this.powerActiveUntil      = 0;
+    this.powerCooldownUntil    = 0;
     this.endgameBellsRung.clear();
     this.survivorOrder = [];
     this.survivorInfo.clear();
@@ -282,6 +292,7 @@ export class GameScene extends Phaser.Scene {
       frameWidth: 32, frameHeight: 32,
     });
     this.load.spritesheet('botaoSaida', './botaoSaida.png', { frameWidth: 16, frameHeight: 16 });
+    Object.values(KILLER_POWER_ICONS).forEach(({ key, path }) => this.load.image(key, path));
     this.load.audio('skillCheckGood',  './audio/skillCheck_good.wav');
     this.load.audio('skillCheckBad',   './audio/skillCheck_bad.wav');
     this.load.audio('keyboarding',     './audio/keyboarding.ogg');
@@ -300,7 +311,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(data?: { socket?: Socket; skinId?: string; roomName?: string }) {
-    this.socket   = data?.socket ?? io({ path: '/expelled/socket.io' });
+    this.socket   = data?.socket ?? io();
     this.mySkinId = data?.skinId ?? '';
     this.resetLocalState();
 
@@ -477,6 +488,10 @@ export class GameScene extends Phaser.Scene {
       if (role === 'professor') {
         this.terminals.setAuraMode(true);
         this.gates.setAuraMode(true);
+        const powerIcon = KILLER_POWER_ICONS[this.mySkinId];
+        if (powerIcon && KILLER_POWERS[this.mySkinId]) {
+          this.hud.setupPowerMeter(powerIcon.key);
+        }
       }
       if (role === 'survivor') {
         this.trackSurvivor(s.id!, { hp: this.myHp, downed: false, expelled: false, escaped: false });
@@ -606,6 +621,10 @@ export class GameScene extends Phaser.Scene {
   private _bindFxEvents(s: Socket) {
     s.on('playerMoved', (data: { id: string; x: number; y: number; sprinting?: boolean; dir?: MoveDirection }) => {
       this.players.move(data.id, data.x, data.y, data.sprinting, data.dir);
+    });
+
+    s.on('killerPowerUsed', () => {
+      this.sound.play('soundTension', { volume: 0.8 });
     });
 
     s.on('scratchMark', ({ x, y, direction }: { x: number; y: number; direction: MoveDirection }) => {
@@ -894,6 +913,15 @@ export class GameScene extends Phaser.Scene {
     return out;
   }
 
+  private _tryUseKillerPower(): void {
+    const cfg = KILLER_POWERS[this.mySkinId];
+    if (!cfg) return;
+    if (this.time.now < this.powerCooldownUntil) return;
+    this.powerActiveUntil   = this.time.now + cfg.durationMs;
+    this.powerCooldownUntil = this.time.now + cfg.cooldownMs;
+    this.socket.emit('useKillerPower');
+  }
+
   private _isPlayerOnGrass(): boolean {
     if (!this.chaoLayer) return false;
     const tile = this.chaoLayer.getTileAtWorldXY(this.player.x, this.player.y);
@@ -1027,6 +1055,12 @@ export class GameScene extends Phaser.Scene {
       this.sprinting = input.sprinting;
     }
 
+    if (this.myRole === 'professor' && input.actionJust) {
+      this._tryUseKillerPower();
+    }
+    const powerActive = this.time.now < this.powerActiveUntil;
+    const powerCfg    = KILLER_POWERS[this.mySkinId];
+
     const movCtx = {
       role:             this.myRole,
       downed:           this.downed,
@@ -1037,7 +1071,17 @@ export class GameScene extends Phaser.Scene {
       isSwinging:       this.combat.isSwinging,
       skinId:           this.mySkinId,
       ghost:            this.ghost,
+      powerSpeedBonus:  powerActive && powerCfg ? powerCfg.speedBonus : 0,
     };
+
+    if (this.myRole === 'professor' && powerCfg) {
+      const remaining = Math.max(0, this.powerCooldownUntil - this.time.now);
+      this.hud.setPowerState({
+        ratio:  1 - remaining / powerCfg.cooldownMs,
+        active: powerActive,
+        ready:  remaining <= 0,
+      });
+    }
 
     const { vx, vy, intendedToMove } = this.movement.update(input, movCtx, pad, delta);
     this.movement.applyVelocity(vx, vy);

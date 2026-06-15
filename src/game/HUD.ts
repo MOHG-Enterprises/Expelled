@@ -3,6 +3,7 @@ import type { Role } from '../types';
 import { ENDGAME_DURATION_MS } from '../constants';
 import { ProgressBar } from './hud/ProgressBar';
 import { SurvivorCard } from './hud/SurvivorCard';
+import { PowerMeter, type PowerMeterState } from './hud/PowerMeter';
 
 export interface SurvivorStatus {
   label:       string;
@@ -67,6 +68,7 @@ export class HUD {
 
   private hackBar!:  ProgressBar;
   private healBar!:  ProgressBar;
+  private powerMeter: PowerMeter | null = null;
   private ghostLabel!: Phaser.GameObjects.Text;
   private survivorCards: SurvivorCard[] = [];
 
@@ -194,6 +196,7 @@ export class HUD {
     this.endgameTimerText.setPosition(w / 2, 4);
     this.hackBar.reposition(w / 2 - 130, h - 120, h - 135, h - 120);
     this.healBar.reposition(w / 2 - 130, h - 136, h - 151, h - 120);
+    this.powerMeter?.reposition(w, h);
 
     if (this.hudTerminals.text) {
       const iconSize = 16;
@@ -525,6 +528,18 @@ export class HUD {
     this.professorCountdownTimer = null;
     this.professorCountdownText?.destroy();
     this.professorCountdownText = null;
+  }
+
+  setupPowerMeter(iconKey: string): void {
+    if (this.powerMeter) return;
+    this.powerMeter = new PowerMeter(this.scene, iconKey);
+  }
+
+  setPowerState(state: PowerMeterState | null): void {
+    if (!this.powerMeter) return;
+    if (!state) { this.powerMeter.setVisible(false); return; }
+    this.powerMeter.setVisible(true);
+    this.powerMeter.setState(state);
   }
 
   updateTerminalArrows(

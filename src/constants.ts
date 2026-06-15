@@ -29,7 +29,9 @@ export {
   MAX_PLAYERS_PER_ROOM,
   MIN_SURVIVORS_TO_START,
   TERMINAL_SPAWN_POOL,
+  KILLER_POWERS,
 } from '../shared/gameRules';
+export type { KillerPowerConfig } from '../shared/gameRules';
 
 //  mundo 
 export const WORLD_WIDTH  = 1600;

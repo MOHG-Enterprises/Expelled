@@ -28,6 +28,7 @@ export interface PlayerRecord {
   expelled: boolean;
   escaped: boolean;
   lastAttackTime: number;
+  lastPowerTime:  number;
   activeLunge?: { hitTargets: Set<string> };
   lookAngle: number;
   downCount:         0 | 1 | 2;

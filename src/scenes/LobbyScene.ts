@@ -152,7 +152,7 @@ export class LobbyScene extends Phaser.Scene {
   private _click() { this.sound.play('buttonClick', { volume: 0.5 }); }
 
   create() {
-    this.socket = io({ path: '/expelled/socket.io' });
+    this.socket = io();
 
     this.cameras.main.setBackgroundColor('#1a1a2e');
     this.cameras.main.centerOn(400, 300);

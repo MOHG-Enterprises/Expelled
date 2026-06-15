@@ -41,6 +41,17 @@ export const HEAL_EFFICIENCY_PENALTY = 15;
 export const MAX_PLAYERS_PER_ROOM = 5;
 export const MIN_SURVIVORS_TO_START = 2;
 
+// Super poderes dos killers, indexados por skinId. Cada killer terá um poder diferente.
+export interface KillerPowerConfig {
+  speedBonus: number;  // px/s somados ao PROFESSOR_SPEED enquanto ativo
+  durationMs: number;  // tempo que o poder fica ativo
+  cooldownMs: number;  // tempo de recarga após ativar
+}
+
+export const KILLER_POWERS: Record<string, KillerPowerConfig> = {
+  boi: { speedBonus: 52, durationMs: 3_000, cooldownMs: 30_000 }, // 208 -> 260 px/s por 3s
+};
+
 export const TERMINAL_SPAWN_POOL: Vec2[] = [
   { x: 2140, y: 2520 },
   { x: 785,  y: 86   },
